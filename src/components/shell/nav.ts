@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Database, LayoutDashboard, Landmark, Map, MessagesSquare, Mic2, Radio } from "lucide-react";
+import { Activity, BarChart3, Columns2, BookOpen, Database, LayoutDashboard, Landmark, Map, MessagesSquare, Mic2, Radio } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -23,13 +23,15 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
         { href: "/debates", label: "Debates", icon: Mic2, match: (p) => p.startsWith("/debates") && !p.endsWith("/live") },
         { href: live, label: "Ao Vivo", icon: Radio, match: (p) => p.endsWith("/live") },
         { href: "/ao-vivo", label: "Ingestão", icon: Radio, match: (p) => p.startsWith("/ao-vivo") },
+        { href: "/monitoramento", label: "Monitoramento", icon: Activity, match: (p) => p.startsWith("/monitoramento") },
         { href: "/social", label: "Repercussão", icon: MessagesSquare, match: (p) => p.startsWith("/social") },
       ],
     },
     {
       label: "Explorar",
       items: [
-        { href: "/elections", label: "Eleições", icon: Landmark, match: (p) => p.startsWith("/elections"), phase: "P1" },
+        { href: "/elections", label: "Eleições", icon: Landmark, match: (p) => p.startsWith("/elections") || p.startsWith("/candidatos") },
+        { href: "/comparar", label: "Comparar", icon: Columns2, match: (p) => p.startsWith("/comparar") },
         { href: "/map", label: "Mapa", icon: Map, match: (p) => p.startsWith("/map") },
         { href: "/analyses", label: "Análises", icon: BarChart3, match: (p) => p.startsWith("/analyses"), phase: "P2" },
       ],
