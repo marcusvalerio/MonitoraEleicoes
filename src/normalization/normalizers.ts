@@ -1,0 +1,329 @@
+import type { Candidate, Debate, MediaArticle, Party, SocialMetric, SocialPost, TopicId, TranscriptSegment } from "@/domain/types";
+import { MODERATOR_SPEAKER_ID } from "@/domain/types";
+import type { PartyVisualIdentity } from "@/domain/identity";
+import { NEUTRAL_ENTITY_COLOR } from "@/domain/identity";
+import type { RecordRef } from "@/domain/provenance";
+import type { ConfidenceLevel } from "@/domain/quality";
+import { confidenceLevel } from "@/domain/quality";
+import type { GeoMetric } from "@/geo/types";
+import { getRegion } from "@/geo/reference";
+import { NormalizationError } from "@/providers/errors";
+import type { RawRecord } from "@/providers/contracts";
+import type * as D from "./schemas/demo";
+import type * as F from "./schemas/fixture";
+import type { NormalizationContext } from "./context";
+
+/**
+ * NORMALIZADORES — um por esquema de origem. Entram registros brutos, saem entidades
+ * de domínio. Registros inválidos lançam NormalizationError (contabilizados, nunca
+ * "corrigidos" silenciosamente).
+ */
+export type Normalized =
+  | { type: "debate"; value: Debate; blocks: { id: string; label: string }[] }
+  | { type: "segment"; value: TranscriptSegment }
+  | { type: "party"; value: Party; identity?: PartyVisualIdentity }
+  | { type: "candidate"; value: Candidate }
+  | { type: "identity"; value: PartyVisualIdentity }
+  | { type: "social_metric"; value: SocialMetric }
+  | { type: "social_post"; value: SocialPost }
+  | { type: "geo_metric"; value: GeoMetric }
+  | { type: "article"; value: MediaArticle };
+
+type Fn = (r: RawRecord, ctx: NormalizationContext, sourceId: string) => Normalized;
+
+const ref = (r: RawRecord): RecordRef => ({ recordId: `${r.providerId}:${r.externalId}`, externalId: r.externalId, providerId: r.providerId });
+const fail = (r: RawRecord, msg: string, field: string | null = null): never => {
+  throw new NormalizationError(r.providerId, r.externalId, msg, field);
+};
+const nonNeg = (r: RawRecord, v: unknown, field: string): number => {
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0) fail(r, `${field} deve ser número ≥ 0`, field);
+  return v as number;
+};
+const str = (r: RawRecord, v: unknown, field: string): string => {
+  if (typeof v !== "string" || !v.trim()) fail(r, `${field} ausente`, field);
+  return v as string;
+};
+const isoOk = (r: RawRecord, v: unknown, field: string): string => {
+  if (typeof v !== "string" || Number.isNaN(Date.parse(v))) fail(r, `${field} não é data ISO`, field);
+  return v as string;
+};
+function mapCounts(r: RawRecord, m: Record<string, number>, resolve: (k: string) => string | null, field: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(m ?? {})) {
+    const id = resolve(k);
+    if (!id) continue; // entidade não reconhecida: ignorada (não inventamos atribuição)
+    out[id] = (out[id] ?? 0) + nonNeg(r, v, `${field}.${k}`);
+  }
+  return out;
+}
+function checkSegmentTimes(r: RawRecord, start: number, end: number) {
+  if (!(end > start) || start < 0) fail(r, "intervalo de tempo inválido (fim ≤ início)", "time");
+}
+
+// ───────── DEMO ─────────
+
+const demoEvent: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as D.DemoEventV1;
+  const value: Debate = {
+    id: str(r, p.id, "id"),
+    title: str(r, p.title, "title"),
+    broadcaster: p.broadcaster,
+    officeLabel: p.office_label,
+    electionYear: p.election_year,
+    round: p.round,
+    startsAt: isoOk(r, p.starts_at, "starts_at"),
+    endsAt: isoOk(r, p.ends_at, "ends_at"),
+    status: p.status,
+    participantIds: p.participant_refs.map((x) => ctx.candidateByRef(x) ?? fail(r, `participante não resolvido: ${x}`, "participant_refs")),
+    sourceIds: [sourceId],
+    mode: ctx.mode,
+  };
+  return { type: "debate", value, blocks: p.blocks };
+};
+
+const demoSegment: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as D.DemoSegmentV1;
+  checkSegmentTimes(r, p.start_s, p.end_s);
+  const speaker = ctx.speakerByRef(p.speaker_ref) ?? fail(r, `orador não resolvido: ${p.speaker_ref}`, "speaker_ref");
+  return {
+    type: "segment",
+    value: {
+      id: r.externalId,
+      debateId: p.event_id,
+      seq: p.seq,
+      speakerId: speaker,
+      startOffset: p.start_s,
+      endOffset: p.end_s,
+      text: str(r, p.text, "text"),
+      blockId: p.block_id,
+      addressedToId: ctx.candidateByRef(p.addressed_to_ref),
+      provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) },
+    },
+  };
+};
+
+const demoParty: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as D.DemoPartyV1;
+  return { type: "party", value: { id: str(r, p.id, "id"), acronym: str(r, p.acronym, "acronym"), name: p.name, number: p.number, provenance: { nature: "official", sourceId, mode: ctx.mode, record: ref(r) } } };
+};
+
+const demoCandidate: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as D.DemoCandidateV1;
+  if (!ctx.parties.has(p.party_ref)) fail(r, `partido desconhecido: ${p.party_ref}`, "party_ref");
+  return {
+    type: "candidate",
+    value: { id: str(r, p.id, "id"), name: str(r, p.name, "name"), ballotName: p.ballot_name, partyId: p.party_ref, officeId: p.office, initials: p.initials, swatch: NEUTRAL_ENTITY_COLOR, provenance: { nature: "official", sourceId, mode: ctx.mode, record: ref(r) } },
+  };
+};
+
+const demoIdentity: Fn = (r) => {
+  const p = r.payload as D.DemoPartyIdentityV1;
+  if (!/^#[0-9a-f]{6}$/i.test(p.color)) fail(r, "cor inválida", "color");
+  return { type: "identity", value: { partyId: p.party_ref, acronym: p.acronym, color: p.color, validFrom: p.valid_from, validTo: p.valid_to, source: p.source } };
+};
+
+const demoCount: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as D.DemoSocialCountV1;
+  const platform = ctx.platformByName(p.platform) ?? fail(r, `plataforma desconhecida: ${p.platform}`, "platform");
+  return {
+    type: "social_metric",
+    value: {
+      platform,
+      bucketStart: nonNeg(r, p.window_start_s, "window_start_s"),
+      bucketSize: nonNeg(r, p.window_s, "window_s"),
+      posts: nonNeg(r, p.posts, "posts"),
+      mentionsByCandidate: mapCounts(r, p.mentions, (k) => ctx.candidateByRef(k), "mentions"),
+      byTopic: mapCounts(r, p.topics, (k) => ctx.topicByLabel(k), "topics") as Partial<Record<TopicId, number>>,
+      provenance: { nature: "collected", sourceId: `${sourceId}-${platform}`, mode: ctx.mode, record: ref(r) },
+    },
+  };
+};
+
+const demoPost: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as D.DemoSocialPostV1;
+  return {
+    type: "social_post",
+    value: {
+      id: r.externalId,
+      platform: ctx.platformByName(p.platform) ?? fail(r, "plataforma desconhecida", "platform"),
+      offset: nonNeg(r, p.offset_s, "offset_s"),
+      text: p.text,
+      authorHandle: p.author,
+      mentionsCandidateIds: p.mentions.map((m) => ctx.candidateByRef(m)).filter((x): x is string => !!x),
+      topic: ctx.topicByLabel(p.topic),
+      terms: p.terms,
+      url: r.sourceUrl,
+      provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) },
+    },
+  };
+};
+
+const demoRegion: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as D.DemoRegionCountV1;
+  if (!getRegion(p.region_key)) fail(r, `território desconhecido: ${p.region_key}`, "region_key");
+  return {
+    type: "geo_metric",
+    value: {
+      regionKey: p.region_key,
+      bucketStart: nonNeg(r, p.window_start_s, "window_start_s"),
+      bucketSize: nonNeg(r, p.window_s, "window_s"),
+      posts: nonNeg(r, p.posts, "posts"),
+      mentionsByCandidate: mapCounts(r, p.mentions, (k) => ctx.candidateByRef(k), "mentions"),
+      byTopic: mapCounts(r, p.topics, (k) => ctx.topicByLabel(k), "topics") as Partial<Record<TopicId, number>>,
+      location: { precision: p.location.precision, source: p.location.source, confidence: p.location.confidence },
+      provenance: { nature: "collected", sourceId: "src-demo-geo", mode: ctx.mode, record: ref(r) },
+    },
+  };
+  void sourceId;
+};
+
+const demoArticle: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as D.DemoArticleV1;
+  return {
+    type: "article",
+    value: {
+      id: r.externalId,
+      outlet: str(r, p.outlet, "outlet"),
+      title: str(r, p.title, "title"),
+      url: r.sourceUrl,
+      publishedAt: isoOk(r, p.published_at, "published_at"),
+      debateId: p.event_id,
+      topics: p.topics.map((t) => ctx.topicByLabel(t)).filter((t): t is TopicId => !!t),
+      provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) },
+    },
+  };
+};
+
+// ───────── FIXTURE ─────────
+
+const fxParty: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as F.FixturePartyV2;
+  const number = Number(p.ballot_number);
+  if (!Number.isInteger(number)) fail(r, "número de urna inválido", "ballot_number");
+  return {
+    type: "party",
+    value: { id: str(r, p.code, "code"), acronym: str(r, p.short, "short"), name: p.full_name, number, provenance: { nature: "official", sourceId, mode: ctx.mode, record: ref(r) } },
+    identity: { partyId: p.code, acronym: p.short, color: p.brand.hex, validFrom: p.brand.since, validTo: p.brand.until, source: p.brand.ref },
+  };
+};
+
+const fxCandidate: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as F.FixtureCandidateV2;
+  const partyId = ctx.partyByRef(p.party_code) ?? fail(r, `partido desconhecido: ${p.party_code}`, "party_code");
+  const initials = p.full_name.split(" ").filter(Boolean).map((w) => w[0]).filter((_, i, a) => i === 0 || i === a.length - 1).join("").toUpperCase();
+  return {
+    type: "candidate",
+    value: { id: str(r, p.code, "code"), name: str(r, p.full_name, "full_name"), ballotName: p.full_name, partyId, officeId: "presidente", initials, swatch: NEUTRAL_ENTITY_COLOR, provenance: { nature: "official", sourceId, mode: ctx.mode, record: ref(r) } },
+  };
+};
+
+const fxShow: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as F.FixtureShowV2;
+  const round = p.race.round === 2 ? 2 : 1;
+  const value: Debate = {
+    id: str(r, p.show_id, "show_id"),
+    title: str(r, p.name, "name"),
+    broadcaster: p.network,
+    officeLabel: p.race.office,
+    electionYear: p.race.year,
+    round,
+    startsAt: isoOk(r, p.scheduled.start, "scheduled.start"),
+    endsAt: isoOk(r, p.scheduled.end, "scheduled.end"),
+    status: p.finished ? "ended" : p.on_air ? "live" : "scheduled",
+    participantIds: p.lineup.map((n) => ctx.candidateByRef(n) ?? fail(r, `participante não resolvido: ${n}`, "lineup")),
+    sourceIds: [sourceId],
+    mode: ctx.mode,
+  };
+  return { type: "debate", value, blocks: [] };
+};
+
+const fxCue: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as F.FixtureCueV2;
+  checkSegmentTimes(r, p.start_ms, p.end_ms);
+  const speaker = ctx.speakerByRef(p.speaker) ?? fail(r, `orador não resolvido: ${p.speaker}`, "speaker");
+  const ev = ctx.events.get(p.show_id) ?? fail(r, `evento desconhecido: ${p.show_id}`, "show_id");
+  let blockId = ev.blocks.get(p.section);
+  if (!blockId) {
+    blockId = `b${ev.blocks.size}`;
+    ev.blocks.set(p.section, blockId);
+  }
+  return {
+    type: "segment",
+    value: {
+      id: r.externalId,
+      debateId: p.show_id,
+      seq: Number(p.cue_id.replace(/\D/g, "")) || 0,
+      speakerId: speaker,
+      startOffset: p.start_ms / 1000,
+      endOffset: p.end_ms / 1000,
+      text: str(r, p.caption, "caption"),
+      blockId,
+      addressedToId: speaker === MODERATOR_SPEAKER_ID ? null : ctx.candidateByRef(p.target),
+      provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) },
+    },
+  };
+};
+
+const fxCounts = (r: RawRecord, ctx: NormalizationContext, entities: { name: string; count: number }[], topics: { label: string; count: number }[]) => ({
+  mentionsByCandidate: mapCounts(r, Object.fromEntries(entities.map((e) => [e.name, e.count])), (k) => ctx.candidateByRef(k), "by_entity"),
+  byTopic: mapCounts(r, Object.fromEntries(topics.map((t) => [t.label, t.count])), (k) => ctx.topicByLabel(k) ?? (k === "Outros" ? "outros" : null), "by_topic") as Partial<Record<TopicId, number>>,
+});
+
+const fxVolume: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as F.FixtureVolumeV2;
+  const platform = ctx.platformByName(p.platform_name) ?? fail(r, `plataforma desconhecida: ${p.platform_name}`, "platform_name");
+  const start = ctx.eventOffset(p.show_id, isoOk(r, p.window.start, "window.start")) ?? fail(r, "evento desconhecido", "show_id");
+  const end = ctx.eventOffset(p.show_id, isoOk(r, p.window.end, "window.end"))!;
+  return {
+    type: "social_metric",
+    value: { platform, bucketStart: start, bucketSize: end - start, posts: nonNeg(r, p.total, "total"), ...fxCounts(r, ctx, p.by_entity, p.by_topic), provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) } },
+  };
+};
+
+const GEO_METHOD: Record<F.FixtureRegionalV2["geo"]["method"], GeoMetric["location"]["source"]> = { gps: "geotag", bio: "profile", mention: "text_mention" };
+
+const fxRegional: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as F.FixtureRegionalV2;
+  const regionKey = ctx.regionByUfCity(p.uf, p.city) ?? fail(r, `UF desconhecida: ${p.uf}`, "uf");
+  const start = ctx.eventOffset(p.show_id, isoOk(r, p.window.start, "window.start")) ?? fail(r, "evento desconhecido", "show_id");
+  const end = ctx.eventOffset(p.show_id, isoOk(r, p.window.end, "window.end"))!;
+  const confidence: ConfidenceLevel = confidenceLevel(p.geo.score);
+  return {
+    type: "geo_metric",
+    value: {
+      regionKey,
+      bucketStart: start,
+      bucketSize: end - start,
+      posts: nonNeg(r, p.count, "count"),
+      ...fxCounts(r, ctx, p.by_entity, p.by_topic),
+      location: { precision: p.city ? "municipality" : "state", source: GEO_METHOD[p.geo.method], confidence },
+      provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) },
+    },
+  };
+};
+
+export const NORMALIZERS: Record<string, Fn> = {
+  "demo.event/v1": demoEvent,
+  "demo.segment/v1": demoSegment,
+  "demo.party/v1": demoParty,
+  "demo.candidate/v1": demoCandidate,
+  "demo.party_identity/v1": demoIdentity,
+  "demo.social.count/v1": demoCount,
+  "demo.social.post/v1": demoPost,
+  "demo.social.region_count/v1": demoRegion,
+  "demo.media.article/v1": demoArticle,
+  "fixture.show/v2": fxShow,
+  "fixture.cue/v2": fxCue,
+  "fixture.party/v2": fxParty,
+  "fixture.candidate/v2": fxCandidate,
+  "fixture.volume/v2": fxVolume,
+  "fixture.regional/v2": fxRegional,
+};
+
+export function normalize(r: RawRecord, ctx: NormalizationContext, sourceId: string): Normalized {
+  const fn = NORMALIZERS[r.schema];
+  if (!fn) throw new NormalizationError(r.providerId, r.externalId, `esquema sem normalizador: ${r.schema}`, "schema");
+  if (!r.externalId) throw new NormalizationError(r.providerId, "?", "externalId ausente", "externalId");
+  if (Number.isNaN(Date.parse(r.collectedAt))) throw new NormalizationError(r.providerId, r.externalId, "collectedAt inválido", "collectedAt");
+  return fn(r, ctx, sourceId);
+}

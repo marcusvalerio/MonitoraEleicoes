@@ -5,7 +5,7 @@ import { Sidebar, MobileNav } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
 import { OfflineBanner } from "@/components/shell/OfflineBanner";
 import { getCurrentDebate } from "@/services/debates";
-import { getDataMode } from "@/providers/registry";
+import { getRepository } from "@/repository";
 
 const familjen = Familjen_Grotesk({ subsets: ["latin"], variable: "--font-familjen", display: "swap" });
 const sora = Sora({ subsets: ["latin"], variable: "--font-sora", display: "swap" });
@@ -20,7 +20,7 @@ export const viewport: Viewport = { themeColor: "#0A0A0B", colorScheme: "dark" }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const debate = await getCurrentDebate();
-  const mode = getDataMode();
+  const status = (await getRepository()).getDataStatus();
   return (
     <html lang="pt-BR" className={`${familjen.variable} ${sora.variable} ${inter.variable}`}>
       <body>
@@ -31,7 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Sidebar currentDebateId={debate?.status === "live" ? debate.id : null} />
           <div className="flex min-w-0 flex-1 flex-col">
             <OfflineBanner />
-            <Topbar debate={debate} mode={mode} />
+            <Topbar debate={debate} status={status} />
             <main id="conteudo" className="flex-1 pb-20 lg:pb-0">
               {children}
             </main>

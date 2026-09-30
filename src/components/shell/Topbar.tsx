@@ -3,9 +3,9 @@ import type { Debate } from "@/domain/types";
 import { fmtDate } from "@/lib/format";
 import { SearchTrigger } from "./CommandPalette";
 import { LogoMark } from "./Logo";
-import { DataStatus } from "./DataStatus";
+import { DataStatus, type DataStatusInfo } from "./DataStatus";
 
-export function Topbar({ debate, mode }: { debate: Debate | null; mode: "demo" | "live" }) {
+export function Topbar({ debate, status }: { debate: Debate | null; status: DataStatusInfo }) {
   const live = debate?.status === "live";
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
@@ -34,7 +34,7 @@ export function Topbar({ debate, mode }: { debate: Debate | null; mode: "demo" |
           <div className="md:hidden">
             <SearchTrigger compact />
           </div>
-          <DataStatus mode={mode} live={!!live} />
+          <DataStatus status={status} live={!!live} />
         </div>
       </div>
     </header>

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ExternalLink } from "lucide-react";
-import { getProviders } from "@/providers/registry";
-import { getDemoDataset } from "@/data/demo/generate";
+import { getRepository } from "@/repository";
 import { SOURCE_TYPE_LABEL } from "@/domain/labels";
 import type { SourceStatus, SourceType } from "@/domain/types";
 import { fmtDateTime, fmtInt } from "@/lib/format";
@@ -11,33 +10,28 @@ import { Notice } from "@/components/ui/states";
 export const metadata: Metadata = { title: "Fontes" };
 
 const STATUS: Record<SourceStatus, { label: string; tone: "pos" | "warn" | "neg" | "neutral" | "info" }> = {
-  active: { label: "Ativa", tone: "pos" },
+  connected: { label: "Conectada", tone: "pos" },
   degraded: { label: "Degradada", tone: "warn" },
-  unavailable: { label: "Indisponível", tone: "neg" },
-  pending: { label: "Pendente (P1)", tone: "info" },
+  offline: { label: "Offline", tone: "neg" },
+  not_configured: { label: "Não configurada", tone: "info" },
   demo: { label: "Demo", tone: "warn" },
 };
 
 const ORDER: SourceType[] = ["official", "transcript", "ai_analysis", "social", "media"];
 
 export default async function SourcesPage() {
-  const p = getProviders();
-  const sources = await p.sources.list();
-  const ds = getDemoDataset();
-  const counts: Record<string, number> = {
-    "src-demo-transcript": ds.segments.length,
-    "src-demo-ai": ds.classifications.length,
-    "src-demo-social": ds.posts.length,
-  };
-  for (const m of ds.metrics) counts[m.provenance.sourceId] = (counts[m.provenance.sourceId] ?? 0) + 1;
-  const platforms = p.social.platforms();
+  const repo = await getRepository();
+  const sources = repo.getSources();
+  const platforms = repo.platforms();
+  const reports = repo.getReports();
+  const p = { mode: repo.mode };
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 md:px-6">
       <PageHeader eyebrow="Fontes" title="De onde vem cada dado" description="Toda informação exibida aponta para uma fonte registrada, com tipo, provider, data de referência, data de coleta e status." />
       {p.mode === "demo" && (
         <Notice state="partial">
-          Modo demonstração: fontes marcadas <DemoBadge /> produzem dados fictícios. Fontes oficiais (TSE) aparecem como pendentes — nenhum número eleitoral é exibido até a importação oficial.
+          Modo demonstração: fontes marcadas <DemoBadge /> produzem dados fictícios. Fontes oficiais (TSE) aparecem como não configuradas — nenhum número eleitoral é exibido até a importação oficial.
         </Notice>
       )}
       {ORDER.map((type) => {
@@ -54,6 +48,7 @@ export default async function SourcesPage() {
                     <th className="px-3 py-2 font-normal">Referência</th>
                     <th className="px-3 py-2 font-normal">Coleta</th>
                     <th className="px-3 py-2 text-right font-normal">Registros</th>
+                    <th className="px-3 py-2 text-right font-normal">Rejeitados</th>
                     <th className="px-4 py-2 font-normal">Status</th>
                   </tr>
                 </thead>
@@ -71,8 +66,9 @@ export default async function SourcesPage() {
                       </td>
                       <td className="px-3 py-2.5 font-mono text-[11.5px] text-fg-2">{s.provider}</td>
                       <td className="px-3 py-2.5 text-fg-2 tnum">{fmtDateTime(s.timestamp)}</td>
-                      <td className="px-3 py-2.5 text-fg-2 tnum">{s.status === "pending" || s.status === "unavailable" ? "—" : fmtDateTime(s.collectedAt)}</td>
-                      <td className="px-3 py-2.5 text-right text-fg tnum">{counts[s.id] ? fmtInt(counts[s.id]) : "—"}</td>
+                      <td className="px-3 py-2.5 text-fg-2 tnum">{s.status === "not_configured" || s.status === "offline" ? "—" : fmtDateTime(s.collectedAt)}</td>
+                      <td className="px-3 py-2.5 text-right text-fg tnum">{s.recordCount ? fmtInt(s.recordCount) : "—"}</td>
+                      <td className={`px-3 py-2.5 text-right tnum ${s.ingestion?.rejected ? "text-warn" : "text-fg-3"}`}>{s.ingestion ? fmtInt(s.ingestion.rejected) : "—"}</td>
                       <td className="px-4 py-2.5">
                         <Tag tone={STATUS[s.status].tone} dot>{STATUS[s.status].label}</Tag>
                       </td>
@@ -84,6 +80,34 @@ export default async function SourcesPage() {
           </Panel>
         );
       })}
+      <Panel title="Ingestão" question="Cada provider: registros recebidos, normalizados e rejeitados. Rejeições nunca são corrigidas silenciosamente." bodyClassName="overflow-x-auto">
+        <table className="w-full min-w-[720px] font-[family-name:var(--font-data)] text-[12px]">
+          <thead>
+            <tr className="border-b border-border text-left text-[11.5px] text-fg-3">
+              <th className="py-2 pr-3 font-normal">Provider · etapa</th>
+              <th className="px-3 py-2 text-right font-normal">Recebidos</th>
+              <th className="px-3 py-2 text-right font-normal">Normalizados</th>
+              <th className="px-3 py-2 text-right font-normal">Rejeitados</th>
+              <th className="py-2 pl-3 font-normal">Primeira rejeição</th>
+            </tr>
+          </thead>
+          <tbody>
+            {reports.map((r) => (
+              <tr key={`${r.providerId}-${r.kind}`} className="border-b border-border/70 last:border-0">
+                <td className="py-1.5 pr-3 font-mono text-[11px] text-fg-2">
+                  {r.providerId} · {r.kind}
+                </td>
+                <td className="px-3 py-1.5 text-right tnum">{fmtInt(r.fetched)}</td>
+                <td className="px-3 py-1.5 text-right tnum">{fmtInt(r.normalized)}</td>
+                <td className={`px-3 py-1.5 text-right tnum ${r.rejected ? "text-warn" : "text-fg-3"}`}>{fmtInt(r.rejected)}</td>
+                <td className="max-w-[320px] truncate py-1.5 pl-3 text-fg-3" title={r.issues[0]?.message}>
+                  {r.status === "failed" ? `Falha: ${r.message}` : r.issues[0] ? `${r.issues[0].externalId}: ${r.issues[0].message}` : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Panel>
       <Panel title="Acesso por plataforma" question="As plataformas não oferecem o mesmo nível de acesso — volumes não são diretamente comparáveis entre elas.">
         <ul className="grid gap-px overflow-hidden rounded-[var(--radius-md)] border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
           {platforms.map((pl) => (

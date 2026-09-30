@@ -1,5 +1,8 @@
 import type { Candidate, DebateEvent, SocialMetric, SpeechClassification, TopicId, TranscriptSegment } from "@/domain/types";
 import { TOPIC_LABEL } from "@/domain/labels";
+import type { Statement } from "@/domain/statements";
+import { temporalAssociation } from "@/domain/statements";
+import { wallClockLabel } from "./time";
 
 /**
  * EVENT ENGINE — deriva acontecimentos a partir de dados já existentes.
@@ -12,6 +15,10 @@ export interface EventEngineInput {
   metrics: SocialMetric[];
   candidates: Candidate[];
   mode: "demo" | "live";
+  /** Início do debate (ISO) — para rótulos de horário nas afirmações. */
+  startsAt?: string;
+  /** Fonte das análises derivadas. */
+  analysisSourceId?: string;
 }
 
 export function volumeByBucket(metrics: SocialMetric[]): Map<number, number> {
@@ -27,11 +34,21 @@ function sumRange(vol: Map<number, number>, from: number, to: number) {
 }
 
 export function detectEvents(input: EventEngineInput): DebateEvent[] {
+  const sourcesOf = (segs: TranscriptSegment[]) => [...new Set(segs.flatMap((x) => [x.provenance.sourceId, cls.get(x.id)?.provenance.sourceId ?? ""]).filter(Boolean))];
   const { segments, classifications, metrics, candidates, debateId, mode } = input;
   const cls = new Map(classifications.map((c) => [c.segmentId, c]));
   const name = (id: string) => candidates.find((c) => c.id === id)?.name ?? id;
   const vol = volumeByBucket(metrics);
-  const prov = { nature: "analysis" as const, sourceId: "src-demo-ai", mode };
+  const prov = { nature: "analysis" as const, sourceId: input.analysisSourceId ?? "src-analysis-engine", mode };
+  const clock = (t: number) => (input.startsAt ? wallClockLabel(input.startsAt, t) : `+${Math.round(t)}s`);
+  const measure = (m: { label: string; value: number; unit?: string }[], at: number, basis: string[]): Statement[] => {
+    const v = m.find((x) => x.unit === "%");
+    if (!v) return [];
+    return [
+      { kind: "measurement", text: `Volume de publicações ${v.value >= 0 ? "+" : ""}${v.value}% nos 5 minutos seguintes, comparado aos 5 anteriores.`, basis },
+      { kind: "interpretation", text: temporalAssociation("A variação de volume", `da sequência iniciada às ${clock(at)}`), basis },
+    ];
+  };
   const events: Omit<DebateEvent, "id" | "code">[] = [];
   const dataEnd = metrics.reduce((m, x) => Math.max(m, x.bucketStart + x.bucketSize), 0);
   // Só calcula variação quando a janela posterior está completa (evita números enganosos ao vivo).
@@ -73,7 +90,11 @@ export function detectEvents(input: EventEngineInput): DebateEvent[] {
       subtopic: c.subtopic,
       socialPostIds: [],
       metrics: socialMetrics(chain[chain.length - 1].endOffset),
-      sourceIds: ["src-demo-transcript", "src-demo-ai"],
+      sourceIds: sourcesOf(chain),
+      statements: [
+        { kind: "fact", text: `${name(q.speakerId)} dirigiu pergunta sobre ${TOPIC_LABEL[c.topic].toLowerCase()} a ${name(q.addressedToId)} às ${clock(q.startOffset)}.`, basis: chain.map((x) => x.id) },
+        ...measure(socialMetrics(chain[chain.length - 1].endOffset), chain[chain.length - 1].endOffset, chain.map((x) => x.id)),
+      ],
       provenance: prov,
     });
   }
@@ -96,7 +117,8 @@ export function detectEvents(input: EventEngineInput): DebateEvent[] {
       subtopic: c.subtopic,
       socialPostIds: [],
       metrics: [],
-      sourceIds: ["src-demo-ai"],
+      sourceIds: [c.provenance.sourceId],
+      statements: [{ kind: "fact", text: `Primeira fala classificada (automaticamente) com o tema ${TOPIC_LABEL[c.topic].toLowerCase()} às ${clock(s.startOffset)}.`, basis: [s.id] }],
       provenance: prov,
     });
   }
@@ -127,7 +149,11 @@ export function detectEvents(input: EventEngineInput): DebateEvent[] {
       subtopic: c?.subtopic ?? null,
       socialPostIds: [],
       metrics: [{ label: "Publicações no minuto", value: v }, { label: "Média do debate", value: Math.round(mean) }],
-      sourceIds: ["src-demo-social"],
+      sourceIds: [...new Set(metrics.map((m) => m.provenance.sourceId))],
+      statements: [
+        { kind: "measurement", text: `${v.toLocaleString("pt-BR")} publicações no minuto das ${clock(start)}, acima de média + 1,5 desvio-padrão (${Math.round(threshold)}).`, basis: [] },
+        ...(prev ? [{ kind: "interpretation" as const, text: temporalAssociation("O pico", `da fala de ${name(prev.speakerId)} (${clock(prev.startOffset)})`), basis: [prev.id] }] : []),
+      ],
       provenance: prov,
     });
   }
@@ -148,7 +174,11 @@ export function detectEvents(input: EventEngineInput): DebateEvent[] {
       subtopic: c.subtopic,
       socialPostIds: [],
       metrics: [],
-      sourceIds: ["src-demo-ai"],
+      sourceIds: [c.provenance.sourceId],
+      statements: [
+        { kind: "fact", text: `${name(s.speakerId)} citou dado numérico às ${clock(s.startOffset)}.`, basis: [s.id] },
+        { kind: "interpretation", text: "Afirmação marcada para verificação — não é um veredito sobre veracidade.", basis: [s.id] },
+      ],
       provenance: prov,
     });
   }

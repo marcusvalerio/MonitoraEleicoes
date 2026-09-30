@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight, Database, FlaskConical, ShieldCheck, Sigma, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { DataNature } from "@/domain/types";
+import { MISSING_LABEL, type DataValue } from "@/domain/quality";
 import { NATURE_DESCRIPTION, NATURE_LABEL } from "@/domain/labels";
 
 /**
@@ -69,8 +70,15 @@ export function SectionLabel({ index, children, className }: { index?: string; c
 }
 
 /** Variação percentual com seta; cor semântica apenas para direção (nunca para candidatos). */
-export function Delta({ value, className, neutral }: { value: number | null; className?: string; neutral?: boolean }) {
-  if (value === null || !Number.isFinite(value)) return <span className={cn("text-fg-3", className)}>—</span>;
+export function Delta({ value: input, className, neutral }: { value: number | null | DataValue<number>; className?: string; neutral?: boolean }) {
+  const value = input !== null && typeof input === "object" ? (input.kind === "value" ? input.value : null) : input;
+  const reason = input !== null && typeof input === "object" && input.kind !== "value" ? (input.reason ?? MISSING_LABEL[input.kind]) : "sem base de comparação";
+  if (value === null || !Number.isFinite(value))
+    return (
+      <span className={cn("text-fg-3", className)} title={reason} aria-label={reason}>
+        —
+      </span>
+    );
   const pct = Math.round(value * 100);
   const dir = Math.abs(pct) < 5 ? "flat" : pct > 0 ? "up" : "down";
   const tone = neutral || dir === "flat" ? "text-fg-2" : dir === "up" ? "text-pos" : "text-neg";

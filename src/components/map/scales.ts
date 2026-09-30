@@ -1,4 +1,5 @@
 import type { GeoAggregate } from "@/geo/types";
+import type { DataValue } from "@/domain/quality";
 
 export type MapLayer = "volume" | "partido" | "candidato" | "tema" | "tendencia";
 
@@ -26,8 +27,9 @@ export function quantize(v: number, max: number): number {
   return Math.min(SEQ.length - 1, Math.floor((v / max) * SEQ.length));
 }
 
-export function trendClass(t: number | null): keyof typeof DIV | null {
-  if (t === null) return null;
+export function trendClass(d: DataValue<number>): keyof typeof DIV | null {
+  if (d.kind !== "value") return null;
+  const t = d.value;
   if (t <= -0.2) return "down2";
   if (t <= -0.05) return "down1";
   if (t < 0.05) return "flat";

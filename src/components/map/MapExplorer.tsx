@@ -11,6 +11,7 @@ import { TOPIC_LABEL } from "@/domain/labels";
 import { fmtInt, fmtPct, wallClock } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Delta } from "@/components/ui/primitives";
+import { valueOr } from "@/domain/quality";
 import { StateView } from "@/components/ui/states";
 import { MapCanvas, type MapEntity } from "./MapCanvas";
 import { MapLegend } from "./MapLegend";
@@ -117,8 +118,8 @@ export function MapExplorer(p: MapExplorerProps) {
   const layerMeta = LAYERS.find((l) => l.id === layer)!;
   const detailKey = hover?.key ?? selected;
   const detail = detailKey ? byKey.get(detailKey) : undefined;
-  const tableRows = [...data.rows].sort((a, b) => (layer === "tendencia" ? (b.trend ?? -9) - (a.trend ?? -9) : b.topicPosts - a.topicPosts));
-  const focusKeys = focusEvent ? new Set(data.rows.filter((r) => (r.trend ?? 0) >= 0.2).map((r) => r.key)) : null;
+  const tableRows = [...data.rows].sort((a, b) => (layer === "tendencia" ? valueOr(b.trend, -9) - valueOr(a.trend, -9) : b.topicPosts - a.topicPosts));
+  const focusKeys = focusEvent ? new Set(data.rows.filter((r) => valueOr(r.trend, 0) >= 0.2).map((r) => r.key)) : null;
 
   const tooltip = (r: GeoAggregate) => {
     const e = entity(r.predominantCandidateId);
@@ -243,7 +244,7 @@ export function MapExplorer(p: MapExplorerProps) {
             <Info size={11} className="mr-1 inline -translate-y-px" aria-hidden />
             {layer === "partido" || layer === "candidato"
               ? "A cor identifica quem é mais mencionado; a intensidade, sua participação nas menções. Não indica apoio nem intenção de voto."
-              : `Considera ${fmtPct(data.totals.geolocatedShare)} das publicações (com localização inferida). Valores absolutos acompanham o tamanho da população.`}
+              : `Considera ${data.coverage.coveragePercentage === null ? "—" : fmtPct(data.coverage.coveragePercentage)} das publicações (localização inferida, não exata). Valores absolutos acompanham o tamanho da população.`}
           </p>
         </div>
 
@@ -282,6 +283,21 @@ export function MapExplorer(p: MapExplorerProps) {
 
       {!p.compact ? (
         <aside className="min-w-0 space-y-5 xl:border-l xl:border-border xl:pl-6" aria-label="Detalhes do território">
+          <dl className="grid grid-cols-3 gap-3 border-b border-border pb-4 text-[11.5px]" aria-label="Cobertura geográfica">
+            <div>
+              <dt className="text-fg-3">Analisadas</dt>
+              <dd className="mt-0.5 font-display text-[15px] font-semibold tnum">{fmtInt(data.coverage.totalRecords)}</dd>
+            </div>
+            <div>
+              <dt className="text-fg-3">Com localização</dt>
+              <dd className="mt-0.5 font-display text-[15px] font-semibold tnum">{fmtInt(data.coverage.geolocatedRecords)}</dd>
+            </div>
+            <div>
+              <dt className="text-fg-3">Cobertura</dt>
+              <dd className="mt-0.5 font-display text-[15px] font-semibold tnum">{data.coverage.coveragePercentage === null ? "—" : fmtPct(data.coverage.coveragePercentage)}</dd>
+            </div>
+            <dd className="col-span-3 text-[10.5px] leading-snug text-fg-3">Localização inferida (perfil, menção ou geotag) — nunca tratada como exata. Precisão: {Object.entries(data.coverage.byPrecision).map(([k, v]) => `${{ municipality: "município", state: "estado", country: "país", unknown: "desconhecida" }[k]} ${fmtPct((v ?? 0) / Math.max(1, data.coverage.geolocatedRecords))}`).join(" · ")}.</dd>
+          </dl>
           <div>
             <p className="eyebrow">Recorte</p>
             <p className="mt-1 font-display text-[28px] leading-none font-semibold tnum">{fmtInt(layer === "tema" ? data.totals.topicPosts : data.totals.posts)}</p>

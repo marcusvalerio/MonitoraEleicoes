@@ -1,11 +1,10 @@
 import "server-only";
-import { getProviders } from "@/providers/registry";
+import { getRepository } from "@/repository";
 import { getCurrentDebate, getDebateSnapshot } from "./debates";
 import { getMapBootstrap } from "./geo";
 import { topicMomentum } from "@/analytics/momentum";
 import { platformSeries, volumeChange } from "@/analytics/social";
 import { describeSegment } from "@/analytics/narrative";
-import { MODERATOR_ID } from "@/data/demo/entities";
 
 /** Dados da central de comando (Overview), calculados no servidor. */
 export async function getOverview() {
@@ -13,7 +12,8 @@ export async function getOverview() {
   if (!debate) return null;
   const s = await getDebateSnapshot(debate.id);
   if (!s) return null;
-  const metrics = await getProviders().social.metrics({ debateId: debate.id, bucketSize: 60, to: s.offset });
+  const metrics = (await getRepository()).getSocialMetrics(debate.id, { to: s.offset });
+  const MODERATOR_ID = s.moderatorId;
   const name = (id: string) => s.participants.find((p) => p.id === id)?.name ?? "Moderação";
 
   const lastSeg = [...s.segments].reverse().find((x) => x.speakerId !== MODERATOR_ID) ?? null;

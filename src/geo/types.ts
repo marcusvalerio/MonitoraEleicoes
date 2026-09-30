@@ -1,4 +1,5 @@
-import type { DataMode, Provenance, TopicId } from "@/domain/types";
+import type { DataMode, LocationPrecision, LocationSource, Provenance, TopicId } from "@/domain/types";
+import type { ConfidenceLevel, DataValue } from "@/domain/quality";
 
 /**
  * Camada geoespacial — independente de UI e de tecnologia de mapa.
@@ -49,6 +50,8 @@ export interface GeoMetric {
   posts: number;
   mentionsByCandidate: Record<string, number>;
   byTopic: Partial<Record<TopicId, number>>;
+  /** Como a localização foi obtida — inferida nunca é exata. */
+  location: { precision: LocationPrecision; source: LocationSource; confidence: ConfidenceLevel };
   provenance: Provenance;
 }
 
@@ -78,18 +81,20 @@ export interface GeoAggregate {
   predominantShare: number;
   topTopic: TopicId | null;
   topTopicShare: number;
-  /** Variação da última janela vs. a anterior (null = sem base). */
-  trend: number | null;
+  /** Variação da última janela vs. a anterior. Sem base suficiente ⇒ "unknown" (nunca 0). */
+  trend: DataValue<number>;
   hasChildren: boolean;
 }
 
 export interface GeoResponse {
   mode: DataMode;
+  /** Cobertura: total analisado × com localização utilizável. */
+  coverage: import("@/analytics/coverage").GeoCoverage;
   parent: { key: string; name: string; level: GeoLevelId };
   breadcrumb: { key: string; name: string }[];
   childLevel: GeoLevelId;
   rows: GeoAggregate[];
-  totals: { posts: number; topicPosts: number; geolocatedShare: number };
+  totals: { posts: number; topicPosts: number; geolocatedShare: number | null };
   window: { from: number; to: number; trendWindow: number };
   /** Motivo quando o nível pedido não possui granularidade para dados sociais. */
   unavailableReason: string | null;

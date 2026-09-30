@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { getDataMode } from "@/providers/registry";
+import { getRepository } from "@/repository";
 import { RELEVANCE_THRESHOLDS, RELEVANCE_WEIGHTS } from "@/domain/relevance";
-import { DEMO_MODEL } from "@/data/demo/generate";
 import { FACT_CHECK_LABEL, SPEECH_TYPE_LABEL, TONE_LABEL, TOPIC_LABEL } from "@/domain/labels";
 import { FACT_CHECK, SPEECH_TYPES, TONES, TOPICS } from "@/domain/types";
 import { DemoBadge, PageHeader, Tag } from "@/components/ui/primitives";
@@ -35,8 +34,10 @@ function S({ id, title, children }: { id: string; title: string; children: React
   );
 }
 
-export default function MethodologyPage() {
-  const mode = getDataMode();
+export default async function MethodologyPage() {
+  const repo = await getRepository();
+  const mode = repo.mode;
+  const ai = repo.getReports().find((r) => r.kind === "ai:classification");
   return (
     <div className="mx-auto max-w-[1100px] px-4 py-6 md:px-6">
       <PageHeader eyebrow="Metodologia · v1" title="Como o Monitora Eleições funciona" description="Não dizemos ao usuário o que pensar. Explicamos como cada dado foi obtido, transformado e classificado — e onde estão os limites." />
@@ -141,7 +142,7 @@ export default function MethodologyPage() {
             <p className="flex flex-wrap items-center gap-2">
               Modo atual: {mode === "demo" ? <DemoBadge /> : <Tag tone="pos">LIVE</Tag>}
             </p>
-            <p>No modo demonstração, todos os dados são fictícios e gerados de forma determinística: 4 participantes, cerca de 100 falas, 12 temas, eventos e repercussão social simulada. O classificador demo é <span className="font-mono text-[12px]">{DEMO_MODEL.model} v{DEMO_MODEL.version}</span>. Dados demo e reais nunca são misturados: a troca é feita no servidor pela variável <span className="font-mono text-[12px]">DATA_MODE</span>.</p>
+            <p>No modo demonstração, todos os dados são fictícios e gerados de forma determinística: 4 participantes, cerca de 100 falas, 12 temas, eventos e repercussão social simulada. Classificador em uso: <span className="font-mono text-[12px]">{ai?.providerId.replace("ai:", "") ?? "—"}</span>. Dados demo e reais nunca são misturados: a troca é feita no servidor pela variável <span className="font-mono text-[12px]">DATA_MODE</span>.</p>
           </S>
         </article>
       </div>

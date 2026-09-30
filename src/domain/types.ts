@@ -11,7 +11,10 @@ export type DataNature = "official" | "collected" | "ai" | "analysis";
 export type DataMode = "demo" | "live";
 
 export type SourceType = "official" | "social" | "media" | "transcript" | "ai_analysis";
-export type SourceStatus = "active" | "degraded" | "unavailable" | "pending" | "demo";
+export type { SourceStatus } from "./provenance";
+import type { SourceStatus } from "./provenance";
+import type { RecordRef, ProviderKind } from "./provenance";
+import type { ConfidenceLevel, DataValue } from "./quality";
 
 export interface Source {
   id: string;
@@ -27,13 +30,22 @@ export interface Source {
   mode: DataMode;
   description: string;
   recordCount: number;
+  /** Provider responsável e seu tipo (quando aplicável). */
+  providerId?: string;
+  providerKind?: ProviderKind;
+  license?: string;
 }
 
 export interface Provenance {
   nature: DataNature;
   sourceId: string;
   mode: DataMode;
+  /** Registro de origem (quando a entidade veio de um registro individual). */
+  record?: RecordRef;
 }
+
+/** Identificador do orador de moderação (independente de provider). */
+export const MODERATOR_SPEAKER_ID = "moderador";
 
 // ───────── Candidatos / partidos ─────────
 export interface Party {
@@ -41,6 +53,17 @@ export interface Party {
   acronym: string;
   name: string;
   number: number;
+  provenance?: Provenance;
+}
+
+/** Território eleitoral oficial (hierarquia TSE/IBGE). */
+export interface Territory {
+  key: string;
+  level: GeoLevel;
+  name: string;
+  parentKey: string | null;
+  ibgeCode: number | null;
+  tseCode: number | null;
 }
 
 export interface Candidate {
@@ -49,9 +72,10 @@ export interface Candidate {
   ballotName: string;
   partyId: string;
   officeId: string;
-  /** Cor neutra de identificação (nunca semântica). */
+  /** Cor de identificação derivada da PartyVisualIdentity vigente (nunca semântica). */
   swatch: string;
   initials: string;
+  provenance?: Provenance;
 }
 
 // ───────── Debate ─────────
@@ -175,6 +199,7 @@ export interface SpeechClassification {
   };
   factCheck: FactCheckStatus;
   confidence: number;
+  confidenceLevel: ConfidenceLevel;
   model: ModelInfo;
   classifiedAt: string;
   /** Revisão humana (P2). */
@@ -199,6 +224,8 @@ export interface DebateEvent {
   socialPostIds: string[];
   metrics: { label: string; value: number; unit?: string }[];
   sourceIds: string[];
+  /** Separação explícita entre fato, medição e interpretação. */
+  statements: import("./statements").Statement[];
   provenance: Provenance;
 }
 
@@ -224,6 +251,50 @@ export interface SocialPost {
   topic: TopicId | null;
   terms: string[];
   url: string | null;
+  provenance: Provenance;
+}
+
+/** Menções extraídas de publicações — entidades separadas do post. */
+export interface CandidateMention {
+  postId: string;
+  candidateId: string;
+  method: "exact_name" | "alias" | "model";
+  confidence: ConfidenceLevel;
+}
+export interface PartyMention {
+  postId: string;
+  partyId: string;
+  /** "direct" = sigla/nome do partido; "via_candidate" = atribuída pelo candidato citado. */
+  method: "direct" | "via_candidate";
+  confidence: ConfidenceLevel;
+}
+export interface TopicMention {
+  postId: string;
+  topic: TopicId;
+  confidence: ConfidenceLevel;
+  model: ModelInfo | null;
+}
+
+export type LocationPrecision = "country" | "state" | "municipality" | "unknown";
+export type LocationSource = "geotag" | "profile" | "text_mention" | "platform_region" | "none";
+
+/** Localização de uma publicação — inferida nunca é apresentada como exata. */
+export interface GeoMention {
+  postId: string;
+  regionKey: string | null;
+  precision: LocationPrecision;
+  source: LocationSource;
+  confidence: ConfidenceLevel;
+}
+
+export interface MediaArticle {
+  id: string;
+  outlet: string;
+  title: string;
+  url: string | null;
+  publishedAt: string;
+  debateId: string | null;
+  topics: TopicId[];
   provenance: Provenance;
 }
 
@@ -298,13 +369,13 @@ export interface ElectoralResult {
   level: GeoLevel;
   /** Chave da localidade no nível (ex.: "RJ", "RJ:60011", "RJ:125:34"). */
   locationKey: string;
-  eligibleVoters: number | null;
-  turnout: number | null;
-  abstention: number | null;
-  validVotes: number | null;
-  blankVotes: number | null;
-  nullVotes: number | null;
-  votesByCandidate: Record<string, number>;
+  eligibleVoters: DataValue<number>;
+  turnout: DataValue<number>;
+  abstention: DataValue<number>;
+  validVotes: DataValue<number>;
+  blankVotes: DataValue<number>;
+  nullVotes: DataValue<number>;
+  votesByCandidate: Record<string, DataValue<number>>;
   importBatchId: string;
   provenance: Provenance;
 }

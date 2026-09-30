@@ -6,8 +6,20 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/cn";
 import { useOnline } from "./OfflineBanner";
 
+export interface DataStatusInfo {
+  profile: string;
+  profileLabel: string;
+  mode: "demo" | "live";
+  overall: "connected" | "degraded" | "offline" | "not_configured" | "demo";
+  replay: boolean;
+  providers: { id: string; name: string; kind: string; configured: boolean }[];
+  issues: { failed: number; partial: number; rejected: number };
+  ingestedAt: string;
+}
+
 /** Indicador global do estado dos dados — o único lugar onde "DEMO" aparece. */
-export function DataStatus({ mode, live }: { mode: "demo" | "live"; live: boolean }) {
+export function DataStatus({ status, live }: { status: DataStatusInfo; live: boolean }) {
+  const mode = status.mode;
   const online = useOnline();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -22,9 +34,9 @@ export function DataStatus({ mode, live }: { mode: "demo" | "live"; live: boolea
       document.removeEventListener("keydown", esc);
     };
   }, [open]);
-  const state = !online ? "offline" : mode === "demo" ? "demo" : "ok";
-  const dot = { offline: "bg-neg", demo: "bg-warn", ok: "bg-pos" }[state];
-  const label = { offline: "Offline", demo: "Demo", ok: "Dados reais" }[state];
+  const state = !online ? "offline" : status.overall;
+  const dot = { offline: "bg-neg", demo: "bg-warn", connected: "bg-pos", degraded: "bg-warn", not_configured: "bg-fg-3" }[state];
+  const label = { offline: "Offline", demo: status.profile === "fixture" ? "Fixture" : "Demo", connected: "Dados reais", degraded: "Degradado", not_configured: "Sem fonte" }[state];
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="dialog" className="flex h-8 items-center gap-2 rounded-[var(--radius-md)] border border-border px-2.5 text-[11.5px] text-fg-2 transition-colors hover:border-border-strong hover:text-fg">
@@ -37,8 +49,10 @@ export function DataStatus({ mode, live }: { mode: "demo" | "live"; live: boolea
             <p className="eyebrow mb-2">Status dos dados</p>
             <dl className="space-y-2">
               {[
-                ["Modo", mode === "demo" ? "Demonstração — dados fictícios" : "Dados reais"],
-                ["Transmissão", live ? (mode === "demo" ? "Replay contínuo do debate demo" : "Ao vivo") : "Sem evento ao vivo"],
+                ["Perfil", `${status.profileLabel}${mode === "demo" ? " — dados fictícios" : ""}`],
+                ["Transmissão", live ? (status.replay ? "Replay contínuo" : "Ao vivo") : "Sem evento ao vivo"],
+                ["Providers", `${status.providers.filter((p) => p.configured).length} de ${status.providers.length} configurados`],
+                ["Registros rejeitados", String(status.issues.rejected)],
                 ["Conexão", online ? "Online" : "Offline — atualização pausada"],
                 ["Resultados eleitorais", "Aguardando importação oficial (TSE)"],
               ].map(([k, v]) => (

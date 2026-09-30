@@ -11,7 +11,7 @@ import { ClassificationTags } from "./tags";
 import { AnalysisPanel } from "./AnalysisPanel";
 import { EventList } from "./EventList";
 import { fmtClock, fmtDuration, wallClock } from "@/lib/format";
-import { demoReplayOffset } from "@/lib/demo-clock";
+import { replayOffset, type ClockSpec } from "@/lib/clock";
 import { cn } from "@/lib/cn";
 import { useOnline } from "@/components/shell/OfflineBanner";
 
@@ -23,7 +23,9 @@ interface InProgress {
 }
 
 export interface LiveDebateProps {
-  debate: { id: string; title: string; startsAt: string; broadcaster: string; mode: "demo" | "live" };
+  debate: { id: string; title: string; startsAt: string; broadcaster: string };
+  /** Relógio do perfil de dados (replay ou tempo real) — a UI não sabe se é demo. */
+  clock: ClockSpec;
   participants: Participant[];
   blocks: DebateBlock[];
   initial: { offset: number; totalEnd: number; segments: TranscriptSegment[]; classifications: SpeechClassification[]; events: DebateEvent[]; inProgress: InProgress | null };
@@ -34,7 +36,7 @@ export interface LiveDebateProps {
 const SPEEDS = [1, 4, 16] as const;
 const POLL_MS = 2500;
 
-export function LiveDebate({ debate, participants, blocks, initial, focusSegmentId, moderatorId }: LiveDebateProps) {
+export function LiveDebate({ debate, clock, participants, blocks, initial, focusSegmentId, moderatorId }: LiveDebateProps) {
   const online = useOnline();
   const [offset, setOffset] = useState(initial.offset);
   const [playing, setPlaying] = useState(true);
@@ -103,7 +105,7 @@ export function LiveDebate({ debate, participants, blocks, initial, focusSegment
   }, [fetchWindow, online]);
 
   const goLive = () => {
-    const target = debate.mode === "demo" ? demoReplayOffset(Date.now(), initial.totalEnd) : offset;
+    const target = clock.kind === "replay" ? replayOffset(Date.now(), initial.totalEnd, clock.minOffset) : Math.min(initial.totalEnd, (Date.now() - Date.parse(debate.startsAt)) / 1000);
     if (target < cursorRef.current) fetchWindow(0, target, true);
     setOffset(target);
     setPlaying(true);
@@ -330,7 +332,7 @@ export function LiveDebate({ debate, participants, blocks, initial, focusSegment
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            {ended ? <span className="text-2xs font-semibold tracking-wider text-fg-3">ENCERRADO</span> : <LiveDot label={debate.mode === "demo" ? "AO VIVO · REPLAY" : "AO VIVO"} />}
+            {ended ? <span className="text-2xs font-semibold tracking-wider text-fg-3">ENCERRADO</span> : <LiveDot label={clock.kind === "replay" ? "AO VIVO · REPLAY" : "AO VIVO"} />}
             <NatureBadge nature="collected" compact />
           </div>
           <h1 className="mt-1 font-display text-[22px] leading-tight font-bold tracking-tight uppercase md:text-[26px]">{debate.title}</h1>
@@ -344,7 +346,7 @@ export function LiveDebate({ debate, participants, blocks, initial, focusSegment
             <button type="button" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pausar" : "Retomar"} className="flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-fg-2 hover:bg-elevated hover:text-fg">
               {playing ? <Pause size={14} /> : <Play size={14} />}
             </button>
-            {debate.mode === "demo" &&
+            {clock.kind === "replay" &&
               SPEEDS.map((s) => (
                 <button key={s} type="button" onClick={() => setSpeed(s)} aria-pressed={speed === s} className={cn("h-7 rounded-[var(--radius-sm)] px-2 text-[11.5px] tnum", speed === s ? "bg-elevated text-fg" : "text-fg-3 hover:text-fg-2")}>
                   {s}×

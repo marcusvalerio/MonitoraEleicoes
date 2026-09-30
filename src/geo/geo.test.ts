@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { aggregateGeo, geoSeries, nextLevel } from "./aggregate";
 import { GEO_REGIONS, ancestorsOf, childrenOf, descendantsAt, isWithin } from "./reference";
 import { getDemoGeoMetrics } from "@/data/demo/geo";
-import { StaticGeoProvider } from "@/providers/mock/geo";
+import { SvgGeoProvider } from "@/providers/geo/svg";
 
 const metrics = getDemoGeoMetrics();
 const end = Math.max(...metrics.map((m) => m.bucketStart + m.bucketSize));
@@ -49,7 +49,8 @@ describe("agregação e drill-down", () => {
     for (const r of br) {
       if (r.predominantCandidateId) expect(r.predominantShare).toBeGreaterThan(0.25 - 1e-9);
       expect(r.predominantShare).toBeLessThanOrEqual(1);
-      if (r.trend !== null) expect(Number.isFinite(r.trend)).toBe(true);
+      if (r.trend.kind === "value") expect(Number.isFinite(r.trend.value)).toBe(true);
+      else expect(r.trend.reason).toBeTruthy();
     }
   });
   it("série nacional = soma das folhas", () => {
@@ -66,18 +67,14 @@ describe("agregação e drill-down", () => {
   });
 });
 
-describe("GeoProvider", () => {
-  const p = new StaticGeoProvider();
-  it("contornos de 27 UFs; município sem geometria", async () => {
+describe("SvgGeoProvider", () => {
+  const p = new SvgGeoProvider();
+  it("contornos de 27 UFs e 5 regiões; município sem geometria", async () => {
     const uf = await p.boundaries("uf");
     expect(uf?.boundaries).toHaveLength(27);
     expect(new Set(uf!.boundaries.map((b) => b.key)).has("UF:SP")).toBe(true);
     const reg = await p.boundaries("regiao");
     expect(new Set(reg!.boundaries.map((b) => b.key)).size).toBe(5);
     expect(await p.boundaries("municipio")).toBeNull();
-  });
-  it("não retorna dados futuros", async () => {
-    const m = await p.metrics("debate-presidencial-2026-1t", { to: 1200 });
-    expect(m.every((x) => x.bucketStart + x.bucketSize <= 1200)).toBe(true);
   });
 });

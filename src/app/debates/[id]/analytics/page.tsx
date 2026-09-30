@@ -17,7 +17,6 @@ import { ConversationChart } from "@/components/charts/ConversationChart";
 import { EventList } from "@/components/debate/EventList";
 import { AutoRefresh } from "@/components/shell/AutoRefresh";
 import { emptyComposition } from "@/analytics/debate";
-import { MODERATOR_ID } from "@/data/demo/entities";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Análise do debate" };
@@ -43,7 +42,7 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
     );
   }
 
-  const cand = s.segments.filter((x) => x.speakerId !== MODERATOR_ID);
+  const cand = s.segments.filter((x) => x.speakerId !== s.moderatorId);
   const analyzed = s.segments.reduce((a, x) => a + (x.endOffset - x.startOffset), 0);
   const count = (f: (t: string) => boolean) => s.classifications.filter((c) => f(c.speechType)).length;
   const mentionsTotal = s.classifications.reduce((a, c) => a + c.mentions.length, 0);

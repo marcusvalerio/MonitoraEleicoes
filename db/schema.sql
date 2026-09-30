@@ -145,3 +145,62 @@ create table geo_metric (
   primary key (debate_id, region_key, bucket_start)
 );
 create index on geo_metric (debate_id, bucket_start);
+
+-- ═════════ FASE 0.5 · Proveniência, RAW, ingestão ═════════
+-- Status de fonte alinhado ao domínio: connected | degraded | offline | not_configured | demo
+alter type source_status rename value 'active' to 'connected';
+alter type source_status rename value 'unavailable' to 'offline';
+alter type source_status rename value 'pending' to 'not_configured';
+
+-- Registro de origem: um por item recebido de um provider (auditável e deduplicável).
+create table source_record (
+  id text primary key,                         -- `${provider_id}:${external_id}`
+  source_id text not null references source(id),
+  provider_id text not null,
+  external_id text not null,
+  schema text not null,                        -- ex.: 'fixture.cue/v2'
+  source_url text,
+  published_at timestamptz,
+  collected_at timestamptz not null,
+  ingested_at timestamptz not null default now(),
+  payload_hash text not null,
+  unique (provider_id, external_id)
+);
+-- Payload bruto (quando os termos de uso permitem armazenar). Separado para retenção/expurgo próprios.
+create table raw_payload (record_id text primary key references source_record(id) on delete cascade, payload jsonb not null, retained_until timestamptz);
+
+create table ingestion_report (
+  id bigserial primary key, provider_id text not null, source_id text not null, kind text not null,
+  status text not null check (status in ('ok','partial','failed','skipped')),
+  fetched int not null, normalized int not null, rejected int not null, issues jsonb not null default '[]',
+  started_at timestamptz not null, finished_at timestamptz not null, message text
+);
+
+-- Referência ao registro de origem nas entidades normalizadas
+alter table transcript_segment add column source_record_id text references source_record(id);
+alter table social_post add column source_record_id text references source_record(id);
+alter table social_metric add column source_record_id text references source_record(id);
+alter table geo_metric add column source_record_id text references source_record(id);
+
+-- Localização inferida nunca é exata: precisão, origem e confiança explícitas
+alter table geo_metric
+  add column location_precision text not null default 'unknown' check (location_precision in ('country','state','municipality','unknown')),
+  add column location_source text not null default 'none' check (location_source in ('geotag','profile','text_mention','platform_region','none')),
+  add column location_confidence text not null default 'unknown' check (location_confidence in ('high','medium','low','unknown'));
+
+-- Identidade visual de partidos (cor = identificação; com vigência e fonte)
+create table party_visual_identity (party_id text not null references party(id), acronym text not null, color char(7) not null, valid_from date not null, valid_to date, source text not null, primary key (party_id, valid_from));
+
+-- Menções como entidades próprias (não embutidas no post)
+create table candidate_mention (post_id text not null references social_post(id), candidate_id text not null references candidate(id), method text not null, confidence text not null, primary key (post_id, candidate_id));
+create table party_mention (post_id text not null references social_post(id), party_id text not null references party(id), method text not null check (method in ('direct','via_candidate')), confidence text not null, primary key (post_id, party_id, method));
+create table topic_mention (post_id text not null references social_post(id), topic_id text not null references topic(id), confidence text not null, model text, model_version text, primary key (post_id, topic_id));
+
+-- Análise de IA com nível de confiança e vínculo ao RAW
+alter table speech_classification add column confidence_level text not null default 'unknown' check (confidence_level in ('high','medium','low','unknown'));
+
+-- Dados ausentes: NULL + motivo explícito (nunca 0)
+alter table electoral_result_section add column missing_reasons jsonb not null default '{}';  -- ex.: {"blank_votes":"not_available"}
+
+-- Afirmações de eventos separadas por natureza
+create table event_statement (event_id text not null references debate_event(id), idx int not null, kind text not null check (kind in ('fact','measurement','interpretation')), text text not null, basis text[] not null default '{}', primary key (event_id, idx));

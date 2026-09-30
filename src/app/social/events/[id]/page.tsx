@@ -1,12 +1,12 @@
 import { redirect, notFound } from "next/navigation";
-import { getProviders } from "@/providers/registry";
+import { getRepository } from "@/repository";
 
-/** Evento social → contexto no debate (P1 terá página própria com posts relacionados). */
+/** Evento social → contexto no debate. */
 export default async function SocialEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const p = getProviders();
-  for (const d of await p.transcript.listDebates()) {
-    const e = (await p.transcript.getEvents(d.id)).find((x) => x.id === id);
+  const repo = await getRepository();
+  for (const d of repo.listDebates()) {
+    const e = repo.getEvents(d.id).find((x) => x.id === id);
     if (e) redirect(`/debates/${d.id}/live?seg=${e.segmentIds[0] ?? ""}`);
   }
   notFound();

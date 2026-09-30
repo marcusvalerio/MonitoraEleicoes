@@ -1,4 +1,5 @@
 import type { TopicId } from "@/domain/types";
+import { missing, val } from "@/domain/quality";
 import type { GeoAggregate, GeoLevelId, GeoMetric } from "./types";
 import { childrenOf, descendantsAt, getRegion, isWithin } from "./reference";
 
@@ -74,7 +75,7 @@ export function aggregateGeo(metrics: GeoMetric[], o: AggregateOptions): GeoAggr
       predominantShare: mTotal ? pv / mTotal : 0,
       topTopic: tEntries[0]?.[0] ?? null,
       topTopicShare: tTotal && tEntries[0] ? tEntries[0][1] / tTotal : 0,
-      trend: a.previous >= 20 ? (a.recent - a.previous) / a.previous : null,
+      trend: a.previous >= 20 ? val((a.recent - a.previous) / a.previous) : missing("unknown", "base insuficiente (< 20 publicações na janela anterior)"),
       hasChildren: childrenOf(c.key).length > 0,
     };
   });

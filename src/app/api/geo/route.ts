@@ -16,5 +16,6 @@ export async function GET(req: Request) {
   if (topic && !TOPICS.includes(topic)) return NextResponse.json({ error: "tema inválido" }, { status: 400 });
   const r = await queryGeo({ debateId, parentKey, childLevel: level ?? undefined, from, to, topic });
   if (!r) return NextResponse.json({ error: "território não encontrado" }, { status: 404 });
-  return NextResponse.json(r, { headers: { "Cache-Control": "no-store" } });
+  // Somente métricas + metadados (cobertura); geometria vem de /api/geo/boundaries (cacheável).
+  return NextResponse.json(r, { headers: { "Cache-Control": "private, max-age=15" } });
 }

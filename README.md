@@ -13,7 +13,9 @@ npm run dev          # http://localhost:3000
 npm run check        # typecheck + lint + testes + build
 ```
 
-Funciona sem nenhuma API externa: `DATA_MODE=demo` (padrão). Todos os dados demo são fictícios e marcados como **DEMO DATA**.
+Funciona sem nenhuma API externa: `DATA_MODE=demo` (padrão). `DATA_MODE=fixture` usa providers alternativos (formatos de origem diferentes) para provar o desacoplamento. Todos os dados são fictícios; o indicador global do shell informa o perfil.
+
+Documentação: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/PROVIDERS.md`](docs/PROVIDERS.md) · [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · [`docs/GEO.md`](docs/GEO.md) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md)
 
 ## Arquitetura
 

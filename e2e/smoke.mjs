@@ -1,10 +1,11 @@
 import { chromium } from "playwright";
-const B = process.env.BASE_URL || "http://localhost:3000", D = "debate-presidencial-2026-1t";
+const B = process.env.BASE_URL || "http://localhost:3000", D = process.env.DEBATE_ID || "debate-presidencial-2026-1t";
+const EXTRA = process.env.DEBATE_ID ? [] : ["/debates/debate-presidencial-2026-sabatina", "/debates/debate-presidencial-2026-sabatina/analytics"];
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 const errs = []; p.on("pageerror", (e) => errs.push(String(e))); p.on("console", (m) => m.type() === "error" && errs.push(m.text()));
 let fail = 0; const ok = (c, m) => { console.log(c ? "PASS" : "FAIL", m); if (!c) fail++; };
-for (const r of ["/", "/overview", "/debates", `/debates/${D}`, `/debates/${D}/live`, `/debates/${D}/analytics`, "/social", "/map", "/map?territorio=UF:RJ", "/elections", "/elections/2026/RJ/rio", "/analyses", "/sources", "/methodology", "/debates/debate-presidencial-2026-sabatina", "/debates/debate-presidencial-2026-sabatina/analytics"]) {
+for (const r of ["/", "/overview", "/debates", `/debates/${D}`, `/debates/${D}/live`, `/debates/${D}/analytics`, "/social", "/map", "/map?territorio=UF:RJ", "/elections", "/elections/2026/RJ/rio", "/analyses", "/sources", "/methodology", "/api/debates", `/api/debates/${D}/transcript?limit=5`, "/api/repercussion?granularity=900", "/api/repercussion/candidates", "/api/elections/2026-geral/results", "/api/sources", ...EXTRA]) {
   const res = await p.goto(B + r, { waitUntil: "networkidle" }); ok(res.status() === 200, `${r} ${res.status()}`);
 }
 ok((await p.goto(B + "/debates/nope")).status() === 404, "404 debate inexistente");
@@ -23,6 +24,13 @@ await p.getByRole("radio", { name: "Tendência" }).click();
 await p.waitForTimeout(600);
 ok(/Tendência|crescendo/.test((await p.textContent("main")) ?? ""), "mapa: troca de camada");
 ok((await (await fetch(`${B}/api/geo?parent=UF:XX&to=100`)).status) === 404, "api geo: território inválido → 404");
+// Cobertura geográfica e contratos de API
+const geo = await (await fetch(`${B}/api/geo?debate=${D}&parent=BR&to=3000`)).json();
+ok(geo.coverage.totalRecords > geo.coverage.geolocatedRecords && geo.coverage.coveragePercentage > 0, `cobertura geo informada (${Math.round(geo.coverage.coveragePercentage * 100)}%)`);
+const res = await (await fetch(`${B}/api/elections/2026-geral/results`)).json();
+ok(res.meta.status === "not_collected" && res.data.length === 0, "resultados oficiais: not_collected (nunca zero)");
+const page = await (await fetch(`${B}/api/debates/${D}/transcript?limit=3`)).json();
+ok(page.data.length === 3 && page.meta.hasMore && page.data[0].analysis.model.model && page.data[0].record.externalId, "transcrição paginada com análise e registro de origem");
 // Busca
 await p.keyboard.press("Control+k"); await p.getByLabel("Termo de busca").fill("Helena"); await p.waitForTimeout(800);
 ok((await p.getByRole("dialog").getByText("Helena Duarte").count()) > 0, "busca global encontra candidato");

@@ -71,7 +71,7 @@ export function getDemoGeoMetrics(): GeoMetric[] {
       byTopic[others[0]] = Math.round(posts * 0.18);
       byTopic[others[1]] = Math.round(posts * 0.1);
       byTopic.outros = Math.max(0, posts - (byTopic[main]! + byTopic[others[0]]! + byTopic[others[1]]!));
-      out.push({ regionKey: leaf.key, bucketStart: b * GEO_BUCKET, bucketSize: GEO_BUCKET, posts, mentionsByCandidate, byTopic, provenance: { nature: "collected", sourceId: "src-demo-geo", mode: "demo" } });
+      out.push({ regionKey: leaf.key, bucketStart: b * GEO_BUCKET, bucketSize: GEO_BUCKET, posts, mentionsByCandidate, byTopic, location: { precision: "municipality", source: "profile", confidence: "medium" }, provenance: { nature: "collected", sourceId: "src-demo-geo", mode: "demo" } });
     });
   }
   cache = out;

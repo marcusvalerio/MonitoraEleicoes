@@ -8,6 +8,7 @@ import type {
   TopicId,
   TranscriptSegment,
 } from "@/domain/types";
+import { confidenceLevel } from "@/domain/quality";
 import { hasVerifiableClaim, isConcreteProposalType, relevanceBand, relevanceScore } from "@/domain/relevance";
 
 /**
@@ -24,6 +25,8 @@ export interface ClassifierOutput {
   mentions: string[];
   relevance: "baixa" | "media" | "alta";
   fact_check_required: boolean;
+  /** Status de checagem quando fornecido por um FactCheckProvider acoplado. */
+  fact_check_status?: import("@/domain/types").FactCheckStatus;
   confidence: number;
 }
 
@@ -102,6 +105,7 @@ export function toSpeechClassification(
     relevanceFeatures: opts.relevanceFeatures,
     factCheck: opts.factCheck ?? (out.fact_check_required ? "verificar" : "nao_necessario"),
     confidence: out.confidence,
+    confidenceLevel: confidenceLevel(out.confidence),
     model,
     classifiedAt: opts.classifiedAt,
     humanReviewed: false,
