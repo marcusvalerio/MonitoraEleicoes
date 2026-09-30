@@ -19,6 +19,8 @@ export class NormalizationContext {
   aliases = new Map<string, string[]>();
   /** externalId de evento → { debateId, startsAt } */
   events = new Map<string, { debateId: string; startsAt: string; blocks: Map<string, string> }>();
+  /** Debates conhecidos (ids de domínio) — fontes editoriais só se ligam a debates existentes. */
+  debateIds = new Set<string>();
 
   constructor(mode: DataMode, ingestedAt = new Date().toISOString()) {
     this.mode = mode;

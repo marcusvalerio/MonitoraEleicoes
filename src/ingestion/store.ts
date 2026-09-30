@@ -65,6 +65,10 @@ export class DataStore {
   rejections: { reportIndex: number; recordId: string | null; externalId: string; code: string; field: string | null; message: string }[] = [];
   /** Cursor de retomada por fluxo (ingestão incremental). */
   cursors = new Map<string, string | null>();
+  /** Cobertura editorial: fatos da fonte, interpretação versionada e o que cada coleta viu (detecção de remoção). */
+  editorial: import("@/domain/editorial").EditorialUpdate[] = [];
+  editorialAnalyses = new Map<string, import("@/domain/editorial").EditorialAnalysis>();
+  editorialSnapshots: { debateId: string; providerId: string; snapshot: import("@/providers/contracts").EditorialSnapshot }[] = [];
   ingestedAt = new Date().toISOString();
 
   push<K>(map: Map<K, unknown[]>, key: K, v: unknown) {

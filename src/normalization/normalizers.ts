@@ -27,7 +27,11 @@ export type Normalized =
   | { type: "social_metric"; value: SocialMetric }
   | { type: "social_post"; value: SocialPost }
   | { type: "geo_metric"; value: GeoMetric }
-  | { type: "article"; value: MediaArticle };
+  | { type: "article"; value: MediaArticle }
+  | { type: "editorial_update"; value: EditorialUpdate };
+
+import type { EditorialUpdate } from "@/domain/editorial";
+import { payloadHash } from "@/domain/provenance";
 
 type Fn = (r: RawRecord, ctx: NormalizationContext, sourceId: string) => Normalized;
 
@@ -473,4 +477,36 @@ const liveSegment: Fn = (r, ctx, sourceId) => {
   };
 };
 
-Object.assign(NORMALIZERS, { "live.event/v1": liveEvent, "live.segment/v1": liveSegment, "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });
+// ───────── COBERTURA EDITORIAL (g1) ─────────
+import type * as G1 from "./schemas/g1";
+
+const g1Post: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as G1.G1LivePostV1;
+  if (!p.post_id) fail(r, "post sem id", "post_id");
+  if (!ctx.debateIds.has(p.debate_id)) fail(r, `debate desconhecido: ${p.debate_id}`, "debate_id");
+  const text = str(r, p.text, "text");
+  if (!text.trim()) fail(r, "post sem texto", "text");
+  return {
+    type: "editorial_update",
+    value: {
+      id: `${p.debate_id}:${r.providerId}:${p.post_id}`,
+      debateId: p.debate_id,
+      providerId: r.providerId,
+      sourceId,
+      externalId: r.externalId,
+      url: p.url ?? p.page_url,
+      headline: p.headline,
+      text,
+      // horário só se a fonte informou; nunca estimado a partir da coleta
+      publishedAt: p.published_at,
+      modifiedAt: p.modified_at,
+      collectedAt: r.collectedAt,
+      contentHash: payloadHash(p),
+      parserVersion: p.parser_version,
+      strategy: p.strategy,
+      provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) },
+    },
+  };
+};
+
+Object.assign(NORMALIZERS, { "g1.live-post/v1": g1Post, "live.event/v1": liveEvent, "live.segment/v1": liveSegment, "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });

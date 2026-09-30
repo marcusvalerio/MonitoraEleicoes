@@ -68,5 +68,9 @@ export interface Repository {
   getDataStatus(): Promise<DataStatus>;
 
   /** Estado ao vivo INCREMENTAL: só segmentos com seq > afterSeq (consulta indexada). afterSeq < 0 = os `limit` mais recentes. */
-  getLiveState(debateId: string, afterSeq?: number, limit?: number): Promise<LiveState | null>;
+  getLiveState(debateId: string, afterSeq?: number, limit?: number, afterEditorial?: number): Promise<LiveState | null>;
+  /** Cobertura editorial completa de um debate (analytics, gráfico). */
+  getEditorial(debateId: string): Promise<import("@/domain/editorial").EditorialItem[]>;
+  /** Estado das fontes editoriais configuradas (página Fontes). */
+  getEditorialSources(): Promise<import("@/domain/editorial").EditorialSourceStatus[]>;
 }

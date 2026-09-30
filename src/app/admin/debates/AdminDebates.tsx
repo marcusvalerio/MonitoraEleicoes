@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { EditorialSourceStatus } from "@/domain/editorial";
 import { CONTROL_LABEL, TRANSITIONS, type DebateControl } from "@/control/debates";
 import { Tag, buttonCls } from "@/components/ui/primitives";
 import { fmtDateTime } from "@/lib/format";
@@ -11,6 +12,7 @@ export function AdminDebates() {
   const [token, setToken] = useState("");
   const [items, setItems] = useState<DebateControl[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [openSources, setOpenSources] = useState<string | null>(null);
   const call = useCallback(
     async (url: string, init?: RequestInit) => {
       const res = await fetch(url, { ...init, headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, cache: "no-store" });
@@ -101,6 +103,9 @@ export function AdminDebates() {
                 </td>
                 <td className="py-2 pl-3">
                   <div className="flex flex-wrap gap-1">
+                    <button type="button" className={buttonCls("ghost")} onClick={() => setOpenSources(openSources === c.id ? null : c.id)} data-testid={`sources-${c.id}`}>
+                      Fontes
+                    </button>
                     {TRANSITIONS[c.status].map((to) => (
                       <button key={to} type="button" className={buttonCls("secondary")} onClick={() => move(c.id, to)} data-testid={`to-${to}`}>
                         {CONTROL_LABEL[to]}
@@ -113,6 +118,7 @@ export function AdminDebates() {
           </tbody>
         </table>
       )}
+      {items && openSources && <SourcesEditor debateId={openSources} call={call} onMsg={setMsg} />}
       {items && (
         <form action={create} className="grid grid-cols-1 gap-3 rounded-[var(--radius-md)] border border-border bg-surface p-4 sm:grid-cols-3" data-testid="admin-form">
           <p className="text-[13px] font-semibold text-fg sm:col-span-3">Cadastrar debate</p>
@@ -125,10 +131,11 @@ export function AdminDebates() {
           <Labeled k="Provider">
             <select name="providerId" className={input} defaultValue="replay-transcript">
               <option value="replay-transcript">replay-transcript (replay temporizado)</option>
+              <option value="manifest-only">manifest-only (debate do manifesto; cobertura via fontes editoriais)</option>
             </select>
           </Labeled>
           <Labeled k="Modo">
-            <select name="sourceMode" className={input} defaultValue="replay">
+            <select name="sourceMode" className={input} defaultValue="replay" aria-label="Modo">
               <option value="replay">replay</option>
               <option value="live">live (fonte contínua)</option>
             </select>
@@ -162,5 +169,78 @@ function Labeled({ k, children }: { k: string; children: React.ReactNode }) {
       {k}
       {children}
     </label>
+  );
+}
+
+type Call = (url: string, init?: RequestInit) => Promise<unknown>;
+
+/** Fontes editoriais do debate: URL, intervalo, ativação, teste de conexão, estado (batimento, erro, registros). */
+function SourcesEditor({ debateId, call, onMsg }: { debateId: string; call: Call; onMsg: (m: string) => void }) {
+  const [rows, setRows] = useState<EditorialSourceStatus[] | null>(null);
+  const load = useCallback(async () => setRows((await call(`/api/admin/debates/${encodeURIComponent(debateId)}/sources`)) as EditorialSourceStatus[]), [call, debateId]);
+  useEffect(() => {
+    let alive = true;
+    call(`/api/admin/debates/${encodeURIComponent(debateId)}/sources`)
+      .then((d) => alive && setRows(d as EditorialSourceStatus[]))
+      .catch((e) => onMsg(String(e.message ?? e)));
+    return () => {
+      alive = false;
+    };
+  }, [call, debateId, onMsg]);
+  async function save(form: FormData) {
+    try {
+      await call(`/api/admin/debates/${encodeURIComponent(debateId)}/sources`, { method: "POST", body: JSON.stringify({ providerId: "g1-live-editorial", sourceUrl: String(form.get("sourceUrl") ?? "").trim() || null, pollingIntervalMs: Number(form.get("pollingIntervalMs")), enabled: false }) });
+      onMsg("Fonte salva (desativada). Teste a conexão e ative para iniciar a ingestão.");
+      await load();
+    } catch (e) {
+      onMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+  async function act(id: string, action: string) {
+    try {
+      const r = (await call(`/api/admin/sources/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ action }) })) as Record<string, unknown>;
+      if (action === "test") onMsg(r.ok ? `Conexão OK: ${r.updates} atualizações via ${r.strategy} (${r.ms} ms)` : `Falha no teste: ${r.error}`);
+      await load();
+    } catch (e) {
+      onMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+  const g1 = rows?.find((r) => r.providerId === "g1-live-editorial");
+  return (
+    <div className="space-y-3 rounded-[var(--radius-md)] border border-border bg-surface p-4" data-testid="sources-editor">
+      <p className="text-[13px] font-semibold text-fg">Fontes editoriais · {debateId}</p>
+      {g1 && (
+        <dl className="grid grid-cols-2 gap-2 text-[12px] sm:grid-cols-4" data-testid="source-status">
+          <div><dt className="text-fg-3">Estado</dt><dd>{g1.enabled ? "Ingestão ativa" : "Desativada"}{g1.sourceUrl ? "" : " · URL pendente"}</dd></div>
+          <div><dt className="text-fg-3">Último batimento</dt><dd>{g1.lastHeartbeatAt ? fmtDateTime(g1.lastHeartbeatAt) : "Não coletado"}</dd></div>
+          <div><dt className="text-fg-3">Última atualização da fonte</dt><dd>{g1.lastUpdateAt ? fmtDateTime(g1.lastUpdateAt) : "Não coletado"}</dd></div>
+          <div><dt className="text-fg-3">Registros</dt><dd data-testid="source-records">{g1.records === null ? "Não coletado" : g1.records}</dd></div>
+          {g1.lastError && <div className="col-span-full text-warn">Último erro: {g1.lastError}</div>}
+        </dl>
+      )}
+      <form action={save} className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <label className="block text-[12px] text-fg-3 sm:col-span-2">
+          URL da cobertura ao vivo do g1 (vazio = pendente)
+          <input name="sourceUrl" defaultValue={g1?.sourceUrl ?? ""} className={input} placeholder="https://g1.globo.com/…/ao-vivo/….ghtml" />
+        </label>
+        <label className="block text-[12px] text-fg-3">
+          Intervalo (ms)
+          <input name="pollingIntervalMs" type="number" min={5000} max={600000} step={1000} defaultValue={g1?.pollingIntervalMs ?? 15000} className={input} />
+        </label>
+        <div className="flex flex-wrap gap-2 sm:col-span-3">
+          <button type="submit" className={buttonCls("primary")}>Salvar fonte g1</button>
+          {g1 && (
+            <>
+              <button type="button" className={buttonCls("secondary")} onClick={() => act(g1.id, "test")} data-testid="source-test">Testar conexão</button>
+              {g1.enabled ? (
+                <button type="button" className={buttonCls("secondary")} onClick={() => act(g1.id, "disable")} data-testid="source-disable">Interromper ingestão</button>
+              ) : (
+                <button type="button" className={buttonCls("secondary")} onClick={() => act(g1.id, "enable")} data-testid="source-enable">Iniciar ingestão</button>
+              )}
+            </>
+          )}
+        </div>
+      </form>
+    </div>
   );
 }

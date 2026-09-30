@@ -45,7 +45,7 @@ debate_control ─ debate_control_event (cadastro e ciclo de vida por dados; bat
 - `analysis` é única por (segmento, modelo, versão do modelo, versão do prompt, versão da metodologia de relevância): reanálises **acrescentam** linhas; a leitura usa a mais recente (`distinct on … order by created_at desc`).
 - `transcript_segment.text` é RAW: só é atualizado se a origem mudar (o que também gera nova versão em `raw_record`).
 
-Migrations: `0001_init`, `0002_ingestion_job`, `0003_live_ingestion` (precisão `synthetic`, `source_mode`, `source_time`, `collected_at`, `ingested_at`, `asr_confidence`, `analysis.processed_at`, `debate_control`), `0004_worker_heartbeat`.
+Migrations: `0001_init`, `0002_ingestion_job`, `0003_live_ingestion` (precisão `synthetic`, `source_mode`, `source_time`, `collected_at`, `ingested_at`, `asr_confidence`, `analysis.processed_at`, `debate_control`), `0004_worker_heartbeat`, `0005_editorial_sources` (`debate_source`, `editorial_event`, `editorial_analysis`, sequência `editorial_change_seq`).
 
 Índices (padrões reais de acesso): `transcript_segment(debate_id, start_offset_s)`, `(debate_id, seq)`, `(speaker_id)`; `analysis(segment_id, created_at desc)`; `social_post(platform, published_at)`; `ingestion_run(provider_id, started_at desc)`; `entity_identifier(entity_type, entity_id)`; `data_quality_report(debate_id, created_at desc)`; `source_record(source_id)`; `ingestion_job(status, requested_at)`; `transcript_segment(debate_id, ingested_at)`; `debate_control(status, scheduled_start)`. A tela ao vivo usa `(debate_id, seq)` para buscar só segmentos novos.
 

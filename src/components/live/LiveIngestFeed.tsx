@@ -7,6 +7,8 @@ import { RELEVANCE_LABEL, SPEECH_TYPE_LABEL, TIMING_LABEL, TOPIC_LABEL } from "@
 import { fmtDecimal, fmtSeconds, fmtTime } from "@/lib/live-format";
 import { fmtInt } from "@/lib/format";
 import { LiveDot, Tag } from "@/components/ui/primitives";
+import type { EditorialItem } from "@/domain/editorial";
+import { EditorialPanel } from "./EditorialPanel";
 
 export interface SpeakerInfo {
   name: string;
@@ -36,13 +38,15 @@ export function LiveIngestFeed({ initial, speakers }: { initial: LiveState; spea
   const [cls, setCls] = useState<Map<string, SpeechClassification>>(() => new Map(initial.classifications.map((c) => [c.segmentId, c])));
   const [fetchError, setFetchError] = useState<string | null>(null);
   const cursor = useRef(initial.lastSeq);
+  const eCursor = useRef(initial.editorialCursor);
+  const [editorial, setEditorial] = useState<Map<string, EditorialItem>>(() => new Map(initial.editorial.map((i) => [i.update.id, i])));
 
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
     async function tick() {
       try {
-        const res = await fetch(`/api/debates/${encodeURIComponent(initial.debateId)}/live?after=${cursor.current}`, { cache: "no-store" });
+        const res = await fetch(`/api/debates/${encodeURIComponent(initial.debateId)}/live?after=${cursor.current}&eafter=${eCursor.current}`, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const next = (await res.json()) as LiveState;
         if (!alive) return;
@@ -52,6 +56,10 @@ export function LiveIngestFeed({ initial, speakers }: { initial: LiveState; spea
             const seen = new Set(prev.map((s) => s.id));
             return [...prev, ...next.segments.filter((s) => !seen.has(s.id))];
           });
+        }
+        if (next.editorial.length) {
+          eCursor.current = next.editorialCursor;
+          setEditorial((prev) => new Map([...prev, ...next.editorial.map((i) => [i.update.id, i] as const)]));
         }
         if (next.classifications.length) setCls((prev) => new Map([...prev, ...next.classifications.map((c) => [c.segmentId, c] as const)]));
         setState(next);
@@ -136,9 +144,11 @@ export function LiveIngestFeed({ initial, speakers }: { initial: LiveState; spea
         )}
       </section>
 
+      {editorial.size > 0 && <EditorialPanel items={[...editorial.values()]} names={{ ...Object.fromEntries(Object.entries(speakers).map(([k, v]) => [k, v.name])), ...Object.fromEntries((state.candidates ?? []).map((c) => [c.id, c.name])) }} />}
+
       {ordered.length === 0 ? (
         <p className="rounded-[var(--radius-md)] border border-dashed border-border p-6 text-center text-[13px] text-fg-3" data-testid="live-empty">
-          Nenhum segmento recebido ainda.
+          {editorial.size ? "Sem transcrição para este debate — apenas cobertura editorial." : "Nenhum segmento recebido ainda."}
         </p>
       ) : (
         <ol className="space-y-3" aria-live="polite" data-testid="live-feed">

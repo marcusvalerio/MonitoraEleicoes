@@ -20,7 +20,9 @@
     "db:migrate:test": "node scripts/db-migrate.mjs --env test",
     "db:migrate:prod": "node scripts/db-migrate.mjs --env production --confirm-production",
     "db:status": "node scripts/db-migrate.mjs --status --env",
-    "ingest": "node scripts/ingest.mjs"
+    "ingest": "node scripts/ingest.mjs",
+    "ingest:g1": "node scripts/ingest-g1.mjs",
+    "e2e:g1": "node e2e/g1-editorial.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

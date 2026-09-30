@@ -1,4 +1,4 @@
-# Dados ao vivo — ingestão contínua (Fase 0.8)
+# Dados ao vivo — ingestão contínua (Fases 0.8 e 0.9.2)
 
 ## O que já funciona
 
@@ -61,13 +61,17 @@ Observado (replay 10×, polling 1 s, Neon sa-east-1 via HTTP): processamento **�
 
 `identified` (confiança alta) · `uncertain` (média/baixa, ex.: atribuição da imprensa) · `unknown` ("Orador não identificado"). Vem só do que a fonte declara (`speaker.source`: provider_label, manual_map, press_attribution, diarization futura). Nunca adivinhado.
 
+## Cobertura editorial ao vivo (g1)
+
+Fonte REAL disponível: a cobertura ao vivo do g1 (atualizações editoriais, não transcrição). Entra pelo mesmo worker: cada debate pode ter fontes em `debate_source` (URL/intervalo/ativa, por dados). Debates sem transcrição usam o provider `manifest-only`. Em `/ao-vivo`: bloco **AGORA** (último evento editorial confiável), linha do tempo com marcadores, contagens por candidato/tema/bloco e cada atualização rotulada "g1 · cobertura editorial · Atualização editorial". Detalhes: `docs/G1-PROVIDER.md`.
+
 ## Bloqueadores para o primeiro debate presidencial real
 
-1. **Fonte contínua autorizada com texto** — legenda/closed caption oficial em tempo real da emissora ou acordo de acesso ao áudio para STT. É o próximo bloqueador: sem isso só há replay.
+1. **URL oficial da cobertura do g1** para 01/10/2026 (pendente) e **lista oficial de participantes** (para resolver nomes). Para fala literal: legenda/closed caption oficial ou acordo de áudio para STT — sem isso, só há cobertura editorial (não transcrição).
 2. **STT/diarização** (se a fonte for áudio): provider `LiveTranscriptProvider` com `speaker.source = diarization`.
 3. **Cliente LLM** configurado (contrato pronto em `ai/llm.ts`; chave só no servidor) e revisão humana amostral.
 4. **Worker hospedado** (processo contínuo ou fila gerenciada) com alertas sobre `last_error` / conexão "sem sinal".
-5. Migrations 0003/0004 em **produção** (aguardam confirmação explícita).
+5. Migrations 0003/0004/0005 em **produção** (aguardam confirmação explícita).
 
 ## Operação no dia do debate
 

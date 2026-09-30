@@ -10,6 +10,8 @@ import { log } from "@/infrastructure/log";
 import type { PageRequest } from "@/providers/contracts";
 import { StoreQueries, type QueryContext } from "./queries";
 import type { Repository } from "./types";
+import type { EditorialAnalysis, EditorialItem } from "@/domain/editorial";
+import { listSources } from "@/control/sources";
 import { computeLatency, connectionStatus, type LiveControlInfo, type LiveState } from "@/domain/live";
 
 type Row = Record<string, unknown>;
@@ -292,10 +294,78 @@ export class PostgresRepository implements Repository {
    * Ao vivo: consulta INCREMENTAL direta (não usa o recorte com TTL). Índices: (debate_id, seq),
    * analysis(segment_id, created_at desc), (debate_id, ingested_at). Nunca recarrega o debate inteiro.
    */
-  getLiveState = async (debateId: string, afterSeq = 0, limit = 200): Promise<LiveState | null> => {
+  /** Cobertura editorial: fato + análise mais recente para a versão atual do conteúdo. Incremental por change_seq. */
+  private async editorialRows(debateId: string, afterChange = 0, limit = 500): Promise<EditorialItem[]> {
+    const rows = (await this.sql`
+      select e.*, e.change_seq::float8 as change_f, d.kind as ds_kind, sr.provider_id as rec_provider_id,
+             a.event_type, a.event_type_confidence, a.event_type_evidence, a.actor_candidate_id, a.target_candidate_id, a.mentioned_candidate_ids,
+             a.mentioned_party_ids, a.candidate_confidence, a.topic, a.subtopic, a.topic_confidence, a.topic_evidence, a.block_signal, a.relevance_level,
+             a.relevance_score::float8 as relevance_f, a.relevance_criteria, a.relevance_version, a.classifier, a.classifier_version, a.methodology_version, a.processed_at, a.content_hash as a_hash
+      from editorial_event e
+      join dataset d on d.id = e.dataset_id
+      left join source_record sr on sr.id = e.source_record_id
+      left join lateral (select * from editorial_analysis x where x.event_id = e.id and x.content_hash = e.content_hash order by x.processed_at desc, x.id desc limit 1) a on true
+      where e.debate_id = ${debateId} and e.change_seq > ${afterChange}
+      order by e.change_seq limit ${limit}`) as Row[];
+    return rows.map((r) => ({
+      changeSeq: Number(r.change_f),
+      update: {
+        id: r.id as string,
+        debateId: r.debate_id as string,
+        providerId: r.provider_id as string,
+        sourceId: r.source_id as string,
+        externalId: r.external_id as string,
+        url: (r.url as string) ?? null,
+        headline: (r.headline as string) ?? null,
+        text: r.original_text as string,
+        publishedAt: iso(r.published_at),
+        modifiedAt: iso(r.modified_at),
+        collectedAt: iso(r.collected_at)!,
+        contentHash: r.content_hash as string,
+        parserVersion: r.parser_version as string,
+        strategy: r.strategy as string,
+        version: r.version as number,
+        removedAt: iso(r.removed_at),
+        ingestedAt: iso(r.ingested_at),
+        provenance: { nature: "collected", sourceId: r.source_id as string, mode: r.ds_kind === "demo" || r.ds_kind === "fixture" ? "demo" : "live", record: r.source_record_id ? { recordId: r.source_record_id as string, externalId: r.external_id as string, providerId: r.provider_id as string } : undefined },
+      },
+      analysis: r.a_hash
+        ? {
+            eventId: r.id as string,
+            contentHash: r.a_hash as string,
+            classifier: r.classifier as string,
+            classifierVersion: r.classifier_version as string,
+            methodologyVersion: r.methodology_version as string,
+            eventType: r.event_type as EditorialAnalysis["eventType"],
+            eventTypeConfidence: r.event_type_confidence as EditorialAnalysis["eventTypeConfidence"],
+            eventTypeEvidence: (r.event_type_evidence as string) ?? null,
+            actorCandidateId: (r.actor_candidate_id as string) ?? null,
+            targetCandidateId: (r.target_candidate_id as string) ?? null,
+            mentionedCandidateIds: (r.mentioned_candidate_ids as string[]) ?? [],
+            mentionedPartyIds: (r.mentioned_party_ids as string[]) ?? [],
+            candidateConfidence: r.candidate_confidence as EditorialAnalysis["candidateConfidence"],
+            topic: r.topic as EditorialAnalysis["topic"],
+            subtopic: (r.subtopic as string) ?? null,
+            topicConfidence: r.topic_confidence as EditorialAnalysis["topicConfidence"],
+            topicEvidence: (r.topic_evidence as string[]) ?? [],
+            blockSignal: (r.block_signal as string) ?? null,
+            relevance: r.relevance_level as EditorialAnalysis["relevance"],
+            relevanceScore: Number(r.relevance_f),
+            relevanceCriteria: r.relevance_criteria as EditorialAnalysis["relevanceCriteria"],
+            relevanceVersion: r.relevance_version as string,
+            processedAt: iso(r.processed_at) ?? undefined,
+          }
+        : null,
+    }));
+  }
+
+  getEditorial = async (debateId: string) => this.editorialRows(debateId, 0, 5000);
+  getEditorialSources = async () => listSources(this.sql);
+
+  getLiveState = async (debateId: string, afterSeq = 0, limit = 200, afterEditorial = 0): Promise<LiveState | null> => {
     const sql = this.sql;
     const lim = Math.max(1, Math.min(500, Math.floor(limit)));
-    const [deb, rows, totals, recent, ctl, ai] = await Promise.all([
+    const [deb, rows, totals, recent, ctl, ai, ed, edTotal, cands] = await Promise.all([
       sql`select d.id, d.title, ds.kind from debate d join dataset ds on ds.id = d.dataset_id where d.id = ${debateId}`,
       sql`select ts.*, ts.start_offset_s::float8 as start_s, ts.end_offset_s::float8 as end_s, ts.asr_confidence::float8 as asr_confidence,
                  sp.kind as speaker_kind, sp.candidate_id as speaker_candidate_id, sp.resolution_source, sp.resolution_confidence,
@@ -317,6 +387,10 @@ export class PostgresRepository implements Repository {
           from transcript_segment ts where ts.debate_id = ${debateId} order by ts.seq desc limit 20`,
       sql`select * from debate_control where id = ${debateId}`,
       sql`select id from source where provider_kind = 'ai' order by id limit 1`,
+      this.editorialRows(debateId, afterEditorial),
+      sql`select count(*)::int as n from editorial_event where debate_id = ${debateId} and removed_at is null`,
+      sql`select c.id, c.name, p.acronym, (select i.color from party_visual_identity i where i.party_id = c.party_id order by i.valid_from desc limit 1) as color
+          from candidate c left join party p on p.id = c.party_id`,
     ]);
     const d = (deb as Row[])[0];
     if (!d) return null;
@@ -350,6 +424,10 @@ export class PostgresRepository implements Repository {
       segments: segs,
       classifications: cls,
       lastSeq: segs.at(-1)?.seq ?? Math.max(0, afterSeq),
+      editorial: ed,
+      editorialCursor: ed.reduce((m, x) => Math.max(m, x.changeSeq ?? 0), afterEditorial),
+      editorialTotal: (edTotal as Row[])[0].n as number,
+      candidates: (cands as Row[]).map((c) => ({ id: c.id as string, name: `${c.name}${c.acronym ? ` (${c.acronym})` : ""}`, color: (c.color as string) ?? "#68686e" })),
       serverTime: new Date().toISOString(),
     };
   };

@@ -20,6 +20,10 @@ source ─► source_record (provider_id + external_id) ─► raw_record (paylo
 
 Qualquer segmento exibido pode ser rastreado até o payload bruto que o originou e a execução que o trouxe (consulta coberta por `npm run test:db`). Detalhes em `docs/DATABASE.md`.
 
+## Cobertura editorial
+
+`editorial_event` (fato: texto original, `published_at` da fonte ou NULL, URL, hash, versão, `parser_version`, `strategy`, `removed_at`) → `source_record` → `raw_record` (versões) → `ingestion_run`; `editorial_analysis` (interpretação por versão de conteúdo × classificador × metodologia). A UI identifica sempre "g1 · cobertura editorial · Atualização editorial" — nunca "transcrição".
+
 ## RAW × normalizado × análise
 
 - O texto original (`TranscriptSegment.text`) **nunca** é alterado.

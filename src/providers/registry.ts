@@ -11,6 +11,8 @@ import { SvgGeoProvider } from "./geo/svg";
 import { FilePressProvider, FileRegistryElectionProvider, FileTranscriptProvider, UnconfiguredSocialProvider } from "./files";
 import { LIVE_SOURCES } from "./files/sources";
 import { ReplayLiveTranscriptProvider, type ReplaySpeed } from "./replay";
+import { G1LiveEditorialProvider, G1_PROVIDER_ID } from "./g1";
+import { paginate, type TranscriptProvider as TranscriptProviderT } from "./contracts";
 import { DEMO_SOURCES } from "@/data/demo/sources";
 import { FIXTURE_SOURCES } from "./fixture/sources";
 
@@ -118,12 +120,36 @@ export function getDataMode(): DataMode {
  * Hoje: "replay-transcript" (replay temporizado de transcrição importada). Fontes realmente ao vivo
  * (legenda oficial, STT) entram como novos `provider_id` implementando LiveTranscriptProvider.
  */
-export function buildControlProviders(c: { id: string; title: string; providerId: string; sourceMode: string; replayOf: string | null; replaySpeed: number | null; startedAt: string | null }, now: () => number = Date.now) {
+export function buildControlProviders(
+  c: { id: string; title: string; providerId: string; sourceMode: string; replayOf: string | null; replaySpeed: number | null; startedAt: string | null },
+  now: () => number = Date.now,
+  editorialSources: { providerId: string; sourceUrl: string }[] = [],
+  fetchImpl: typeof fetch = fetch,
+) {
   const base = buildProfile("live");
+  // Fontes editoriais (ex.: g1) — cobertura, não transcrição; mesmas etapas do pipeline.
+  const editorial = editorialSources.map((s) => {
+    if (s.providerId === G1_PROVIDER_ID) return new G1LiveEditorialProvider({ debateId: c.id, sourceUrl: s.sourceUrl }, fetchImpl, now);
+    throw new Error(`fonte editorial não suportada: ${s.providerId}`);
+  });
   if (c.providerId === "replay-transcript") {
     if (c.sourceMode !== "replay" || !c.replayOf || !c.replaySpeed || !c.startedAt) throw new Error(`debate ${c.id}: replay exige origem, velocidade e início`);
     const transcript = new ReplayLiveTranscriptProvider(new FileTranscriptProvider(), { id: c.id, title: c.title, replayOf: c.replayOf, speed: c.replaySpeed as ReplaySpeed, startedAt: c.startedAt }, now);
-    return { ...base, transcript };
+    return { ...base, transcript, editorial };
+  }
+  if (c.providerId === "manifest-only") {
+    // Metadados do debate vêm do manifesto (data/real/<id>/manifest.json), sem transcrição; cobertura via fontes editoriais.
+    const files = new FileTranscriptProvider();
+    const transcript: TranscriptProviderT = {
+      info: files.info,
+      health: () => files.health(),
+      listEvents: async (page) => {
+        const all = await files.listEvents({ limit: 500 });
+        return paginate(all.items.filter((r) => r.externalId === c.id), page);
+      },
+      fetchSegments: async (id, page) => (id === c.id ? files.fetchSegments(id, page) : paginate([], page)),
+    };
+    return { ...base, transcript, editorial };
   }
   throw new Error(`provider não suportado para debate ao vivo: ${c.providerId}`);
 }

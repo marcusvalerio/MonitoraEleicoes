@@ -63,7 +63,7 @@ if (args.includes("--live")) {
     sql,
     {
       // relógio congelado por ciclo: status do evento e progresso usam o mesmo instante
-      providersFor: (c) => { const t = Date.now(); return buildControlProviders(c, () => t); },
+      providersFor: (c, editorial) => { const t = Date.now(); return buildControlProviders(c, () => t, editorial); },
       sources: LIVE_SOURCES,
       spoolDir: path.join(root, ".monitora", "spool"),
     },

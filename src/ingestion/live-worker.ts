@@ -2,6 +2,7 @@ import type { Sql } from "@/persistence/db";
 import type { Source } from "@/domain/types";
 import { activeControls, getControl, transition, type DebateControl } from "@/control/debates";
 import { runIngestion, type ProviderSet } from "./worker";
+import { dueSources, markSourceResult } from "@/control/sources";
 import { log, newRequestId } from "@/infrastructure/log";
 
 /**
@@ -13,19 +14,29 @@ import { log, newRequestId } from "@/infrastructure/log";
 export const MAX_FAILURES = 5;
 
 export interface LiveWorkerDeps {
-  providersFor: (c: DebateControl) => ProviderSet & { transcript: ProviderSet["transcript"] & { progress?: () => Promise<{ released: number; total: number; finished: boolean }> } };
+  /** `editorial`: fontes editoriais com intervalo vencido neste ciclo (debate_source). */
+  providersFor: (c: DebateControl, editorial: { providerId: string; sourceUrl: string }[]) => ProviderSet & { transcript: ProviderSet["transcript"] & { progress?: () => Promise<{ released: number; total: number; finished: boolean }> } };
   sources: Source[];
   spoolDir?: string;
+  /** Relógio (testes). */
+  now?: () => number;
 }
 
 export async function liveTick(sql: Sql, control: DebateControl, deps: LiveWorkerDeps) {
   let c = control;
   if (c.status === "connecting") c = await transition(sql, c.id, "live", "worker conectado à fonte");
-  const providers = deps.providersFor(c);
+  const due = await dueSources(sql, c.id, (deps.now ?? Date.now)());
+  // Debate só com cobertura editorial: sem fonte vencida neste ciclo ⇒ nada a coletar (apenas batimento).
+  if (c.providerId === "manifest-only" && !due.length) {
+    await sql`update debate_control set last_heartbeat_at = now() where id = ${c.id}`;
+    return { requestId: null, res: null, progress: null, transcriptFailed: false, skipped: true };
+  }
+  const providers = deps.providersFor(c, due);
   const requestId = newRequestId();
   const res = await runIngestion(sql, providers, {
     datasetId: c.sourceMode === "replay" ? `replay-${c.replayOf}` : `live-${c.id}`,
-    datasetKind: "validation",
+    // Fixtures de E2E rodam com MONITORA_DATASET_KIND=fixture (produção recusa fixture no gravador).
+    datasetKind: (process.env.MONITORA_DATASET_KIND as "fixture" | undefined) ?? "validation",
     description: c.sourceMode === "replay" ? `REPLAY de ${c.replayOf} (horários sintéticos)` : `Ingestão ao vivo de ${c.id}`,
     sources: deps.sources,
     requestId,
@@ -34,10 +45,14 @@ export async function liveTick(sql: Sql, control: DebateControl, deps: LiveWorke
     logFields: { debate_id: c.id, provider: c.providerId },
   });
   await sql`update debate_control set last_heartbeat_at = now() where id = ${c.id}`;
+  for (const d of due) {
+    const run = res.runs.find((r) => r.providerId === d.providerId && r.kind === `media:editorial:${c.id}`);
+    await markSourceResult(sql, d.id, run?.status === "failed" ? { ok: false, error: "coleta falhou (ver ingestion_run / ingestion_error)" } : { ok: true });
+  }
   const progress = providers.transcript.progress ? await providers.transcript.progress() : null;
   const transcriptFailed = res.runs.some((r) => r.kind.startsWith("transcript:") && r.status === "failed");
   if (progress?.finished && !transcriptFailed) await transition(sql, c.id, "finished", `fonte concluída (${progress.released}/${progress.total})`);
-  return { requestId, res, progress, transcriptFailed };
+  return { requestId, res, progress, transcriptFailed, skipped: false };
 }
 
 export interface LoopOptions {

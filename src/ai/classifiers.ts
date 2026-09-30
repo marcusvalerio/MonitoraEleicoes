@@ -27,7 +27,7 @@ export const TOPIC_LEXICON: Partial<Record<TopicId, Lexicon>> = {
   impostos: { strong: w("impost", "tribut", "icms", "isenç", "carga tributária", "incentivos? fiscais"), weak: w("taxa", "contas? de água") },
   previdencia: { strong: w("previdênc", "previdenc", "aposentad", "inss\\b", "rio ?previdência"), weak: w("benefício") },
   infraestrutura: { strong: w("obras?", "saneamento", "esgoto", "cedae", "rodovia", "metrô", "metro\\b", "brt\\b", "vlt\\b", "trens?\\b", "supervia", "transporte", "ferrovi", "porto", "estrada", "pedágio", "pedagio", "duplica", "viário", "viario", "enchente", "concess"), weak: w("mobilidade", "cidade") },
-  meio_ambiente: { strong: w("desmat", "ambiental", "lagoa", "poluiç", "despolu", "clima", "energia solar", "preservaç", "sustentável", "sustentavel"), weak: w("verde", "natureza") },
+  meio_ambiente: { strong: w("desmat", "ambiental", "lagoa", "poluiç", "despolu", "mudanças? climáticas", "crise climática", "aquecimento global", "energia solar", "preservaç", "sustentável", "sustentavel"), weak: w("verde", "natureza", "clima\\b") },
   tecnologia: { strong: w("tecnolog", "internet", "inteligência artificial", "digital", "conectividade", "inovaç"), weak: w("dados") },
   assistencia_social: { strong: w("transferência de renda", "transferencia de renda", "bolsa família", "bolsa familia", "cadastro social", "cadastro único", "assistência social", "vulnerab", "fome", "miséria", "miseria", "primeira infância"), weak: w("famílias? (?:pobres|carentes|vulneráveis)", "crianças", "idosos", "família", "familia") },
   justica: { strong: w("judiciário", "judiciario", "tribunal", "stf\\b", "pena\\b", "penas\\b", "presídio", "presidio", "sistema prisional"), weak: w("justiça") },
@@ -55,7 +55,7 @@ const ATTACK_TERMS = /\b(?:mentir|mentira|enganar|enganaram|podre|podridão|crim
 const DEFENSE = /\b(?:eu não (?:fujo|fiz|disse|sou)|não é verdade|isso é mentira|fui inocentad|fui eu que fiz|eu já fiz|eu apresentei|eu respondi|eu defendi|nunca fui)/i;
 const COMPARISON = /\b(?:ao contrário d[eoa]|diferente d[eoa]|enquanto (?:ele|ela|o candidato|a candidata))/i;
 
-export const RULES_MODEL: ModelInfo = { model: "rule-based-classifier", version: "0.2.1", promptVersion: "keywords-v2" };
+export const RULES_MODEL: ModelInfo = { model: "rule-based-classifier", version: "0.2.2", promptVersion: "keywords-v2" };
 
 export class RuleBasedSpeechClassifier implements SpeechClassifier {
   readonly model: ModelInfo = RULES_MODEL;

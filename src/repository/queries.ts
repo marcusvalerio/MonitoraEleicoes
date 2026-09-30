@@ -204,8 +204,15 @@ export class StoreQueries {
       segments,
       classifications: segments.map((s) => this.store.classifications.get(s.id)).filter((c) => !!c),
       lastSeq: segments.at(-1)?.seq ?? Math.max(0, afterSeq),
+      editorial: this.getEditorial(debateId),
+      editorialCursor: 0,
+      editorialTotal: this.getEditorial(debateId).length,
       serverTime: new Date().toISOString(),
     };
+  }
+  /** Perfis em memória: cobertura editorial ingerida no processo (sem fontes configuráveis). */
+  getEditorial(debateId: string) {
+    return this.store.editorial.filter((u) => u.debateId === debateId).map((u) => ({ update: u, analysis: this.store.editorialAnalyses.get(u.id) ?? null }));
   }
   moderatorId() {
     return MODERATOR_SPEAKER_ID;

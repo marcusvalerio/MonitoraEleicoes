@@ -38,6 +38,7 @@ export async function getOverview() {
       : null;
 
   const pSeries = platformSeries(metrics, 300, s.offset);
+  const editorial = await (await getRepository()).getEditorial(debate.id);
   const map = await getMapBootstrap(debate.id, { snapshot: s });
 
   return {
@@ -47,5 +48,7 @@ export async function getOverview() {
     allTopics: topicMomentum(metrics, s.segments, s.classifications, s.offset),
     platforms: s.social.byPlatform.map((p) => ({ ...p, name: platformName(p.platform), series: pSeries[p.platform] ?? [] })),
     map,
+    editorial,
+    editorialNames: Object.fromEntries(s.participants.map((p) => [p.id, p.name])),
   };
 }

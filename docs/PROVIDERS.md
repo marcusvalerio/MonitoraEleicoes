@@ -56,6 +56,10 @@ Regras: nenhum horário é inventado (ausente ⇒ `startOffset = null` + `timing
 
 Exemplo real: `data/real/rj-governador-2026-09-29` (ver `docs/VALIDATION-RJ-2026-09-29.md`).
 
+## Cobertura editorial ao vivo
+
+`LiveEditorialProvider` (`fetchUpdates`, `lastSnapshot`, capacidades `timestamps`/`edits`/`windowed`) — contrato separado da transcrição. Implementação: `G1LiveEditorialProvider` (`docs/G1-PROVIDER.md`), configurado por debate em `debate_source`.
+
 ## Transcrição ao vivo
 
 Providers contínuos implementam `LiveTranscriptProvider` (capacidades `live`, `timed`, `speakerIdentification`, `sourceMode`) e emitem `live.segment/v1`. Hoje: `ReplayLiveTranscriptProvider` (replay temporizado, horários sintéticos). Ver `docs/LIVE-DATA.md`.

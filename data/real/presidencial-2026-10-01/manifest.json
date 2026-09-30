@@ -1,0 +1,31 @@
+{
+  "schema": "monitora.debate-manifest/v1",
+  "debate": {
+    "id": "presidencial-2026-10-01",
+    "title": "Debate presidencial — 01/10/2026",
+    "broadcaster": "A confirmar",
+    "jurisdiction": "BR",
+    "office": "Presidente",
+    "electionYear": 2026,
+    "round": 1,
+    "startsAt": "2026-10-01T03:00:00.000Z",
+    "startsAtNote": "Somente a DATA está definida (01/10/2026, 00:00 BRT como marcador). Horário de início, emissora e participantes ainda não confirmados em fonte oficial — não usar como horário real.",
+    "endsAt": null,
+    "status": "scheduled",
+    "participants": [],
+    "participantsNote": "Pendente: lista oficial de participantes (emissora/TSE). Sem registro, candidatos citados pelo g1 ficam como 'não identificado'.",
+    "blocks": []
+  },
+  "collectedAt": "2026-09-30T17:00:00.000Z",
+  "transcript": null,
+  "transcriptNote": "Sem transcrição: a cobertura deste debate entra como fonte EDITORIAL (g1), configurada em debate_source.",
+  "speakerMap": {},
+  "liveSources": [
+    {
+      "provider": "g1-live-editorial",
+      "sourceUrl": "pending",
+      "pollingIntervalMs": 15000,
+      "pending": "URL oficial da cobertura ao vivo do g1 ainda não publicada. Quando existir (padrão observado: https://g1.globo.com/…/eleicoes/2026/ao-vivo/<slug>.ghtml), cadastrar em /admin/debates → Fontes, ou via `npm run ingest:g1 -- --debate presidencial-2026-10-01 --url <URL> --dry-run`. Nenhuma alteração de código é necessária."
+    }
+  ]
+}

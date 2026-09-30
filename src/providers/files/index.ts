@@ -13,11 +13,15 @@ import { PLATFORMS } from "../platforms";
  * quando a fonte não oferece acesso automatizado. Mesmo contrato dos demais providers.
  * Diretório: data/real/<evento>/{manifest.json, registry.json, <transcrição>}
  */
-export const REAL_DATA_DIR = path.join(process.cwd(), "data", "real");
+/** Diretório de dados reais. `MONITORA_DATA_DIR` (servidor/worker) só é usado por fixtures de teste/E2E. */
+export const REAL_DATA_DIR = process.env.MONITORA_DATA_DIR ? path.resolve(process.env.MONITORA_DATA_DIR) : path.join(process.cwd(), "data", "real");
 
 interface Manifest {
   debate: { id: string; title: string; broadcaster: string; jurisdiction: string; office: string; electionYear: number; round: 1 | 2; startsAt: string; endsAt: string | null; status: "scheduled" | "live" | "ended"; participants: string[]; blocks: string[] };
-  transcript: { file: string; timing: FileCueV1["timing_precision"]; speakerAttribution: FileCueV1["attribution"]; source: { name: string; url: string | null; publishedAt: string | null; collectedAt: string; documentSha256: string | null } };
+  /** Metadados de coleta do manifesto (quando não há transcrição). */
+  collectedAt?: string;
+  /** null = debate sem transcrição (ex.: só cobertura editorial ao vivo). */
+  transcript: null | { file: string; timing: FileCueV1["timing_precision"]; speakerAttribution: FileCueV1["attribution"]; source: { name: string; url: string | null; publishedAt: string | null; collectedAt: string; documentSha256: string | null } };
   speakerMap: Record<string, string>;
 }
 interface Registry {
@@ -74,7 +78,7 @@ export class FileTranscriptProvider implements TranscriptProvider {
       externalId: m.debate.id,
       sourceUrl: null,
       publishedAt: m.debate.startsAt,
-      collectedAt: m.transcript.source.collectedAt,
+      collectedAt: m.transcript?.source.collectedAt ?? m.collectedAt ?? new Date(0).toISOString(),
       payload: {
         id: m.debate.id,
         title: m.debate.title,
@@ -96,7 +100,9 @@ export class FileTranscriptProvider implements TranscriptProvider {
     const found = this.manifests().find(({ m }) => m.debate.id === eventId);
     if (!found) return paginate([], page);
     const { dir, m } = found;
-    const file = path.join(dir, m.transcript.file);
+    if (!m.transcript) return paginate([], page);
+    const transcript = m.transcript;
+    const file = path.join(dir, transcript.file);
     let content = readFileSync(file, "utf-8");
     const fmt = detectFormat(file);
     // JSON pode vir embrulhado em { segments: [...] } com metadados de extração
@@ -109,9 +115,9 @@ export class FileTranscriptProvider implements TranscriptProvider {
       providerId: this.info.id,
       schema: "file.cue/v1",
       externalId: `${m.debate.id}#${String(c.seq).padStart(4, "0")}`,
-      sourceUrl: m.transcript.source.url,
-      publishedAt: m.transcript.source.publishedAt,
-      collectedAt: m.transcript.source.collectedAt,
+      sourceUrl: transcript.source.url,
+      publishedAt: transcript.source.publishedAt,
+      collectedAt: transcript.source.collectedAt,
       payload: {
         event_id: m.debate.id,
         seq: c.seq,
@@ -119,9 +125,9 @@ export class FileTranscriptProvider implements TranscriptProvider {
         end_ms: c.endMs,
         speaker_label: c.speakerLabel,
         speaker_map_target: c.speakerLabel ? (m.speakerMap[c.speakerLabel] ?? null) : null,
-        attribution: m.transcript.speakerAttribution,
+        attribution: transcript.speakerAttribution,
         block_label: c.block,
-        timing_precision: c.startMs !== null ? "exact" : m.transcript.timing,
+        timing_precision: c.startMs !== null ? "exact" : transcript.timing,
         text: c.text,
       },
     }));
@@ -208,8 +214,9 @@ export class FilePressProvider implements MediaProvider {
     return { status: "connected" as const, checkedAt: new Date().toISOString() };
   }
   async fetchArticles(_q: object, page?: PageRequest) {
-    const recs: RawRecord<FileArticleV1>[] = eventDirs(this.root).map((dir) => {
+    const recs: RawRecord<FileArticleV1>[] = eventDirs(this.root).flatMap((dir) => {
       const m = readJson<Manifest>(path.join(dir, "manifest.json"), this.info.id);
+      if (!m.transcript) return [];
       const s = m.transcript.source;
       return { providerId: this.info.id, schema: "file.article/v1", externalId: s.url ?? `${m.debate.id}:press`, sourceUrl: s.url, publishedAt: s.publishedAt, collectedAt: s.collectedAt, payload: { outlet_and_title: s.name, published_at: s.publishedAt ?? s.collectedAt, event_id: m.debate.id, document_sha256: s.documentSha256 } };
     });

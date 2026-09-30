@@ -4,6 +4,7 @@ import { getRepository } from "@/repository";
 import { SOURCE_TYPE_LABEL } from "@/domain/labels";
 import type { SourceStatus, SourceType } from "@/domain/types";
 import { fmtDateTime, fmtInt } from "@/lib/format";
+import { fmtSeconds, fmtTime } from "@/lib/live-format";
 import { CONFIDENCE_LABEL } from "@/domain/quality";
 import { TIMING_LABEL } from "@/domain/labels";
 import { DemoBadge, PageHeader, Panel, Tag } from "@/components/ui/primitives";
@@ -28,6 +29,7 @@ export default async function SourcesPage() {
   const reports = await repo.getReports();
   const p = { mode: repo.mode };
   const status = await repo.getDataStatus();
+  const editorialSources = await repo.getEditorialSources();
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 md:px-6">
@@ -125,6 +127,47 @@ export default async function SourcesPage() {
           </Panel>
         );
       })}
+      {editorialSources.length > 0 && (
+        <Panel title="Fontes editoriais ao vivo" question="Cobertura jornalística em tempo real (não é transcrição). Sem coleta, os campos mostram “Não coletado” — nunca 0." bodyClassName="overflow-x-auto">
+          <table className="w-full min-w-[820px] font-[family-name:var(--font-data)] text-[12.5px]" data-testid="editorial-sources">
+            <thead>
+              <tr className="border-b border-border text-left text-[11.5px] text-fg-3">
+                <th className="py-2 pr-3 font-normal">Fonte · debate</th>
+                <th className="px-3 py-2 font-normal">Estado</th>
+                <th className="px-3 py-2 font-normal">Última coleta</th>
+                <th className="px-3 py-2 font-normal">Última atualização</th>
+                <th className="px-3 py-2 text-right font-normal">Registros</th>
+                <th className="px-3 py-2 text-right font-normal">Rejeitados</th>
+                <th className="py-2 pl-3 text-right font-normal">Latência de coleta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {editorialSources.map((e) => {
+                const nc = "Não coletado";
+                const st = !e.sourceUrl ? { l: "URL pendente", t: "info" as const } : !e.enabled ? { l: "Desativada", t: "neutral" as const } : e.lastError ? { l: "Com erro", t: "neg" as const } : e.lastCollectedAt ? { l: "Conectado", t: "pos" as const } : { l: "Aguardando 1ª coleta", t: "info" as const };
+                return (
+                  <tr key={e.id} className="border-b border-border/70 align-top last:border-0" data-testid={`editorial-source-${e.id}`}>
+                    <td className="py-2 pr-3">
+                      <p className="text-fg">{e.providerId === "g1-live-editorial" ? "g1 · cobertura editorial" : e.providerId}</p>
+                      <p className="text-[11.5px] text-fg-3">{e.debateId}</p>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Tag tone={st.t} dot>{st.l}</Tag>
+                      {e.lastError && <p className="mt-1 text-[11.5px] text-warn">{e.lastError}</p>}
+                    </td>
+                    <td className="px-3 py-2 text-fg-2 tnum">{e.lastCollectedAt ? fmtTime(e.lastCollectedAt) : nc}</td>
+                    <td className="px-3 py-2 text-fg-2 tnum">{e.lastUpdateAt ? fmtTime(e.lastUpdateAt) : e.lastCollectedAt ? "Sem atualizações publicadas" : nc}</td>
+                    <td className="px-3 py-2 text-right text-fg tnum">{e.records === null ? nc : fmtInt(e.records)}</td>
+                    <td className="px-3 py-2 text-right text-fg-2 tnum">{e.rejected === null ? nc : fmtInt(e.rejected)}</td>
+                    <td className="py-2 pl-3 text-right text-fg-2 tnum">{e.collectionLatencyS === null ? (e.lastCollectedAt ? "—" : nc) : fmtSeconds(e.collectionLatencyS)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="mt-2 text-[11.5px] text-fg-3">Latência de coleta: mediana entre o horário publicado pela fonte e a coleta pelo Monitora (inclui o intervalo de polling).</p>
+        </Panel>
+      )}
       <Panel title="Ingestão" question="Cada provider: registros recebidos, normalizados e rejeitados. Rejeições nunca são corrigidas silenciosamente." bodyClassName="overflow-x-auto">
         <p className="mb-3 text-[12px] text-fg-3" data-testid="storage">
           Armazenamento: {status.persistence === "postgres" ? "PostgreSQL (Neon) — última execução por provider" : "memória do processo (perfil de demonstração/teste)"} · ingerido em {fmtDateTime(status.ingestedAt)}

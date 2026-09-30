@@ -86,7 +86,7 @@ export function validateControl(c: NewDebateControl): string[] {
   if (!c.title.trim()) errs.push("título obrigatório");
   if (!c.officeLabel.trim()) errs.push("cargo obrigatório");
   if (Number.isNaN(Date.parse(c.scheduledStart))) errs.push("data/horário inválidos");
-  if (!c.providerId.trim()) errs.push("provider obrigatório");
+  if (!["replay-transcript", "manifest-only"].includes(c.providerId)) errs.push("provider de transcrição deve ser 'replay-transcript' ou 'manifest-only' (cobertura só editorial)");
   if (c.sourceUrl && !/^https:\/\//.test(c.sourceUrl)) errs.push("URL da fonte deve ser https");
   if (c.sourceMode === "replay" && (!c.replayOf || !c.replaySpeed)) errs.push("replay exige debate de origem e velocidade (1, 2, 5, 10)");
   return errs;

@@ -240,6 +240,43 @@ export async function persistIngestion(sql: Sql, store: DataStore, o: PersistOpt
   await Promise.all(mentionWrites);
   count("analysis.new", insertedA.length);
 
+  // 2b · Cobertura editorial: fato (texto original; nova versão só se o hash mudar) + interpretação versionada
+  const edits = store.editorial.filter((u) => isNew(u.provenance));
+  await bulk(
+    sql,
+    "editorial_event",
+    [["id", "text"], ["dataset_id", "text"], ["debate_id", "text"], ["source_id", "text"], ["provider_id", "text"], ["external_id", "text"], ["source_record_id", "text"], ["url", "text"], ["headline", "text"], ["original_text", "text"], ["published_at", "timestamptz"], ["modified_at", "timestamptz"], ["time_precision", "text"], ["content_hash", "text"], ["parser_version", "text"], ["strategy", "text"], ["collected_at", "timestamptz"]],
+    edits.map((u) => ({ id: u.id, dataset_id: ds, debate_id: u.debateId, source_id: u.sourceId, provider_id: u.providerId, external_id: u.externalId, source_record_id: recId(u.provenance), url: u.url, headline: u.headline, original_text: u.text, published_at: u.publishedAt, modified_at: u.modifiedAt, time_precision: u.publishedAt ? "exact" : "unknown", content_hash: u.contentHash, parser_version: u.parserVersion, strategy: u.strategy, collected_at: u.collectedAt })),
+    `on conflict (provider_id, external_id) do update set headline = excluded.headline, original_text = excluded.original_text, published_at = excluded.published_at, modified_at = excluded.modified_at,
+       time_precision = excluded.time_precision, content_hash = excluded.content_hash, url = excluded.url, parser_version = excluded.parser_version, strategy = excluded.strategy,
+       collected_at = excluded.collected_at, source_record_id = excluded.source_record_id, version = editorial_event.version + 1, removed_at = null, change_seq = nextval('editorial_change_seq')
+     where editorial_event.content_hash is distinct from excluded.content_hash`,
+  );
+  count("editorial_event.changed", edits.length);
+  const eAnalyses = [...store.editorialAnalyses.values()];
+  const insertedE = await bulk(
+    sql,
+    "editorial_analysis",
+    [["event_id", "text"], ["content_hash", "text"], ["classifier", "text"], ["classifier_version", "text"], ["methodology_version", "text"], ["event_type", "text"], ["event_type_confidence", "text"], ["event_type_evidence", "text"], ["actor_candidate_id", "text"], ["target_candidate_id", "text"], ["mentioned_candidate_ids", "text[]"], ["mentioned_party_ids", "text[]"], ["candidate_confidence", "text"], ["topic", "text"], ["subtopic", "text"], ["topic_confidence", "text"], ["topic_evidence", "text[]"], ["block_signal", "text"], ["relevance_level", "text"], ["relevance_score", "numeric"], ["relevance_criteria", "jsonb"], ["relevance_version", "text"]],
+    eAnalyses.map((a) => ({ event_id: a.eventId, content_hash: a.contentHash, classifier: a.classifier, classifier_version: a.classifierVersion, methodology_version: a.methodologyVersion, event_type: a.eventType, event_type_confidence: a.eventTypeConfidence, event_type_evidence: a.eventTypeEvidence, actor_candidate_id: a.actorCandidateId, target_candidate_id: a.targetCandidateId, mentioned_candidate_ids: a.mentionedCandidateIds, mentioned_party_ids: a.mentionedPartyIds, candidate_confidence: a.candidateConfidence, topic: a.topic, subtopic: a.subtopic, topic_confidence: a.topicConfidence, topic_evidence: a.topicEvidence, block_signal: a.blockSignal, relevance_level: a.relevance, relevance_score: a.relevanceScore, relevance_criteria: a.relevanceCriteria, relevance_version: a.relevanceVersion })),
+    "on conflict (event_id, content_hash, classifier_version, methodology_version) do nothing",
+    "event_id",
+  );
+  count("editorial_analysis.new", insertedE.length);
+  if (insertedE.length) await sql.query("update editorial_event set change_seq = nextval('editorial_change_seq') where id = any($1::text[])", [insertedE.map((r) => r.event_id)]);
+  // Remoção: post ausente mas MAIS NOVO que o mais antigo visível ⇒ removido pela fonte (marcado, nunca apagado).
+  // Mais antigo que a janela ⇒ apenas saiu da página (não é remoção). Reaparecimento desfaz a marcação.
+  for (const { debateId, providerId, snapshot } of store.editorialSnapshots) {
+    if (snapshot.windowStart) {
+      const removed = (await sql.query(
+        "update editorial_event set removed_at = now(), change_seq = nextval('editorial_change_seq') where debate_id = $1 and provider_id = $2 and removed_at is null and published_at >= $3 and not (external_id = any($4::text[])) returning id",
+        [debateId, providerId, snapshot.windowStart, snapshot.externalIds],
+      )) as unknown[];
+      count("editorial_event.removed", removed.length);
+    }
+    if (snapshot.externalIds.length) await sql.query("update editorial_event set removed_at = null, change_seq = nextval('editorial_change_seq') where provider_id = $1 and removed_at is not null and external_id = any($2::text[])", [providerId, snapshot.externalIds]);
+  }
+
   // 3 · Execuções, RAW e erros (por último)
   const runIds = store.reports.map(() => randomUUID());
   const newByReport = new Map<number, number>();

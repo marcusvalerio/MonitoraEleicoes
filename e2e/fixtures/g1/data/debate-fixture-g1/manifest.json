@@ -1,0 +1,21 @@
+{
+  "schema": "monitora.debate-manifest/v1",
+  "fixture": "FICTÍCIO — dados de teste do g1 (candidatos e textos inventados). Nunca usar fora de testes.",
+  "debate": {
+    "id": "debate-fixture-g1",
+    "title": "Debate fictício (fixture g1)",
+    "broadcaster": "Emissora fictícia",
+    "jurisdiction": "BR",
+    "office": "Presidente",
+    "electionYear": 2026,
+    "round": 1,
+    "startsAt": "2026-10-02T00:00:00.000Z",
+    "endsAt": null,
+    "status": "scheduled",
+    "participants": ["Helena Duarte", "Rafael Monteiro", "Marcos Vieira"],
+    "blocks": []
+  },
+  "collectedAt": "2026-10-02T00:00:00.000Z",
+  "transcript": null,
+  "speakerMap": {}
+}

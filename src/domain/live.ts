@@ -98,5 +98,11 @@ export interface LiveState {
   classifications: SpeechClassification[];
   /** Cursor para a próxima consulta. */
   lastSeq: number;
+  /** Cobertura editorial (ex.: g1) — nunca transcrição. Incremental por `editorialCursor` (inclui edições e remoções). */
+  editorial: import("./editorial").EditorialItem[];
+  editorialCursor: number;
+  editorialTotal: number;
+  /** Nomes atuais das entidades (leitura direta; evita nomes defasados logo após a 1ª coleta). */
+  candidates?: { id: string; name: string; color: string }[];
   serverTime: string;
 }

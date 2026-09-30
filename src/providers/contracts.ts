@@ -116,6 +116,35 @@ export interface LiveTranscriptCapabilities extends TranscriptCapabilities {
 export interface LiveTranscriptProvider extends TranscriptProvider {
   readonly info: ProviderInfo<LiveTranscriptCapabilities>;
 }
+/**
+ * COBERTURA EDITORIAL AO VIVO (ex.: g1): atualizações publicadas por um veículo durante o evento.
+ * NÃO é transcrição: devolve RawRecords de posts editoriais (esquema próprio da fonte, versionado),
+ * que a normalização converte em `EditorialUpdate` (fato) — a interpretação é feita depois, versionada.
+ */
+export interface LiveEditorialCapabilities {
+  live: true;
+  /** A fonte informa horário de publicação por atualização. */
+  timestamps: boolean;
+  /** A fonte permite editar posts (versões novas por hash). */
+  edits: boolean;
+  /** Janela limitada: posts antigos saem da página sem terem sido removidos. */
+  windowed: boolean;
+}
+export interface EditorialSnapshot {
+  /** ids externos presentes nesta coleta. */
+  externalIds: string[];
+  /** Publicação mais antiga visível: posts ausentes mais novos que isto foram REMOVIDOS; mais antigos só saíram da janela. */
+  windowStart: string | null;
+  strategy: string;
+}
+export interface LiveEditorialProvider extends BaseProvider<LiveEditorialCapabilities> {
+  readonly debateId: string;
+  /** Coleta a página/fonte configurada e devolve os posts atuais (RAW). */
+  fetchUpdates(page?: PageRequest): Promise<Page<RawRecord>>;
+  /** Metadados da última coleta (para detectar remoção sem confundir com saída da janela). */
+  lastSnapshot(): EditorialSnapshot | null;
+}
+
 export const isLiveTranscriptProvider = (p: TranscriptProvider): p is LiveTranscriptProvider => (p.info.capabilities as Partial<LiveTranscriptCapabilities>).live === true;
 
 // ───────── Redes sociais ─────────

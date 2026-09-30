@@ -1,3 +1,4 @@
+import { EditorialTimeline } from "@/components/live/EditorialTimeline";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { getOverview } from "@/services/overview";
@@ -96,6 +97,12 @@ export async function OverviewPage() {
           <StateView state="no_data" title="Sem série temporal" compact>
             A repercussão não foi coletada e a transcrição não informa horários ({s.timing.untimed} de {s.timing.total} falas sem marcação de tempo). Nenhum horário foi estimado.
           </StateView>
+        )}
+        {o.editorial.length > 0 && (
+          <div className="mt-4" data-testid="overview-editorial-markers">
+            <p className="mb-1 text-[12px] text-fg-3">Marcadores da cobertura editorial (g1 · atualização editorial, horário informado pela fonte) — clique para ver o registro original.</p>
+            <EditorialTimeline items={o.editorial} names={o.editorialNames} />
+          </div>
         )}
         <p className="mt-2 text-[11.5px] text-fg-3">Faixa inferior: tema da fala em cada momento. Marcadores: eventos detectados. Proximidade temporal entre evento e volume não indica causalidade.</p>
       </Panel>

@@ -1,0 +1,17 @@
+{
+  "schema": "monitora.candidate-registry/v1",
+  "fixture": "FICTÍCIO — somente testes.",
+  "election": { "year": 2026, "round": 1, "office": "Presidente", "jurisdiction": "BR" },
+  "source": { "name": "Registro fictício de teste", "collectedAt": "2026-10-02T00:00:00.000Z" },
+  "parties": [
+    { "acronym": "PFA", "name": "Partido Fictício A", "number": 91 },
+    { "acronym": "PFB", "name": "Partido Fictício B", "number": 92 },
+    { "acronym": "PFC", "name": "Partido Fictício C", "number": 93 }
+  ],
+  "candidates": [
+    { "name": "Helena Duarte", "party": "PFA", "ballotNumber": 91, "tseId": null, "aliases": ["Duarte"] },
+    { "name": "Rafael Monteiro", "party": "PFB", "ballotNumber": 92, "tseId": null, "aliases": ["Monteiro"] },
+    { "name": "Marcos Vieira", "party": "PFC", "ballotNumber": 93, "tseId": null, "aliases": ["Vieira"] }
+  ],
+  "partyIdentity": { "source": "Paleta de teste", "validFrom": "2026-01-01", "colors": { "PFA": "#3987e5", "PFB": "#d95926", "PFC": "#199e70" } }
+}

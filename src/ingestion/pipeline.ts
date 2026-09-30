@@ -6,10 +6,11 @@ import { confidenceLevel } from "@/domain/quality";
 import { computeSegmentRelevance, toSpeechClassification, validateClassifierOutput, type SpeechClassifier } from "@/ai/classifier";
 import { NormalizationContext } from "@/normalization/context";
 import { normalize, type Normalized } from "@/normalization/normalizers";
-import { collectAll, collectFrom, type ElectionProvider, type MediaProvider, type RawRecord, type SocialProvider, type TranscriptProvider } from "@/providers/contracts";
+import { collectAll, collectFrom, type LiveEditorialProvider, type ElectionProvider, type MediaProvider, type RawRecord, type SocialProvider, type TranscriptProvider } from "@/providers/contracts";
 import { ProviderError } from "@/providers/errors";
 import { withRetry } from "@/providers/resilience";
 import { DataStore, type IngestionReport } from "./store";
+import { classifyEditorial } from "@/ai/editorial";
 
 export interface IngestionSources {
   mode: "demo" | "live";
@@ -26,6 +27,8 @@ export interface IngestionSources {
   startCursor?: (providerId: string, stream: string) => string | null;
   /** Pula classificação já persistida para este modelo/versão (idempotência de análise). */
   alreadyClassified?: (segmentId: string, model: import("@/domain/types").ModelInfo) => boolean;
+  /** Fontes de cobertura EDITORIAL (ex.: g1) — mesmo pipeline, entidade própria (nunca viram transcrição). */
+  editorial?: LiveEditorialProvider[];
 }
 
 /**
@@ -122,6 +125,7 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
   await run(src.transcript, "events", pageOf((p) => src.transcript.listEvents(p)), (n, r) => {
     if (n.type !== "debate") return;
     store.debates.set(n.value.id, n.value);
+    ctx.debateIds.add(n.value.id);
     ctx.events.set(r.externalId, { debateId: n.value.id, startsAt: n.value.startsAt, blocks: new Map(n.blocks.map((b) => [b.label, b.id])) });
     eventExt.set(n.value.id, r.externalId);
     store.blocks.set(n.value.id, n.blocks.map((b) => ({ ...b, startOffset: 0, endOffset: 0 })));
@@ -159,6 +163,24 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
   // 4 · Imprensa
   if (src.media.info.capabilities.articles) {
     await run(src.media, "articles", pageOf((p) => src.media.fetchArticles({}, p)), (n) => n.type === "article" && store.articles.push(n.value));
+  }
+
+  // 4b · Cobertura editorial (fato da fonte) → interpretação versionada separada
+  for (const ed of src.editorial ?? []) {
+    const reportIndex = store.reports.length;
+    await run(ed, `editorial:${ed.debateId}`, pageOf((p) => ed.fetchUpdates(p)), (n) => n.type === "editorial_update" && store.editorial.push(n.value));
+    const snap = ed.lastSnapshot();
+    if (store.reports[reportIndex]?.status !== "failed" && snap) store.editorialSnapshots.push({ debateId: ed.debateId, providerId: ed.info.id, snapshot: snap });
+  }
+  if (store.editorial.length) {
+    const ectx = { candidates: [...store.candidates.values()], parties: [...store.parties.values()], aliases: ctx.aliases };
+    for (const u of store.editorial) {
+      try {
+        store.editorialAnalyses.set(u.id, classifyEditorial(u, ectx));
+      } catch (e) {
+        store.rejections.push({ reportIndex: store.reports.length - 1, recordId: u.provenance.record?.recordId ?? null, externalId: u.externalId, code: "classification_error", message: (e as Error).message, field: null });
+      }
+    }
   }
 
   // 5 · IA: classificação das falas (RAW preservado; análise separada e versionada)

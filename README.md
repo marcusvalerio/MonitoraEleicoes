@@ -29,9 +29,11 @@ npm run e2e                                                    # perfil demo
 BASE_URL=http://localhost:3002 DEBATE_ID=fx-show-0001 npm run e2e  # perfil fixture
 BASE_URL=http://localhost:3004 npm run e2e:real:pg             # perfil live (debate real lido do PostgreSQL)
 BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:live   # ingestão contínua: admin → worker → Neon → /ao-vivo
+BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:g1     # g1 editorial (fixture local; servidor com G1_ALLOWED_HOSTS=127.0.0.1:4599)
+npm run ingest:g1 -- --dry-run --url <URL>                       # teste REAL do g1 sem gravar (docs/G1-PROVIDER.md)
 ```
 
-Documentação: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/PROVIDERS.md`](docs/PROVIDERS.md) · [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · [`docs/GEO.md`](docs/GEO.md) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) · [`docs/VALIDATION-RJ-2026-09-29.md`](docs/VALIDATION-RJ-2026-09-29.md) · [`docs/DATABASE.md`](docs/DATABASE.md) · [`docs/INGESTION.md`](docs/INGESTION.md) · [`docs/LIVE-DATA.md`](docs/LIVE-DATA.md)
+Documentação: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/PROVIDERS.md`](docs/PROVIDERS.md) · [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · [`docs/GEO.md`](docs/GEO.md) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) · [`docs/VALIDATION-RJ-2026-09-29.md`](docs/VALIDATION-RJ-2026-09-29.md) · [`docs/DATABASE.md`](docs/DATABASE.md) · [`docs/INGESTION.md`](docs/INGESTION.md) · [`docs/LIVE-DATA.md`](docs/LIVE-DATA.md) · [`docs/G1-PROVIDER.md`](docs/G1-PROVIDER.md)
 
 ## Arquitetura
 

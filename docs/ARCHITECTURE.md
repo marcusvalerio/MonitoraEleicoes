@@ -36,6 +36,21 @@ EXTERNAL PROVIDERS ─► INGESTION ─► NORMALIZATION ─► DOMAIN (store) �
 
 `DATA_MODE=fixture` troca **todos** os providers por implementações com formatos RAW, IDs, cores de partido e classificador diferentes (`src/providers/fixture`). Nenhum componente muda. Coberto por `src/ingestion/ingestion.test.ts` e pelo E2E (`BASE_URL=… DEBATE_ID=fx-show-0001 npm run e2e`).
 
+## Múltiplas fontes, um domínio
+
+```
+        g1 (editorial)   legenda/CC   STT streaming   replay   redes sociais   TSE
+              │               │             │            │           │          │
+              └── LiveEditorialProvider  LiveTranscriptProvider ───── SocialProvider  ElectionProvider
+                                    │  (mesmo pipeline: RAW → normalização → domínio → análise)
+                                    ▼
+                    EditorialUpdate/Analysis · TranscriptSegment/SpeechClassification · …
+                                    ▼
+                                  Neon → Repository → analytics → UI
+```
+
+Cobertura editorial e transcrição são entidades distintas (nunca misturadas): `editorial_event` ≠ `transcript_segment`.
+
 ## Persistência
 
 | Perfil | Repositório | Escrita |
