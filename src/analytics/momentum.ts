@@ -1,4 +1,5 @@
 import type { SocialMetric, SpeechClassification, TopicId, TranscriptSegment } from "@/domain/types";
+import { isTimed } from "@/domain/types";
 
 export interface TopicMomentum {
   topic: TopicId;
@@ -43,7 +44,7 @@ export function topicMomentum(
   }
   const byId = new Map(cls.map((c) => [c.segmentId, c]));
   const spoken = new Map<TopicId, { last: number; n: number }>();
-  for (const s of segments) {
+  for (const s of segments.filter(isTimed)) {
     const c = byId.get(s.id);
     if (!c || c.topic === "outros" || s.endOffset > at) continue;
     const x = spoken.get(c.topic) ?? { last: 0, n: 0 };

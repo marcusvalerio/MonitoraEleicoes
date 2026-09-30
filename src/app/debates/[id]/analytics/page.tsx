@@ -43,7 +43,8 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
   }
 
   const cand = s.segments.filter((x) => x.speakerId !== s.moderatorId);
-  const analyzed = s.segments.reduce((a, x) => a + (x.endOffset - x.startOffset), 0);
+  const analyzed = s.segments.reduce((a, x) => a + (x.endOffset !== null && x.startOffset !== null ? x.endOffset - x.startOffset : 0), 0);
+  const untimed = s.segments.filter((x) => x.startOffset === null).length;
   const count = (f: (t: string) => boolean) => s.classifications.filter((c) => f(c.speechType)).length;
   const mentionsTotal = s.classifications.reduce((a, c) => a + c.mentions.length, 0);
   const keys = SPEECH_GROUPS.map((g, i) => ({ id: g.id, label: g.label, color: GROUP_COLORS[i] }));
@@ -94,7 +95,7 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
 
       <KpiStrip className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <Kpi label="Falas" value={s.segments.length} hint={`${cand.length} de candidatos`} question="Quantos segmentos foram analisados?" />
-        <Kpi label="Tempo analisado" value={fmtDuration(analyzed)} question="Quanto do debate está coberto?" />
+        <Kpi label="Tempo analisado" value={untimed === s.segments.length ? "—" : fmtDuration(analyzed)} hint={untimed ? `${untimed} fala(s) sem marcação de tempo` : undefined} question="Quanto do debate está coberto?" />
         <Kpi label="Temas" value={s.topics.length} hint={`de ${TOPICS.length - 1} possíveis`} question="Quantos temas apareceram?" />
         <Kpi label="Propostas" value={count((t) => t === "proposta" || t === "promessa")} question="Quantas falas trazem proposta/promessa?" />
         <Kpi label="Perguntas" value={count((t) => t === "pergunta")} question="Quantas perguntas foram feitas entre candidatos?" />
@@ -107,7 +108,13 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
           <p className="mt-3 text-[11.5px] text-fg-3">Percentual sobre {cand.length} falas de candidatos. Falas de moderação e apresentações não entram na contagem.</p>
         </Panel>
         <Panel index="02" title="Intensidade por período" question="Em que momento do debate cada tema ocupou mais tempo de fala?" nature="analysis">
+          {s.timing.timed === 0 ? (
+            <StateView state="no_data" title="Sem marcação de tempo" compact>
+              A fonte não informa horários ({s.timing.untimed} falas). Intensidade por período não pode ser calculada — nenhum horário foi estimado.
+            </StateView>
+          ) : (
           <Heatmap rows={s.heatmap.topics.map((t) => ({ id: t, label: TOPIC_LABEL[t] }))} grid={s.heatmap.grid} windowSize={s.heatmap.windowSize} startsAt={debate.startsAt} currentWindow={s.isLive ? Math.floor(s.offset / s.heatmap.windowSize) : undefined} />
+          )}
         </Panel>
       </div>
 
@@ -117,7 +124,7 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
             <thead>
               <tr className="border-b border-border text-left text-[11.5px] text-fg-3">
                 <th className="px-4 py-2.5 font-normal">Candidato</th>
-                {["Tempo de fala", "Intervenções", "Perguntas feitas", "Perguntas recebidas", "Respostas", "Menções feitas", "Menções recebidas"].map((h) => (
+                {["Tempo de fala", "Palavras", "Intervenções", "Perguntas feitas", "Perguntas recebidas", "Respostas", "Menções feitas", "Menções recebidas"].map((h) => (
                   <th key={h} className="px-3 py-2.5 text-right font-normal">{h}</th>
                 ))}
               </tr>
@@ -134,7 +141,7 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
                         <span className="text-fg-3">{p.party?.acronym}</span>
                       </span>
                     </td>
-                    {[fmtDuration(a.speakingSeconds), a.interventions, a.questionsAsked, a.questionsReceived, a.answers, a.mentionsMade, a.mentionsReceived].map((v, i) => (
+                    {[a.speakingSeconds === null ? "—" : fmtDuration(a.speakingSeconds), a.words, a.interventions, a.questionsAsked, a.questionsReceived, a.answers, a.mentionsMade, a.mentionsReceived].map((v, i) => (
                       <td key={i} className="px-3 py-2.5 text-right text-fg tnum">{typeof v === "number" ? fmtInt(v) : v}</td>
                     ))}
                   </tr>
@@ -143,7 +150,7 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
             </tbody>
           </table>
         </div>
-        <p className="border-t border-border px-4 py-2.5 text-[11.5px] text-fg-3">Ordem fixa dos participantes (púlpito), não ranking. Tempo de fala depende das regras da emissora.</p>
+        <p className="border-t border-border px-4 py-2.5 text-[11.5px] text-fg-3">Ordem fixa dos participantes (púlpito), não ranking. Tempo de fala depende das regras da emissora; “—” = a fonte não informa horários. Mais fala não significa melhor desempenho.</p>
       </Panel>
 
       <Panel index="04" id="composicao" title="Composição das falas" question="Que tipo de fala cada candidato usou? (classificação automática)" nature="ai">
@@ -164,6 +171,11 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
       </Panel>
 
       <Panel index="06" id="eventos" title="Debate → Evento → Repercussão" question="O que aconteceu no debate e como o volume de publicações se comportou no mesmo período?" nature="analysis">
+        {s.social.series.length === 0 ? (
+          <StateView state="provider_unavailable" title="Repercussão não coletada" compact>
+            Nenhum provider social configurado para este debate{s.timing.timed === 0 ? " e a transcrição não informa horários" : ""}. Os valores não são zero — não foram coletados.
+          </StateView>
+        ) : (
         <ConversationChart
           series={s.social.series}
           startsAt={debate.startsAt}
@@ -173,6 +185,7 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
           annotations={s.events.filter((e) => e.kind === "social_spike" || e.kind === "fact_check_flag").map((e) => ({ t: e.startOffset, code: e.code, kind: e.kind === "social_spike" ? ("spike" as const) : ("flag" as const), label: e.kind === "social_spike" ? `Pico · ${TOPIC_LABEL[e.topic]}` : "Dado citado" }))}
           height={280}
         />
+        )}
         <p className="mt-1 mb-4 flex items-center gap-2 text-[11.5px] text-fg-3">
           <NatureBadge nature="collected" compact /> Publicações/min. Faixa inferior = tema em debate. Traços no topo = eventos. Proximidade temporal não indica causalidade.
         </p>

@@ -1,0 +1,55 @@
+{
+  "schema": "monitora.debate-manifest/v1",
+  "debate": {
+    "id": "rj-governador-2026-09-29-globo",
+    "title": "Debate para o Governo do Rio de Janeiro",
+    "broadcaster": "TV Globo",
+    "jurisdiction": "RJ",
+    "office": "Governador",
+    "electionYear": 2026,
+    "round": 1,
+    "startsAt": "2026-09-30T01:15:00.000Z",
+    "startsAtNote": "Horário programado de início (22h15, horário de Brasília, 29/09/2026), segundo a imprensa. Horário real de início não verificado.",
+    "endsAt": null,
+    "endsAtNote": "Horário de término não informado pelas fontes consultadas.",
+    "status": "ended",
+    "moderator": "Ana Paula Araújo",
+    "participants": ["Eduardo Paes", "Douglas Ruas", "Anthony Garotinho", "William Siri", "André Marinho"],
+    "blocks": ["Bloco 1 · Temas sorteados", "Bloco 2 · Tema livre", "Bloco 3 · Regiões do estado", "Bloco 4 · Tema livre", "Considerações finais"],
+    "blocksSource": "Estrutura descrita pela imprensa (Manchete Rio, 30/09/2026)."
+  },
+  "primarySource": {
+    "name": "Transmissão TV Globo (também GloboNews, g1 e Globoplay)",
+    "url": null,
+    "note": "Vídeo integral publicado no g1/Globoplay em streaming protegido; não há transcrição oficial nem arquivo de legenda público. URL exata do vídeo não verificada."
+  },
+  "transcript": {
+    "file": "transcript.press-final-statements.json",
+    "format": "json",
+    "kind": "press_transcription",
+    "coverage": "Somente as considerações finais (bloco 5 de 5). Blocos 1–4 não possuem transcrição literal disponível.",
+    "timing": "block",
+    "timingNote": "A fonte não informa horários; apenas o bloco. Ordem das falas = ordem da matéria (não necessariamente a ordem da transmissão).",
+    "speakerAttribution": "press_attribution",
+    "source": {
+      "name": "Manchete Rio — “Debate no RJ tem ataques a Paes e Ruas e discussões sobre alianças políticas, segurança, educação e transporte”",
+      "url": "https://mancheterio.com.br/debate-no-rj-tem-ataques-a-paes-e-ruas-e-discussoes-sobre-aliancas-politicas-seguranca-educacao-e-transporte/",
+      "publishedAt": "2026-09-30T09:18:14.000Z",
+      "publishedAtNote": "Página informa 30/09/2026 06:18:14 sem fuso; assumido horário de Brasília (−03:00).",
+      "collectedAt": "2026-09-30T13:00:00.000Z",
+      "documentSha256": "f00c4926530783faa1c65abc58ff8489ecf7fcb189e2d79cca8fef4fac376a7c",
+      "extraction": "scripts/extract-press-final-statements.py (texto literal; sem reescrita)"
+    }
+  },
+  "speakerMap": {
+    "André Marinho": "André Marinho",
+    "Douglas Ruas": "Douglas Ruas",
+    "Eduardo Paes": "Eduardo Paes",
+    "William Siri": "William Siri",
+    "Anthony Garotinho": "Anthony Garotinho"
+  },
+  "auxiliarySources": [
+    { "name": "Diário do Rio — Globo realiza debate para governador do Rio nesta terça", "url": "https://diariodorio.com/politica/2026/09/28/globo-realiza-debate-para-governador-do-rio-nesta-terca-saiba-quem-participa-e-como-assistir.html", "use": "horário, mediação, participantes" },
+    { "name": "Exame — Debate da Globo no Rio: horário, regras e quem vai participar", "url": "https://exame.com/brasil/debate-da-globo-no-rio-horario-regras-e-quem-vai-participar/", "use": "horário e regras" }
+  ]
+}

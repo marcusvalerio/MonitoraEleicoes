@@ -41,7 +41,7 @@ export function ConversationChart({
   const [hover, setHover] = useState<number | null>(null);
   // Telas estreitas: eixo termina logo após "agora" (o restante previsto está vazio).
   const narrow = width < 640;
-  const domainEnd = narrow && now !== undefined ? Math.min(fullEnd, Math.max(900, now * 1.08)) : fullEnd;
+  const domainEnd = Math.max(1, narrow && now !== undefined ? Math.min(fullEnd, Math.max(900, now * 1.08)) : fullEnd);
   const pad = { l: 0, r: 44, t: 58, b: 0 };
   const band = 26;
   const axis = 20;

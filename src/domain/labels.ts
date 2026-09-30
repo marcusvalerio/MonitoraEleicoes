@@ -98,3 +98,11 @@ export function speechGroupOf(type: SpeechType): SpeechGroupId {
   const g = SPEECH_GROUPS.find((g) => (g.types as readonly SpeechType[]).includes(type));
   return g ? g.id : "informacoes";
 }
+
+export const TIMING_LABEL: Record<import("./types").TimingPrecision, string> = {
+  exact: "exata (início/fim da fonte)",
+  approximate: "aproximada",
+  block: "apenas o bloco do debate",
+  sequence: "apenas a ordem",
+  unknown: "desconhecida",
+};

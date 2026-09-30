@@ -1,0 +1,28 @@
+{
+  "schema": "monitora.candidate-registry/v1",
+  "election": { "year": 2026, "round": 1, "office": "Governador", "jurisdiction": "RJ" },
+  "source": {
+    "name": "Candidaturas divulgadas pela imprensa e números de urna declarados pelos próprios candidatos no debate",
+    "note": "Identificadores oficiais do TSE (sequencial da candidatura) ainda NÃO coletados — serão preenchidos pela integração com o DivulgaCandContas/Dados Abertos.",
+    "collectedAt": "2026-09-30T13:00:00.000Z"
+  },
+  "parties": [
+    { "acronym": "PSD", "name": "Partido Social Democrático", "number": 55 },
+    { "acronym": "PL", "name": "Partido Liberal", "number": 22 },
+    { "acronym": "REPUBLICANOS", "name": "Republicanos", "number": 10 },
+    { "acronym": "PSOL", "name": "Partido Socialismo e Liberdade", "number": 50 },
+    { "acronym": "NOVO", "name": "Partido Novo", "number": 30 }
+  ],
+  "candidates": [
+    { "name": "Eduardo Paes", "party": "PSD", "ballotNumber": 55, "tseId": null, "aliases": ["Paes"] },
+    { "name": "Douglas Ruas", "party": "PL", "ballotNumber": 22, "tseId": null, "aliases": ["Ruas"] },
+    { "name": "Anthony Garotinho", "party": "REPUBLICANOS", "ballotNumber": 10, "tseId": null, "aliases": ["Garotinho"], "note": "Candidatura sub judice segundo a imprensa (não verificado no TSE)." },
+    { "name": "William Siri", "party": "PSOL", "ballotNumber": 50, "tseId": null, "aliases": ["Siri"] },
+    { "name": "André Marinho", "party": "NOVO", "ballotNumber": 30, "tseId": null, "aliases": ["Marinho"] }
+  ],
+  "partyIdentity": {
+    "source": "Paleta editorial do Monitora (identificação de entidade; não são as cores oficiais dos partidos). Validada para daltonismo.",
+    "validFrom": "2026-01-01",
+    "colors": { "PSD": "#3987e5", "PL": "#d95926", "REPUBLICANOS": "#199e70", "PSOL": "#c98500", "NOVO": "#9085e9" }
+  }
+}

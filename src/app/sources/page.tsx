@@ -4,6 +4,8 @@ import { getRepository } from "@/repository";
 import { SOURCE_TYPE_LABEL } from "@/domain/labels";
 import type { SourceStatus, SourceType } from "@/domain/types";
 import { fmtDateTime, fmtInt } from "@/lib/format";
+import { CONFIDENCE_LABEL } from "@/domain/quality";
+import { TIMING_LABEL } from "@/domain/labels";
 import { DemoBadge, PageHeader, Panel, Tag } from "@/components/ui/primitives";
 import { Notice } from "@/components/ui/states";
 
@@ -34,6 +36,48 @@ export default async function SourcesPage() {
           Modo demonstração: fontes marcadas <DemoBadge /> produzem dados fictícios. Fontes oficiais (TSE) aparecem como não configuradas — nenhum número eleitoral é exibido até a importação oficial.
         </Notice>
       )}
+      <Panel title="Debates" question="Proveniência e qualidade da transcrição de cada debate ingerido.">
+        <div className="space-y-6">
+          {repo.listDebates().map((d) => {
+            const q = repo.getTranscriptQuality(d.id);
+            const seg = repo.getTranscript(d.id).segments[0];
+            const rec = seg?.provenance.record ? repo.getSourceRecord(seg.provenance.record.recordId) : null;
+            const art = repo.getArticles(d.id)[0];
+            const precision = seg?.timing?.precision ?? (seg && seg.startOffset !== null ? "exact" : "—");
+            const rows: [string, string][] = [
+              ["Debate", `${d.title} · ${d.broadcaster} · ${fmtDateTime(d.startsAt)}`],
+              ["Fonte da transcrição", art ? `${art.outlet} — ${art.title}` : (rec?.sourceUrl ?? seg?.provenance.sourceId ?? "—")],
+              ["Coletado em", rec ? fmtDateTime(rec.collectedAt) : "—"],
+              ["Segmentos", `${fmtInt(q.received)} recebidos · ${fmtInt(q.normalized)} normalizados · ${fmtInt(q.rejected)} rejeitados`],
+              ["Oradores", `${q.speakersResolved} resolvidos · ${q.speakersUnresolved} não resolvidos · confiança ${Object.entries(q.speakerConfidence).map(([k, v]) => `${CONFIDENCE_LABEL[k as keyof typeof CONFIDENCE_LABEL] ?? k}: ${v}`).join(", ") || "—"}`],
+              ["Cobertura temporal", `${q.timestampsAvailable} com horário · ${q.timestampsMissing} sem horário · precisão: ${TIMING_LABEL[precision as keyof typeof TIMING_LABEL] ?? precision}`],
+              ["Classificação", `${q.classificationHigh} alta · ${q.classificationMedium} média · ${q.classificationLow} baixa confiança${q.unclassified ? ` · ${q.unclassified} sem classificação` : ""}`],
+            ];
+            return (
+              <div key={d.id} id={`debate-${d.id}`} className="scroll-mt-20">
+                <dl className="grid gap-x-6 gap-y-1.5 text-[12.5px] sm:grid-cols-[180px_1fr]">
+                  {rows.map(([k, v]) => (
+                    <div key={k} className="contents">
+                      <dt className="text-fg-3">{k}</dt>
+                      <dd className="text-fg">{v}</dd>
+                    </div>
+                  ))}
+                  {rec?.sourceUrl && (
+                    <div className="contents">
+                      <dt className="text-fg-3">URL</dt>
+                      <dd>
+                        <a href={rec.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 break-all text-info hover:underline">
+                          {rec.sourceUrl.replace("https://", "")} <ExternalLink size={11} aria-hidden />
+                        </a>
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
       {ORDER.map((type) => {
         const list = sources.filter((s) => s.type === type);
         if (!list.length) return null;

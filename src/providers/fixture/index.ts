@@ -51,7 +51,7 @@ export class FixtureTranscriptProvider implements TranscriptProvider {
       name: "Debate Presidencial",
       network: "Rede Fixture",
       race: { office: "Presidente da República", year: 2026, round: 1 },
-      scheduled: { start: DEMO_DEBATE.startsAt, end: DEMO_DEBATE.endsAt },
+      scheduled: { start: DEMO_DEBATE.startsAt, end: DEMO_DEBATE.endsAt! },
       on_air: true,
       finished: false,
       lineup: DEMO_CANDIDATES.map((c) => c.name),

@@ -7,8 +7,8 @@ import type {
   SpeechClassification,
   SpeechType,
   Tone,
+  TimedSegment,
   TopicId,
-  TranscriptSegment,
 } from "@/domain/types";
 import { TOPIC_LABEL } from "@/domain/labels";
 import { DEFAULT_TONE, computeSegmentRelevance, detectMentions, toSpeechClassification } from "@/ai/classifier";
@@ -106,8 +106,8 @@ const PLATFORM_BASE: Partial<Record<SocialPlatformId, number>> = {
 };
 
 export interface DemoDataset {
-  blocks: DebateBlock[];
-  segments: TranscriptSegment[];
+  blocks: (DebateBlock & { startOffset: number; endOffset: number })[];
+  segments: TimedSegment[];
   classifications: SpeechClassification[];
   metrics: SocialMetric[];
   posts: SocialPost[];
@@ -119,9 +119,9 @@ function build(): DemoDataset {
 
   // 1 · Segmentos RAW com offsets
   let t = 0;
-  const segments: TranscriptSegment[] = script.map((l, i) => {
+  const segments: TimedSegment[] = script.map((l, i) => {
     t += i === 0 ? 0 : rng.int(2, 5);
-    const seg: TranscriptSegment = {
+    const seg: TimedSegment = {
       id: `seg-${String(i + 1).padStart(3, "0")}`,
       debateId: DEMO_DEBATE.id,
       seq: i + 1,
@@ -131,13 +131,17 @@ function build(): DemoDataset {
       text: l.text,
       blockId: l.blockId,
       addressedToId: l.addressedToId,
+      timing: { precision: "exact" },
+      speakerName: null,
+      speakerConfidence: "high",
+      speakerResolution: "source_label",
       provenance: PROV("collected"),
     };
     t += l.duration;
     return seg;
   });
 
-  const blocks: DebateBlock[] = DEMO_BLOCK_DEFS.map((b) => {
+  const blocks: (DebateBlock & { startOffset: number; endOffset: number })[] = DEMO_BLOCK_DEFS.map((b) => {
     const s = segments.filter((x) => x.blockId === b.id);
     return { ...b, startOffset: s[0].startOffset, endOffset: s[s.length - 1].endOffset };
   });

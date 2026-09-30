@@ -11,6 +11,12 @@ const familjen = Familjen_Grotesk({ subsets: ["latin"], variable: "--font-familj
 const sora = Sora({ subsets: ["latin"], variable: "--font-sora", display: "swap" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
+/**
+ * Todas as páginas dependem do perfil de dados (DATA_MODE) resolvido em TEMPO DE EXECUÇÃO.
+ * Pré-renderização estática congelaria o perfil do build e misturaria demo com dados reais.
+ */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: { default: "Monitora Eleições", template: "%s · Monitora Eleições" },
   description: "O que foi dito. O que repercutiu. O que os dados mostram. Plataforma de inteligência eleitoral e acompanhamento de debates.",

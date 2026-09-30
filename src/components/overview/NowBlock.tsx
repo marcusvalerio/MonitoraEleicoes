@@ -7,7 +7,7 @@ import { Delta, NatureBadge } from "@/components/ui/primitives";
 
 export interface NowData {
   segmentId: string;
-  at: number;
+  at: number | null;
   topic: TopicId;
   subtopic: string | null;
   headline: string;
@@ -18,13 +18,17 @@ export interface NowData {
 }
 
 /** Bloco editorial "AGORA" — o que acabou de acontecer, com contexto e origem. */
-export function NowBlock({ data, startsAt, debateId }: { data: NowData; startsAt: string; debateId: string }) {
+export function NowBlock({ data, startsAt, debateId, ended }: { data: NowData; startsAt: string; debateId: string; ended?: boolean }) {
   return (
     <article className="grid gap-6 lg:grid-cols-[180px_1fr_240px]" aria-labelledby="agora-title">
       <div>
-        <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-neg">
-          <span className="size-1.5 animate-pulse-dot rounded-full bg-neg" aria-hidden /> AGORA
-        </p>
+        {ended ? (
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-fg-2">ÚLTIMA FALA NA FONTE</p>
+        ) : (
+          <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-neg">
+            <span className="size-1.5 animate-pulse-dot rounded-full bg-neg" aria-hidden /> AGORA
+          </p>
+        )}
         <p className="mt-2 font-mono text-[26px] leading-none text-fg tnum">{wallClock(startsAt, data.at)}</p>
         <p className="mt-3 text-[11.5px] font-semibold tracking-[0.12em] text-fg-2 uppercase">
           {data.topic === "outros" ? "Debate" : TOPIC_LABEL[data.topic]}

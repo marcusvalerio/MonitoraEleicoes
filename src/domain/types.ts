@@ -84,14 +84,16 @@ export type DebateStatus = "scheduled" | "live" | "ended";
 export interface Debate {
   id: string;
   title: string;
+  /** Jurisdição (ex.: "BR", "RJ"). */
+  jurisdiction?: string;
   broadcaster: string;
   officeLabel: string;
   electionYear: number;
   round: 1 | 2;
   /** Início programado (ISO). */
   startsAt: string;
-  /** Fim programado (ISO). */
-  endsAt: string;
+  /** Fim (ISO); null quando a fonte não informa. */
+  endsAt: string | null;
   status: DebateStatus;
   participantIds: string[];
   sourceIds: string[];
@@ -150,20 +152,44 @@ export type Relevance = (typeof RELEVANCE)[number];
 export interface DebateBlock {
   id: string;
   label: string;
-  startOffset: number;
-  endOffset: number;
+  startOffset: number | null;
+  endOffset: number | null;
 }
+
+/** Segmento com tempo conhecido — requisito das análises temporais. */
+export type TimedSegment = TranscriptSegment & { startOffset: number; endOffset: number };
+export const isTimed = (s: TranscriptSegment): s is TimedSegment => typeof s.startOffset === "number" && typeof s.endOffset === "number" && Number.isFinite(s.startOffset) && Number.isFinite(s.endOffset);
+
+/**
+ * Precisão temporal de um segmento — timestamps nunca são inventados.
+ *  exact       — início/fim da própria fonte (legenda, ASR)
+ *  approximate — horário aproximado (ex.: minuto de publicação)
+ *  block       — só se sabe o bloco do debate
+ *  sequence    — só se sabe a ordem
+ *  unknown     — nada se sabe sobre o tempo
+ */
+export type TimingPrecision = "exact" | "approximate" | "block" | "sequence" | "unknown";
+
+/** Orador não identificado com segurança. */
+export const UNKNOWN_SPEAKER_ID = "orador-desconhecido";
 
 /** RAW — nunca é alterado pela IA. */
 export interface TranscriptSegment {
   id: string;
   debateId: string;
   seq: number;
-  /** ID do candidato ou "moderador". */
+  /** ID do candidato, "moderador" ou UNKNOWN_SPEAKER_ID. */
   speakerId: string;
-  /** Segundos desde o início do debate. */
-  startOffset: number;
-  endOffset: number;
+  /** Rótulo do orador como aparece na fonte (antes da resolução). */
+  speakerName?: string | null;
+  /** Confiança na identificação do orador. */
+  speakerConfidence?: ConfidenceLevel;
+  /** Como o orador foi resolvido. */
+  speakerResolution?: "source_label" | "manual_map" | "press_attribution" | "unresolved";
+  /** Segundos desde o início do debate; null quando a fonte não informa. */
+  startOffset: number | null;
+  endOffset: number | null;
+  timing?: { precision: TimingPrecision };
   text: string;
   blockId: string;
   /** Candidato a quem a fala é endereçada no formato do debate (pergunta/resposta). */

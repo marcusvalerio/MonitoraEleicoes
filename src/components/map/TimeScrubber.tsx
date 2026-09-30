@@ -17,7 +17,7 @@ export interface ScrubberEvent {
  * Controle temporal do mapa: arrasta-se o instante; eventos de pico são marcadores clicáveis.
  * Ao escolher um pico, o mapa mostra o recorte naquele momento — associação temporal, não causal.
  */
-export function TimeScrubber({ series, startsAt, totalEnd, now, value, onChange, events, focusEvent, windowMode, onWindowMode }: {
+export function TimeScrubber({ series, startsAt, totalEnd: rawEnd, now, value, onChange, events, focusEvent, windowMode, onWindowMode }: {
   series: { t: number; v: number }[];
   startsAt: string;
   totalEnd: number;
@@ -30,6 +30,7 @@ export function TimeScrubber({ series, startsAt, totalEnd, now, value, onChange,
   onWindowMode: (m: "acumulado" | "janela") => void;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
+  const totalEnd = Math.max(1, rawEnd); // evita divisão por zero quando não há série temporal
   const h = 56;
   const max = Math.max(1, ...series.map((s) => s.v));
   const x = (t: number) => (t / totalEnd) * width;

@@ -32,6 +32,14 @@ export async function OverviewPage() {
     label: e.kind === "social_spike" ? `Pico · ${TOPIC_LABEL[e.topic]}` : e.kind === "topic_shift" ? TOPIC_LABEL[e.topic] : e.kind === "fact_check_flag" ? "Dado citado" : e.title.split(" ").slice(0, 1).join(" ") + " → " + (s.participants.find((p) => p.id === e.candidateIds[1])?.name.split(" ")[0] ?? ""),
   }));
   const mentionTotal = Object.values(s.social.mentions).reduce((a, b) => a + b, 0);
+  // Sem métricas sociais = NÃO COLETADO (nunca exibido como zero).
+  const socialCollected = s.social.series.length > 0;
+  const ended = debate.status === "ended";
+  const notCollected = (
+    <StateView state="provider_unavailable" title="Repercussão não coletada" compact>
+      Nenhum provider de redes sociais está configurado para este debate. Os valores não são zero — não foram coletados.
+    </StateView>
+  );
 
   return (
     <div className="mx-auto max-w-[1480px] px-4 py-6 md:px-8 md:py-8">
@@ -47,7 +55,7 @@ export async function OverviewPage() {
         </div>
         <dl className="flex gap-6 text-right">
           {[
-            ["Em andamento", fmtDuration(s.offset)],
+            [ended ? "Situação" : "Em andamento", ended ? "Encerrado" : fmtDuration(s.offset)],
             ["Falas", fmtInt(s.segments.length)],
             ["Temas", String(s.topics.length)],
             ["Eventos", String(s.events.length)],
@@ -62,7 +70,7 @@ export async function OverviewPage() {
 
       {/* 01 — Agora */}
       <section className="py-8" aria-label="O que está acontecendo agora">
-        {o.now ? <NowBlock data={o.now} startsAt={debate.startsAt} debateId={debate.id} /> : <StateView state="processing" compact>Aguardando as primeiras falas.</StateView>}
+        {o.now ? <NowBlock data={o.now} startsAt={debate.startsAt} debateId={debate.id} ended={ended} /> : <StateView state="processing" compact>Aguardando as primeiras falas.</StateView>}
       </section>
 
       {/* 02 — Conversa (protagonista) */}
@@ -77,21 +85,38 @@ export async function OverviewPage() {
           </Link>
         }
       >
-        <ConversationChart series={s.social.series} startsAt={debate.startsAt} domainEnd={s.totalEnd} now={s.isLive ? s.offset : undefined} runs={s.timeline} annotations={annotations} height={330} />
+        {socialCollected ? (
+          <ConversationChart series={s.social.series} startsAt={debate.startsAt} domainEnd={s.totalEnd} now={s.isLive ? s.offset : undefined} runs={s.timeline} annotations={annotations} height={330} />
+        ) : s.speechTimeline.kind === "value" ? (
+          <>
+            <p className="mb-2 text-[12px] text-fg-3">Repercussão não coletada — exibindo o volume de FALA (palavras por minuto) da transcrição.</p>
+            <ConversationChart series={s.speechTimeline.value.map((b) => ({ t: b.start, v: b.words }))} startsAt={debate.startsAt} domainEnd={s.totalEnd} runs={s.timeline} annotations={annotations} height={330} />
+          </>
+        ) : (
+          <StateView state="no_data" title="Sem série temporal" compact>
+            A repercussão não foi coletada e a transcrição não informa horários ({s.timing.untimed} de {s.timing.total} falas sem marcação de tempo). Nenhum horário foi estimado.
+          </StateView>
+        )}
         <p className="mt-2 text-[11.5px] text-fg-3">Faixa inferior: tema da fala em cada momento. Marcadores: eventos detectados. Proximidade temporal entre evento e volume não indica causalidade.</p>
       </Panel>
 
       {/* 03 — Assuntos · Plataformas · Nomes */}
       <div className="mt-10 grid gap-x-10 gap-y-10 lg:grid-cols-3">
         <Panel index="02" title="Assuntos em movimento" question="Publicações por tema nos últimos 15 min, comparadas aos 15 anteriores.">
-          <TopicMomentumList items={o.momentum} startsAt={debate.startsAt} />
+          {socialCollected ? <TopicMomentumList items={o.momentum} startsAt={debate.startsAt} /> : notCollected}
         </Panel>
         <Panel index="03" title="Onde a conversa está" question="Participação de cada plataforma no volume. Acessos às APIs diferem.">
-          <PlatformList items={o.platforms} total={s.social.total} />
+          {socialCollected ? <PlatformList items={o.platforms} total={s.social.total} /> : notCollected}
         </Panel>
         <Panel index="04" title="Nomes mais citados" question="Menções nominais em publicações, na ordem de púlpito.">
-          <MentionList items={s.participants.map((p) => ({ id: p.id, name: p.name, party: p.party?.acronym ?? "", color: p.swatch, count: s.social.mentions[p.id] ?? 0 }))} />
-          <p className="mt-4 text-[11.5px] text-fg-3">Menções não indicam apoio, rejeição ou preferência. Total: {fmtInt(mentionTotal)}.</p>
+          {socialCollected ? (
+            <>
+              <MentionList items={s.participants.map((p) => ({ id: p.id, name: p.name, party: p.party?.acronym ?? "", color: p.swatch, count: s.social.mentions[p.id] ?? 0 }))} />
+              <p className="mt-4 text-[11.5px] text-fg-3">Menções não indicam apoio, rejeição ou preferência. Total: {fmtInt(mentionTotal)}.</p>
+            </>
+          ) : (
+            notCollected
+          )}
         </Panel>
       </div>
 

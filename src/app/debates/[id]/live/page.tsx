@@ -12,10 +12,15 @@ export default async function LivePage({ params, searchParams }: { params: Promi
   const { seg } = await searchParams;
   let s = await getDebateSnapshot(id);
   if (!s) notFound();
+  // Debate encerrado com horários na fonte: REPLAY a partir da primeira fala (relógio segue os timestamps).
+  if (s.debate.status === "ended" && s.timing.replayable && !seg) {
+    const first = s.segments.reduce((m, x) => (x.startOffset !== null ? Math.min(m, x.startOffset) : m), Infinity);
+    s = (await getDebateSnapshot(id, Number.isFinite(first) ? first : 0))!;
+  }
   // Link para uma fala específica: em replay, avança o relógio até ela.
   if (seg) {
     const target = (await getRepository()).getSegment(id, seg);
-    if (target && target.endOffset > s.offset) s = (await getDebateSnapshot(id, target.endOffset + 1))!;
+    if (target && target.endOffset !== null && target.endOffset > s.offset) s = (await getDebateSnapshot(id, target.endOffset + 1))!;
   }
   return (
     <LiveDebate

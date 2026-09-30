@@ -26,9 +26,35 @@ Nunca assuma paridade: o pipeline consulta um método apenas se a capability cor
 |---|---|---|---|---|---|
 | `demo` | `DemoTranscriptProvider` | `DemoSocialProvider` | `DemoElectionProvider` | `DemoMediaProvider` | `DemoSpeechClassifier` |
 | `fixture` | `FixtureTranscriptProvider` (cues em ms, orador por nome) | `FixtureSocialProvider` (sem posts; contagens por nome/rótulo; 3 registros inválidos) | `FixtureElectionProvider` (códigos próprios, cores embutidas) | `FixtureMediaProvider` (não configurado) | `RuleBasedSpeechClassifier` |
-| `live` | — | — | — | — | — |
+| `live` | `FileTranscriptProvider` (arquivos reais em `data/real`) | `UnconfiguredSocialProvider` (`not_configured`) | `FileRegistryElectionProvider` | `FilePressProvider` (matérias usadas como fonte) | `RuleBasedSpeechClassifier` |
 
 Geometria: `SvgGeoProvider` (UFs e regiões). Futuros: `TopoJsonGeoProvider`, provider de vector tiles (MapLibre).
+
+## Importar um debate real (arquivo)
+
+Quando a fonte não oferece acesso automatizado ao texto (streaming protegido, sem legenda pública), o debate entra por **arquivo**, pelo mesmo pipeline:
+
+```
+data/real/<evento>/
+  manifest.json      # debate (id, título, emissora, jurisdição, cargo, início, fim|null, status, participantes, blocos),
+                     # fonte principal, fonte da transcrição (URL, publicação, coleta, SHA-256), precisão temporal,
+                     # atribuição de orador e speakerMap (resolução manual rótulo → candidato)
+  registry.json      # partidos, candidaturas, números de urna, tseId (null até a integração TSE), identidade visual
+  <transcrição>      # .vtt | .srt | .txt | .json | .csv
+```
+
+Formatos (`src/ingestion/formats/transcript.ts`):
+
+| Formato | Tempo | Orador |
+|---|---|---|
+| VTT / SRT | exato (cues) | `<v Nome>`, `[Nome]` ou `NOME:` |
+| TXT | opcional `[hh:mm:ss]`; `## Bloco` define o bloco | `NOME:` (linhas sem orador continuam o turno) |
+| JSON | `start`/`end` opcionais (s ou `hh:mm:ss`) | `speaker` |
+| CSV | colunas `start`,`end` opcionais | coluna `speaker` |
+
+Regras: nenhum horário é inventado (ausente ⇒ `startOffset = null` + `timing.precision`); orador não resolvido vira `orador-desconhecido` com `speakerConfidence = unknown` (não é rejeitado nem assumido); rótulos podem ser resolvidos manualmente via `speakerMap`. Rode `DATA_MODE=live`.
+
+Exemplo real: `data/real/rj-governador-2026-09-29` (ver `docs/VALIDATION-RJ-2026-09-29.md`).
 
 ## Como criar um provider
 

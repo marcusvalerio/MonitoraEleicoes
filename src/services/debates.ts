@@ -1,6 +1,7 @@
 import "server-only";
 import { getRepository } from "@/repository";
-import { topicStats, candidateActivity, speechComposition, topicTimeline, topicHeatmap, interactionEdges } from "@/analytics/debate";
+import { topicStats, candidateActivity, speechComposition, topicTimeline, topicHeatmap, interactionEdges, candidateSpeechDistribution } from "@/analytics/debate";
+import { debateTimeline, timingSummary } from "@/analytics/timeline";
 import { volumeSeries, volumeByPlatform, mentionsByCandidate } from "@/analytics/social";
 import { currentOffset as clockOffset } from "@/lib/clock";
 import type { Debate, TopicId } from "@/domain/types";
@@ -44,13 +45,15 @@ export async function getDebateSnapshot(debateId: string, upTo?: number) {
   const repo = await getRepository();
   const debate = repo.getDebate(debateId);
   if (!debate) return null;
-  const totalEnd = repo.transcriptEnd(debateId) || (Date.parse(debate.endsAt) - Date.parse(debate.startsAt)) / 1000;
+  const totalEnd = repo.transcriptEnd(debateId) || (debate.endsAt ? (Date.parse(debate.endsAt) - Date.parse(debate.startsAt)) / 1000 : 0);
   const at = upTo ?? (await currentOffset(debate));
   const offset = Math.min(at, totalEnd);
-  const win = repo.getTranscript(debateId, { to: offset });
-  const events = repo.getEvents(debateId, { to: offset });
+  // Debate encerrado sem recorte explícito: tudo disponível (inclusive falas sem horário).
+  const to = debate.status === "ended" && upTo === undefined ? undefined : offset;
+  const win = repo.getTranscript(debateId, { to });
+  const events = repo.getEvents(debateId, { to });
   const participants = await getParticipants(debate);
-  const metrics = repo.getSocialMetrics(debateId, { to: offset });
+  const metrics = repo.getSocialMetrics(debateId, { to });
   const { segments, classifications } = win;
   const cids = participants.map((c) => c.id);
   const moderator = repo.moderatorId();
@@ -76,6 +79,10 @@ export async function getDebateSnapshot(debateId: string, upTo?: number) {
     composition: speechComposition(cids, segments, classifications),
     timeline: topicTimeline(segments, classifications),
     heatmap: { ...topicHeatmap(segments, classifications, 600, heatTopics), topics: heatTopics },
+    distribution: candidateSpeechDistribution(cids, segments, classifications),
+    speechTimeline: debateTimeline(segments, 60),
+    timing: timingSummary(segments),
+    quality: repo.getTranscriptQuality(debateId),
     interactions: interactionEdges(segments, classifications, cids),
     social: {
       series: volumeSeries(metrics),

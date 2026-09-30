@@ -14,8 +14,9 @@ export function fmtClock(sec: number): string {
   return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((x) => String(x).padStart(2, "0")).join(":");
 }
 
-/** Horário de parede (BRT) de um offset do debate. */
-export function wallClock(startsAt: string, offset: number, withSeconds = true): string {
+/** Horário de parede (BRT) de um offset do debate. Offset desconhecido ⇒ "—" (nunca inventado). */
+export function wallClock(startsAt: string, offset: number | null, withSeconds = true): string {
+  if (offset === null || !Number.isFinite(offset)) return "—";
   const d = new Date(Date.parse(startsAt) + offset * 1000);
   return d.toLocaleTimeString("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: withSeconds ? "2-digit" : undefined, hour12: false });
 }

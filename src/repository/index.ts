@@ -1,9 +1,10 @@
 import "server-only";
 import type { Debate, DebateEvent, Source, TranscriptSegment } from "@/domain/types";
-import { MODERATOR_SPEAKER_ID } from "@/domain/types";
+import { MODERATOR_SPEAKER_ID, isTimed } from "@/domain/types";
 import type { SourceStatus } from "@/domain/provenance";
 import { detectEvents } from "@/analytics/events";
 import { geoCoverage } from "@/analytics/coverage";
+import { transcriptQuality } from "@/analytics/timeline";
 import { ingest } from "@/ingestion/pipeline";
 import type { DataStore } from "@/ingestion/store";
 import { getProfile, type ProviderProfile } from "@/providers/registry";
@@ -51,25 +52,32 @@ export class Repository {
   }
   /** Duração conhecida da transcrição (fim do último segmento). */
   transcriptEnd(debateId: string): number {
-    return this.store.segments.get(debateId)?.at(-1)?.endOffset ?? 0;
+    return (this.store.segments.get(debateId) ?? []).filter(isTimed).reduce((m, s) => Math.max(m, s.endOffset), 0);
   }
   /** Janela de transcrição: segmentos concluídos com fim em [from, to]. */
   getTranscript(debateId: string, range: { from?: number; to?: number } = {}) {
     const all = this.store.segments.get(debateId) ?? [];
     const to = upTo(range.to);
-    const segments = all.filter((s) => s.endOffset <= to && (range.from === undefined || s.endOffset >= range.from));
-    const cur = range.to === undefined ? null : all.find((s) => s.startOffset <= to && s.endOffset > to);
+    // Segmentos sem tempo só entram quando não há recorte temporal (não podem ser posicionados).
+    const segments = all.filter((s) => (isTimed(s) ? s.endOffset <= to && (range.from === undefined || s.endOffset >= range.from) : to === Infinity && range.from === undefined));
+    const cur = range.to === undefined ? null : all.filter(isTimed).find((s) => s.startOffset <= to && s.endOffset > to);
     return {
       segments,
       classifications: segments.map((s) => this.store.classifications.get(s.id)).filter((c) => !!c),
-      cursor: segments.at(-1)?.endOffset ?? range.from ?? 0,
+      cursor: segments.filter(isTimed).at(-1)?.endOffset ?? range.from ?? 0,
       complete: to >= this.transcriptEnd(debateId),
       inProgress: cur ? { speakerId: cur.speakerId, startOffset: cur.startOffset, blockId: cur.blockId } : null,
     };
   }
+  /** Relatório de qualidade da transcrição de um debate (recebidos, oradores, tempos, confiança). */
+  getTranscriptQuality(debateId: string) {
+    const segs = this.store.segments.get(debateId) ?? [];
+    const report = this.store.reports.find((r) => r.kind === `transcript:segments:${debateId}`) ?? null;
+    return transcriptQuality(segs, segs.map((s) => this.store.classifications.get(s.id)).filter((c) => !!c), report);
+  }
   /** Paginação por cursor (API pública). */
   getTranscriptPage(debateId: string, page: PageRequest & { to?: number }) {
-    const segs = (this.store.segments.get(debateId) ?? []).filter((s) => s.endOffset <= upTo(page.to));
+    const segs = (this.store.segments.get(debateId) ?? []).filter((s) => (isTimed(s) ? s.endOffset <= upTo(page.to) : page.to === undefined));
     const p = paginate(segs, page, 200);
     return { ...p, items: p.items.map((s) => ({ segment: s, analysis: this.store.classifications.get(s.id) ?? null, record: s.provenance.record ? (this.store.sourceRecords.get(s.provenance.record.recordId) ?? null) : null })) };
   }

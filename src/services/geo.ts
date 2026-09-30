@@ -34,6 +34,9 @@ export async function queryGeo(q: { debateId: string; parentKey: string; childLe
     };
   }
   const metrics = repo.getGeoMetrics(q.debateId, { to: q.to });
+  if (!metrics.length) {
+    return { ...base, rows: [], totals: { posts: 0, topicPosts: 0, geolocatedShare: null }, unavailableReason: "Repercussão geolocalizada não coletada para este debate (nenhum provider social configurado)." };
+  }
   const rows = aggregateGeo(metrics, { parentKey: parent.key, childLevel, from, to: q.to, topic: q.topic, trendWindow });
   return {
     ...base,

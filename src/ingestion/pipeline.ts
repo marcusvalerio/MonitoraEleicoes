@@ -1,4 +1,5 @@
 import type { DebateBlock, Debate, TranscriptSegment } from "@/domain/types";
+import { isTimed } from "@/domain/types";
 import { identityAt, NEUTRAL_ENTITY_COLOR } from "@/domain/identity";
 import { payloadHash, type SourceRecord } from "@/domain/provenance";
 import { confidenceLevel } from "@/domain/quality";
@@ -111,7 +112,8 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
     await run(src.transcript, `segments:${debateId}`, pageOf((p) => src.transcript.fetchSegments(ext, p)), (n) => {
       if (n.type === "segment") store.push(store.segments, n.value.debateId, n.value);
     });
-    const segs = (store.segments.get(debateId) ?? []).sort((a, b) => a.startOffset - b.startOffset);
+    // Ordem: tempo quando conhecido; caso contrário, sequência declarada pela fonte.
+    const segs = (store.segments.get(debateId) ?? []).sort((a, b) => (isTimed(a) && isTimed(b) ? a.startOffset - b.startOffset : a.seq - b.seq));
     store.segments.set(debateId, segs);
     store.blocks.set(debateId, computeBlocks(ctx, ext, store.blocks.get(debateId) ?? [], segs));
   }
@@ -142,7 +144,7 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
   }
 
   // 5 · IA: classificação das falas (RAW preservado; análise separada e versionada)
-  await classifyAll(store, src.classifier(store), src.aiSourceId);
+  await classifyAll(store, src.classifier(store), src.aiSourceId, src);
   return store;
 }
 
@@ -162,12 +164,14 @@ function computeBlocks(ctx: NormalizationContext, ext: string, declared: DebateB
   const out: DebateBlock[] = [];
   for (const [id, label] of labels) {
     const s = segs.filter((x) => x.blockId === id);
-    if (s.length) out.push({ id, label, startOffset: s[0].startOffset, endOffset: s[s.length - 1].endOffset });
+    const t = s.filter(isTimed);
+    // Limites do bloco só quando há tempo conhecido; senão ficam nulos (não inventados).
+    if (s.length) out.push({ id, label, startOffset: t.length ? t[0].startOffset : null, endOffset: t.length ? t[t.length - 1].endOffset : null });
   }
-  return out.sort((a, b) => a.startOffset - b.startOffset);
+  return out.sort((a, b) => (a.startOffset ?? Infinity) - (b.startOffset ?? Infinity));
 }
 
-async function classifyAll(store: DataStore, classifier: SpeechClassifier, sourceId: string) {
+async function classifyAll(store: DataStore, classifier: SpeechClassifier, sourceId: string, src: { mode: "demo" | "live" }) {
   const report: IngestionReport = { providerId: `ai:${classifier.model.model}`, sourceId, kind: "ai:classification", status: "ok", fetched: 0, normalized: 0, rejected: 0, issues: [], startedAt: new Date().toISOString(), finishedAt: "" };
   for (const [debateId, segs] of store.segments) {
     const debate = store.debates.get(debateId) as Debate;
@@ -183,13 +187,14 @@ async function classifyAll(store: DataStore, classifier: SpeechClassifier, sourc
       try {
         const out = await classifier.classify(seg, { candidates: [...store.candidates.values()], triggersReply: false, socialLift: 0 });
         if (!validateClassifierOutput(out)) throw new Error("saída do classificador inválida");
-        const before = vol(seg.startOffset - 180, seg.startOffset);
-        const after = vol(seg.endOffset, seg.endOffset + 180);
+        // Variação social só é mensurável com tempo conhecido e métricas disponíveis.
+        const before = isTimed(seg) ? vol(seg.startOffset - 180, seg.startOffset) : 0;
+        const after = isTimed(seg) ? vol(seg.endOffset, seg.endOffset + 180) : 0;
         const socialLift = before > 0 ? Math.max(0, Math.min(1, after / before - 1)) : 0;
         const next = segs[i + 1];
         const triggersReply = !!next && !!seg.addressedToId && next.speakerId === seg.addressedToId;
         const rel = computeSegmentRelevance(seg, out.speech_type, out.mentions, { triggersReply, socialLift });
-        const classifiedAt = new Date(Date.parse(debate.startsAt) + (seg.endOffset + 5) * 1000).toISOString();
+        const classifiedAt = isTimed(seg) && src.mode === "demo" ? new Date(Date.parse(debate.startsAt) + (seg.endOffset + 5) * 1000).toISOString() : store.ingestedAt;
         const c = toSpeechClassification(seg, { ...out, relevance: rel.band }, classifier.model, {
           classifiedAt,
           factCheck: out.fact_check_status ?? (out.fact_check_required ? "verificar" : "nao_necessario"),

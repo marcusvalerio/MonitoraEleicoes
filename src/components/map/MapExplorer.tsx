@@ -260,7 +260,7 @@ export function MapExplorer(p: MapExplorerProps) {
           </div>
         )}
 
-        {!p.compact && (
+        {!p.compact && p.series.length > 0 && (
           <TimeScrubber
             series={p.series}
             startsAt={p.startsAt}

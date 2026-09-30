@@ -8,6 +8,8 @@ import type { ElectionProvider, GeoProvider, MediaProvider, SocialProvider, Tran
 import { DemoElectionProvider, DemoMediaProvider, DemoSocialProvider, DemoTranscriptProvider } from "./demo";
 import { FixtureElectionProvider, FixtureMediaProvider, FixtureSocialProvider, FixtureTranscriptProvider } from "./fixture";
 import { SvgGeoProvider } from "./geo/svg";
+import { FilePressProvider, FileRegistryElectionProvider, FileTranscriptProvider, UnconfiguredSocialProvider } from "./files";
+import { LIVE_SOURCES } from "./files/sources";
 import { DEMO_SOURCES } from "@/data/demo/sources";
 import { FIXTURE_SOURCES } from "./fixture/sources";
 
@@ -16,7 +18,7 @@ import { FIXTURE_SOURCES } from "./fixture/sources";
  *
  *   DATA_MODE=demo     → providers DEMO (padrão)
  *   DATA_MODE=fixture  → providers alternativos (formatos diferentes; prova de desacoplamento)
- *   DATA_MODE=live     → providers reais (ainda não configurados → erro explícito)
+ *   DATA_MODE=live     → dados reais (arquivos importados em data/real; redes sociais não configuradas)
  */
 export type ProfileId = "demo" | "fixture" | "live";
 
@@ -62,8 +64,21 @@ function build(id: ProfileId): ProviderProfile {
     };
   }
   if (id === "live") {
-    // Providers reais (TSE, YouTube, X…) serão registrados aqui, lendo credenciais do ambiente.
-    throw new Error("DATA_MODE=live: nenhum provider real configurado ainda (ver docs/PROVIDERS.md).");
+    // Dados reais. Hoje: arquivos importados (data/real). Futuro: TSE, YouTube, X… (credenciais via env).
+    return {
+      id,
+      label: "Dados reais",
+      mode: "live",
+      election: new FileRegistryElectionProvider(),
+      transcript: new FileTranscriptProvider(),
+      social: new UnconfiguredSocialProvider(),
+      media: new FilePressProvider(),
+      geo: new SvgGeoProvider(),
+      classifier: (store) => new RuleBasedSpeechClassifier(() => [...store.candidates.values()]),
+      aiSourceId: "src-ai-rules",
+      sources: LIVE_SOURCES,
+      clock: { kind: "replay", minOffset: 0 },
+    };
   }
   return {
     id,

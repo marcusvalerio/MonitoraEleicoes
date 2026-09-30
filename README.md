@@ -13,9 +13,21 @@ npm run dev          # http://localhost:3000
 npm run check        # typecheck + lint + testes + build
 ```
 
-Funciona sem nenhuma API externa: `DATA_MODE=demo` (padrão). `DATA_MODE=fixture` usa providers alternativos (formatos de origem diferentes) para provar o desacoplamento. Todos os dados são fictícios; o indicador global do shell informa o perfil.
+Perfis de dados (`DATA_MODE`, resolvido em tempo de execução; o indicador global do shell informa o perfil):
 
-Documentação: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/PROVIDERS.md`](docs/PROVIDERS.md) · [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · [`docs/GEO.md`](docs/GEO.md) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md)
+| Perfil | Dados |
+|---|---|
+| `demo` (padrão) | fictícios, sem nenhuma API externa |
+| `fixture` | fictícios, providers alternativos (formatos de origem diferentes) — prova de desacoplamento |
+| `live` | **reais**, importados por arquivo em `data/real` (hoje: debate para o Governo do RJ, TV Globo, 29/09/2026 — considerações finais) |
+
+```bash
+npm run e2e                                                    # perfil demo
+BASE_URL=http://localhost:3002 DEBATE_ID=fx-show-0001 npm run e2e  # perfil fixture
+BASE_URL=http://localhost:3004 npm run e2e:real                # perfil live (debate real)
+```
+
+Documentação: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/PROVIDERS.md`](docs/PROVIDERS.md) · [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · [`docs/GEO.md`](docs/GEO.md) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) · [`docs/VALIDATION-RJ-2026-09-29.md`](docs/VALIDATION-RJ-2026-09-29.md)
 
 ## Arquitetura
 

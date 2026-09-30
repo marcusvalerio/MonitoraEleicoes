@@ -31,11 +31,9 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
         actions={
           hasData && (
             <>
-              {s.isLive && (
-                <ButtonLink href={`/debates/${debate.id}/live`} variant="primary">
-                  <Radio size={14} aria-hidden /> Ao vivo
-                </ButtonLink>
-              )}
+              <ButtonLink href={`/debates/${debate.id}/live`} variant="primary">
+                <Radio size={14} aria-hidden /> {s.isLive ? "Ao vivo" : "Replay · transcrição"}
+              </ButtonLink>
               <ButtonLink href={`/debates/${debate.id}/analytics`}>
                 <BarChart3 size={14} aria-hidden /> Análise
               </ButtonLink>
@@ -71,7 +69,7 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
                 <li key={b.id} className="flex items-center justify-between text-[12.5px]">
                   <span className="text-fg-2">{b.label}</span>
                   <span className="tnum text-fg-3">
-                    {wallClock(debate.startsAt, b.startOffset, false)} · {fmtDuration(b.endOffset - b.startOffset)}
+                    {b.startOffset === null || b.endOffset === null ? "horário não informado pela fonte" : `${wallClock(debate.startsAt, b.startOffset, false)} · ${fmtDuration(b.endOffset - b.startOffset)}`}
                   </span>
                 </li>
               ))}

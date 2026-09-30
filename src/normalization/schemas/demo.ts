@@ -7,7 +7,7 @@ export interface DemoEventV1 {
   election_year: number;
   round: 1 | 2;
   starts_at: string;
-  ends_at: string;
+  ends_at: string | null;
   status: "scheduled" | "live" | "ended";
   participant_refs: string[];
   blocks: { id: string; label: string }[];

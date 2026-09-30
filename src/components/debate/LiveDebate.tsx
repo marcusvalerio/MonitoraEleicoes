@@ -33,7 +33,7 @@ export interface LiveDebateProps {
   moderatorId: string;
 }
 
-const SPEEDS = [1, 4, 16] as const;
+const SPEEDS = [1, 2, 5, 10] as const;
 const POLL_MS = 2500;
 
 export function LiveDebate({ debate, clock, participants, blocks, initial, focusSegmentId, moderatorId }: LiveDebateProps) {
@@ -52,12 +52,14 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
   const [onlyHigh, setOnlyHigh] = useState(false);
   const [q, setQ] = useState("");
   const [mobileTab, setMobileTab] = useState<"transcricao" | "analise" | "eventos">("transcricao");
-  const cursorRef = useRef(initial.segments.at(-1)?.endOffset ?? 0);
+  const cursorRef = useRef(initial.segments.reduce((m, s) => (s.endOffset !== null ? Math.max(m, s.endOffset) : m), 0));
   const offsetRef = useRef(offset);
   useEffect(() => {
     offsetRef.current = offset;
   }, [offset]);
-  const ended = offset >= initial.totalEnd;
+  // Sem nenhum horário na fonte, não há relógio a reproduzir: exibe as falas na ordem da fonte.
+  const replayable = initial.segments.some((s) => s.startOffset !== null) || initial.inProgress !== null || initial.offset < initial.totalEnd;
+  const ended = !replayable || offset >= initial.totalEnd;
 
   // Relógio (replay em demo; em produção, derivado do horário real)
   useEffect(() => {
@@ -84,7 +86,7 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
         });
         setEvents(j.events);
         setInProgress(j.inProgress);
-        if (j.segments.length) cursorRef.current = j.segments.at(-1)!.endOffset;
+        if (j.segments.length) cursorRef.current = j.segments.at(-1)!.endOffset ?? cursorRef.current;
         else if (replace) cursorRef.current = 0;
         setStatus("ok");
       } catch {
@@ -146,14 +148,14 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
     const m = new Map<string, { secs: number; n: number }>();
     for (const s of segments) {
       const x = m.get(s.speakerId) ?? { secs: 0, n: 0 };
-      x.secs += s.endOffset - s.startOffset;
+      x.secs += s.endOffset !== null && s.startOffset !== null ? s.endOffset - s.startOffset : 0;
       x.n++;
       m.set(s.speakerId, x);
     }
     return m;
   }, [segments]);
 
-  const currentBlock = blocks.find((b) => offset >= b.startOffset && offset < b.endOffset) ?? blocks.at(-1);
+  const currentBlock = blocks.find((b) => b.startOffset !== null && b.endOffset !== null && offset >= b.startOffset && offset < b.endOffset) ?? blocks.at(-1);
   const speaker = inProgress && !ended ? byId.get(inProgress.speakerId) : null;
   const speakerIsModerator = inProgress?.speakerId === moderatorId && !ended;
   const currentTalk = inProgress ? offset - inProgress.startOffset : 0;
@@ -203,7 +205,7 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
         </dl>
       )}
       <div className={compact ? "hidden" : undefined}>
-        <p className="eyebrow mb-2">Tempo de fala acumulado</p>
+        <p className="eyebrow mb-2">{replayable ? "Tempo de fala acumulado" : "Falas na transcrição · tempo desconhecido"}</p>
         <ul className="space-y-2">
           {participants.map((p) => {
             const secs = (stats.get(p.id)?.secs ?? 0) + (inProgress?.speakerId === p.id && !ended ? currentTalk : 0);
@@ -214,7 +216,7 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
                   <div className="flex items-center gap-2 text-[12.5px]">
                     <span className="size-2 rounded-full" style={{ background: p.swatch }} aria-hidden />
                     <span className={active ? "text-fg" : "text-fg-2"}>{p.name}</span>
-                    <span className="ml-auto tnum text-fg-3">{fmtDuration(secs)}</span>
+                    <span className="ml-auto tnum text-fg-3">{replayable ? fmtDuration(secs) : `${stats.get(p.id)?.n ?? 0} fala(s)`}</span>
                   </div>
                   <div className="mt-1 ml-4 h-1 overflow-hidden rounded-full bg-elevated">
                     <motion.div className="h-full rounded-full" style={{ background: active ? "#f2f2f0" : "#68686e" }} animate={{ width: `${(secs / maxSecs) * 100}%` }} transition={{ duration: 0.6 }} />
@@ -232,7 +234,7 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
           <p className="text-[12.5px] text-fg">{currentBlock.label}</p>
           <div className="mt-2 flex gap-[2px]">
             {blocks.map((b) => (
-              <span key={b.id} className={cn("h-1 rounded-full", b.id === currentBlock.id ? "bg-fg" : offset > b.endOffset ? "bg-fg-3" : "bg-elevated")} style={{ flex: b.endOffset - b.startOffset }} title={b.label} />
+              <span key={b.id} className={cn("h-1 rounded-full", b.id === currentBlock.id ? "bg-fg" : b.endOffset !== null && offset > b.endOffset ? "bg-fg-3" : "bg-elevated")} style={{ flex: b.endOffset !== null && b.startOffset !== null ? b.endOffset - b.startOffset : 1 }} title={b.label} />
             ))}
           </div>
         </div>
@@ -338,10 +340,11 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
           <h1 className="mt-1 font-display text-[22px] leading-tight font-bold tracking-tight uppercase md:text-[26px]">{debate.title}</h1>
         </div>
         <div className="ml-auto flex items-center gap-3">
-          <div className="text-right">
+          <div className={replayable ? "text-right" : "hidden"}>
             <p className="tnum font-display text-[22px] leading-none font-semibold text-fg">{wallClock(debate.startsAt, offset)}</p>
             <p className="mt-1 text-[11px] text-fg-3 tnum">+{fmtClock(offset)} desde o início</p>
           </div>
+          {replayable && (
           <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border bg-surface p-1" role="group" aria-label="Controles de replay">
             <button type="button" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pausar" : "Retomar"} className="flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-fg-2 hover:bg-elevated hover:text-fg">
               {playing ? <Pause size={14} /> : <Play size={14} />}
@@ -356,9 +359,15 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
               <Radio size={12} aria-hidden /> Ao vivo
             </button>
           </div>
+          )}
         </div>
       </div>
 
+      {!replayable && (
+        <Notice state="partial" className="mb-3">
+          Replay indisponível: a fonte desta transcrição não informa horários. As falas aparecem na ordem da fonte, sem relógio — nenhum horário foi estimado.
+        </Notice>
+      )}
       {(!online || status === "error") && (
         <Notice state={online ? "provider_unavailable" : "offline"} className="mb-3">
           {online ? "Não foi possível buscar novas falas. Tentando novamente automaticamente; os dados abaixo continuam válidos." : "Sem conexão. A transcrição será atualizada quando a conexão voltar."}

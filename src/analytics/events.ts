@@ -1,4 +1,5 @@
-import type { Candidate, DebateEvent, SocialMetric, SpeechClassification, TopicId, TranscriptSegment } from "@/domain/types";
+import type { Candidate, DebateEvent, SocialMetric, SpeechClassification, TimedSegment, TopicId, TranscriptSegment } from "@/domain/types";
+import { isTimed } from "@/domain/types";
 import { TOPIC_LABEL } from "@/domain/labels";
 import type { Statement } from "@/domain/statements";
 import { temporalAssociation } from "@/domain/statements";
@@ -10,6 +11,7 @@ import { wallClockLabel } from "./time";
  */
 export interface EventEngineInput {
   debateId: string;
+  /** Segmentos sem tempo são ignorados: eventos exigem posição temporal. */
   segments: TranscriptSegment[];
   classifications: SpeechClassification[];
   metrics: SocialMetric[];
@@ -34,8 +36,9 @@ function sumRange(vol: Map<number, number>, from: number, to: number) {
 }
 
 export function detectEvents(input: EventEngineInput): DebateEvent[] {
-  const sourcesOf = (segs: TranscriptSegment[]) => [...new Set(segs.flatMap((x) => [x.provenance.sourceId, cls.get(x.id)?.provenance.sourceId ?? ""]).filter(Boolean))];
-  const { segments, classifications, metrics, candidates, debateId, mode } = input;
+  const sourcesOf = (segs: TimedSegment[]) => [...new Set(segs.flatMap((x) => [x.provenance.sourceId, cls.get(x.id)?.provenance.sourceId ?? ""]).filter(Boolean))];
+  const { classifications, metrics, candidates, debateId, mode } = input;
+  const segments: TimedSegment[] = input.segments.filter(isTimed);
   const cls = new Map(classifications.map((c) => [c.segmentId, c]));
   const name = (id: string) => candidates.find((c) => c.id === id)?.name ?? id;
   const vol = volumeByBucket(metrics);

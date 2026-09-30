@@ -15,6 +15,8 @@ export class NormalizationContext {
   parties = new Map<string, Party>();
   candidates = new Map<string, Candidate>();
   identities: PartyVisualIdentity[] = [];
+  /** Apelidos por nome completo (ex.: "Paes" → "Eduardo Paes"). */
+  aliases = new Map<string, string[]>();
   /** externalId de evento → { debateId, startsAt } */
   events = new Map<string, { debateId: string; startsAt: string; blocks: Map<string, string> }>();
 
@@ -32,6 +34,7 @@ export class NormalizationContext {
     if (this.candidates.has(ref)) return ref;
     const n = this.norm(ref);
     for (const c of this.candidates.values()) if (this.norm(c.name) === n || this.norm(c.ballotName) === n) return c.id;
+    for (const c of this.candidates.values()) if ((this.aliases.get(c.name) ?? []).some((a) => this.norm(a) === n)) return c.id;
     return null;
   }
 

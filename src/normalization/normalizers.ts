@@ -327,3 +327,103 @@ export function normalize(r: RawRecord, ctx: NormalizationContext, sourceId: str
   if (Number.isNaN(Date.parse(r.collectedAt))) throw new NormalizationError(r.providerId, r.externalId, "collectedAt inválido", "collectedAt");
   return fn(r, ctx, sourceId);
 }
+
+// ───────── ARQUIVO (dados reais importados) ─────────
+import type * as FL from "./schemas/file";
+import { UNKNOWN_SPEAKER_ID } from "@/domain/types";
+import { slug } from "@/geo/reference";
+
+export const fileCandidateId = (name: string) => `cand-${slug(name)}`;
+export const filePartyId = (acronym: string) => `party-${slug(acronym)}`;
+
+const fileManifest: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as FL.FileManifestV1;
+  const value: Debate = {
+    id: str(r, p.id, "id"),
+    title: str(r, p.title, "title"),
+    jurisdiction: p.jurisdiction,
+    broadcaster: p.broadcaster,
+    officeLabel: p.office,
+    electionYear: p.election_year,
+    round: p.round,
+    startsAt: isoOk(r, p.starts_at, "starts_at"),
+    endsAt: p.ends_at === null ? null : isoOk(r, p.ends_at, "ends_at"),
+    status: p.status,
+    participantIds: p.participants.map((n) => ctx.candidateByRef(n) ?? fail(r, `participante não resolvido: ${n}`, "participants")),
+    sourceIds: [sourceId],
+    mode: ctx.mode,
+  };
+  return { type: "debate", value, blocks: p.blocks.map((label, i) => ({ id: `b${i + 1}`, label })) };
+};
+
+const fileCue: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as FL.FileCueV1;
+  if (p.start_ms !== null && p.end_ms !== null) checkSegmentTimes(r, p.start_ms, p.end_ms);
+  const ev = ctx.events.get(p.event_id) ?? fail(r, `evento desconhecido: ${p.event_id}`, "event_id");
+  // Resolução de orador: mapa manual > rótulo da fonte > desconhecido (nunca assumido)
+  let speakerId: string | null = null;
+  let resolution: TranscriptSegment["speakerResolution"] = "unresolved";
+  if (p.speaker_map_target) {
+    speakerId = ctx.speakerByRef(p.speaker_map_target);
+    resolution = speakerId ? (p.attribution === "press_attribution" ? "press_attribution" : "manual_map") : "unresolved";
+  } else if (p.speaker_label) {
+    speakerId = ctx.speakerByRef(p.speaker_label);
+    resolution = speakerId ? (p.attribution === "press_attribution" ? "press_attribution" : "source_label") : "unresolved";
+  }
+  const speakerConfidence: ConfidenceLevel = !speakerId ? "unknown" : resolution === "press_attribution" ? "medium" : resolution === "manual_map" ? "high" : "high";
+  let blockId: string | null = null;
+  if (p.block_label) {
+    blockId = ev.blocks.get(p.block_label) ?? null;
+    if (!blockId) {
+      blockId = `b${ev.blocks.size + 1}`;
+      ev.blocks.set(p.block_label, blockId);
+    }
+  }
+  return {
+    type: "segment",
+    value: {
+      id: `${p.event_id}:${String(p.seq).padStart(4, "0")}`,
+      debateId: p.event_id,
+      seq: p.seq,
+      speakerId: speakerId ?? UNKNOWN_SPEAKER_ID,
+      speakerName: p.speaker_label,
+      speakerConfidence,
+      speakerResolution: resolution,
+      startOffset: p.start_ms === null ? null : p.start_ms / 1000,
+      endOffset: p.end_ms === null ? null : p.end_ms / 1000,
+      timing: { precision: p.timing_precision },
+      text: str(r, p.text, "text"),
+      blockId: blockId ?? "sem-bloco",
+      addressedToId: null,
+      provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) },
+    },
+  };
+};
+
+const fileParty: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as FL.FilePartyV1;
+  const id = filePartyId(str(r, p.acronym, "acronym"));
+  if (p.color !== null && !/^#[0-9a-f]{6}$/i.test(p.color)) fail(r, "cor inválida", "color");
+  return {
+    type: "party",
+    value: { id, acronym: p.acronym, name: p.name, number: nonNeg(r, p.number, "number"), provenance: { nature: "official", sourceId, mode: ctx.mode, record: ref(r) } },
+    identity: p.color ? { partyId: id, acronym: p.acronym, color: p.color, validFrom: p.valid_from ?? "1900-01-01", validTo: null, source: p.color_source ?? "não informado" } : undefined,
+  };
+};
+
+const fileCandidate: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as FL.FileCandidateV1;
+  const partyId = ctx.partyByRef(p.party) ?? fail(r, `partido desconhecido: ${p.party}`, "party");
+  const name = str(r, p.name, "name");
+  const initials = name.split(" ").filter(Boolean).filter((_, i, a) => i === 0 || i === a.length - 1).map((w) => w[0]).join("").toUpperCase();
+  ctx.aliases.set(name, p.aliases);
+  return { type: "candidate", value: { id: p.tse_id ?? fileCandidateId(name), name, ballotName: name, partyId, officeId: slug(p.office), initials, swatch: NEUTRAL_ENTITY_COLOR, provenance: { nature: "official", sourceId, mode: ctx.mode, record: ref(r) } } };
+};
+
+const fileArticle: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as FL.FileArticleV1;
+  const [outlet, ...rest] = p.outlet_and_title.split(" — ");
+  return { type: "article", value: { id: r.externalId, outlet, title: rest.join(" — ") || outlet, url: r.sourceUrl, publishedAt: isoOk(r, p.published_at, "published_at"), debateId: p.event_id, topics: [], provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) } } };
+};
+
+Object.assign(NORMALIZERS, { "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });

@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { listDebates } from "@/services/debates";
+import { getRepository } from "@/repository";
+
+export const dynamic = "force-dynamic";
+
+async function listDebates() {
+  const repo = await getRepository();
+  return repo.listDebates().map((d) => ({ ...d, segments: repo.getTranscript(d.id).segments.length }));
+}
 import { fmtDate, wallClock } from "@/lib/format";
 import { LiveDot, PageHeader, Tag } from "@/components/ui/primitives";
 import { StateView } from "@/components/ui/states";
@@ -28,11 +35,13 @@ export default async function DebatesPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     {d.status === "live" && <LiveDot />}
                     {d.status === "ended" && <Tag>Encerrado</Tag>}
+                    {d.status === "ended" && d.segments > 0 && <Tag tone="strong">Replay</Tag>}
                     {d.status === "scheduled" && <Tag tone="info">Agendado</Tag>}
                   </div>
                   <p className="mt-1 text-[14px] font-medium text-fg">{d.title}</p>
                   <p className="text-[12px] text-fg-3">
-                    {d.broadcaster} · {d.officeLabel} · {d.participantIds.length} participantes
+                    {d.broadcaster} · {d.officeLabel}
+                    {d.jurisdiction && d.jurisdiction !== "BR" ? ` · ${d.jurisdiction}` : ""} · {d.participantIds.length} participantes · {d.segments} falas transcritas
                   </p>
                 </div>
                 <ArrowRight size={15} className="hidden text-fg-3 group-hover:text-fg sm:block" aria-hidden />
