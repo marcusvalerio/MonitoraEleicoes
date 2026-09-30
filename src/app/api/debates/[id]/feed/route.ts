@@ -14,10 +14,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     return NextResponse.json({ error: "janela inválida" }, { status: 400 });
   }
   const repo = await getRepository();
-  if (!repo.getDebate(id)) return NextResponse.json({ error: "debate não encontrado" }, { status: 404 });
-  const win = repo.getTranscript(id, { from: from + 0.001, to });
+  if (!await repo.getDebate(id)) return NextResponse.json({ error: "debate não encontrado" }, { status: 404 });
+  const win = await repo.getTranscript(id, { from: from + 0.001, to });
   return NextResponse.json(
-    { segments: win.segments, classifications: win.classifications, events: repo.getEvents(id, { to }), complete: win.complete, inProgress: win.inProgress },
+    { segments: win.segments, classifications: win.classifications, events: await repo.getEvents(id, { to }), complete: win.complete, inProgress: win.inProgress },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

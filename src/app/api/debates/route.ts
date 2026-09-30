@@ -1,3 +1,3 @@
 import { handle, ok } from "../_lib/respond";
 
-export const GET = () => handle((repo) => ok(repo.listDebates(), { mode: repo.mode }));
+export const GET = () => handle(async (repo) => ok(await repo.listDebates(), { mode: repo.mode }));

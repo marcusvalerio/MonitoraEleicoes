@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 async function listDebates() {
   const repo = await getRepository();
-  return repo.listDebates().map((d) => ({ ...d, segments: repo.getTranscript(d.id).segments.length }));
+  return Promise.all((await repo.listDebates()).map(async (d) => ({ ...d, segments: (await repo.getTranscript(d.id)).segments.length })));
 }
 import { fmtDate, wallClock } from "@/lib/format";
 import { LiveDot, PageHeader, Tag } from "@/components/ui/primitives";

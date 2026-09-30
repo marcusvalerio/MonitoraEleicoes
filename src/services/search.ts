@@ -27,9 +27,9 @@ const PAGES: SearchHit[] = [
 export async function search(q: string, limit = 24): Promise<SearchHit[]> {
   const term = norm(q.trim());
   const repo = await getRepository();
-  const debates = repo.listDebates();
-  const cands = repo.getCandidates();
-  const sources = repo.getSources();
+  const debates = await repo.listDebates();
+  const cands = await repo.getCandidates();
+  const sources = await repo.getSources();
   if (!term) return [...PAGES, ...cands.map((c) => ({ kind: "candidato" as const, id: c.id, title: c.name, href: `/debates/${debates[0]?.id}/analytics#candidato-${c.id}` }))].slice(0, limit);
 
   const hits: SearchHit[] = [];
@@ -41,9 +41,9 @@ export async function search(q: string, limit = 24): Promise<SearchHit[]> {
   for (const s of sources) if (match(`${s.name} ${s.provider}`)) hits.push({ kind: "fonte", id: s.id, title: s.name, subtitle: s.provider, href: `/sources#${s.id}` });
 
   for (const d of debates) {
-    const events = repo.getEvents(d.id);
+    const events = await repo.getEvents(d.id);
     for (const e of events) if (match(`${e.title} ${e.description}`)) hits.push({ kind: "evento", id: e.id, title: `${e.code} · ${e.title}`, subtitle: d.title, href: `/debates/${d.id}/live?seg=${e.segmentIds[0] ?? ""}` });
-    const { segments } = repo.getTranscript(d.id);
+    const { segments } = await repo.getTranscript(d.id);
     const byId = new Map(cands.map((c) => [c.id, c.name]));
     for (const s of segments) if (term.length >= 3 && match(s.text)) hits.push({ kind: "fala", id: s.id, title: s.text.length > 90 ? s.text.slice(0, 88) + "…" : s.text, subtitle: byId.get(s.speakerId) ?? "Moderação", href: `/debates/${d.id}/live?seg=${s.id}` });
   }

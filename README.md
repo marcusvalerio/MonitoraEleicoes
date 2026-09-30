@@ -11,7 +11,10 @@ Plataforma de inteligência eleitoral e acompanhamento de debates — data journ
 npm install
 npm run dev          # http://localhost:3000
 npm run check        # typecheck + lint + testes + build
+npm run test:db      # testes de persistência (branch Neon 'test'; requer DATABASE_URL_TEST)
 ```
+
+Banco (perfil `live`): PostgreSQL no Neon — `npm run db:migrate`, `npm run ingest -- --env development`. Setup completo em [`docs/DATABASE.md`](docs/DATABASE.md).
 
 Perfis de dados (`DATA_MODE`, resolvido em tempo de execução; o indicador global do shell informa o perfil):
 
@@ -19,15 +22,15 @@ Perfis de dados (`DATA_MODE`, resolvido em tempo de execução; o indicador glob
 |---|---|
 | `demo` (padrão) | fictícios, sem nenhuma API externa |
 | `fixture` | fictícios, providers alternativos (formatos de origem diferentes) — prova de desacoplamento |
-| `live` | **reais**, importados por arquivo em `data/real` (hoje: debate para o Governo do RJ, TV Globo, 29/09/2026 — considerações finais) |
+| `live` | **reais**, persistidos no PostgreSQL (Neon) pelo worker de ingestão a partir de `data/real` (hoje: debate para o Governo do RJ, TV Globo, 29/09/2026 — considerações finais, dataset `validation`) |
 
 ```bash
 npm run e2e                                                    # perfil demo
 BASE_URL=http://localhost:3002 DEBATE_ID=fx-show-0001 npm run e2e  # perfil fixture
-BASE_URL=http://localhost:3004 npm run e2e:real                # perfil live (debate real)
+BASE_URL=http://localhost:3004 npm run e2e:real:pg             # perfil live (debate real lido do PostgreSQL)
 ```
 
-Documentação: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/PROVIDERS.md`](docs/PROVIDERS.md) · [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · [`docs/GEO.md`](docs/GEO.md) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) · [`docs/VALIDATION-RJ-2026-09-29.md`](docs/VALIDATION-RJ-2026-09-29.md)
+Documentação: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/PROVIDERS.md`](docs/PROVIDERS.md) · [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · [`docs/GEO.md`](docs/GEO.md) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) · [`docs/VALIDATION-RJ-2026-09-29.md`](docs/VALIDATION-RJ-2026-09-29.md) · [`docs/DATABASE.md`](docs/DATABASE.md) · [`docs/INGESTION.md`](docs/INGESTION.md) · [`docs/LIVE-DATA.md`](docs/LIVE-DATA.md)
 
 ## Arquitetura
 
@@ -39,10 +42,13 @@ src/
   geo/         camada geoespacial: hierarquia, agregação, tipos (independente do mapa)
   providers/   interfaces (Transcript, Social, TSE, FactCheck) + mocks + registry (server-only)
   data/demo/   dataset determinístico (4 candidatos fictícios, 101 falas, 12 temas)
+  persistence/ cliente Neon, gravador idempotente, proteções de ambiente
+  repository/  interface Repository + implementações memory/postgres
   services/    orquestração para server components
   components/  ui · shell · charts (SVG próprio) · debate
   app/         rotas (App Router) + API (/api/debates/[id]/feed, /api/search)
-db/schema.sql  schema PostgreSQL/Supabase (RAW × AI separados, pipeline TSE)
+db/migrations/ schema PostgreSQL versionado (RAW × análise, proveniência, ingestão)
+scripts/       db-migrate.mjs, ingest.mjs (worker)
 ```
 
 - Regras de negócio ficam fora dos componentes; UI recebe dados prontos dos services.

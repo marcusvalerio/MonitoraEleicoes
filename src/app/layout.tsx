@@ -26,7 +26,7 @@ export const viewport: Viewport = { themeColor: "#0A0A0B", colorScheme: "dark" }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const debate = await getCurrentDebate();
-  const status = (await getRepository()).getDataStatus();
+  const status = await (await getRepository()).getDataStatus();
   return (
     <html lang="pt-BR" className={`${familjen.variable} ${sora.variable} ${inter.variable}`}>
       <body>

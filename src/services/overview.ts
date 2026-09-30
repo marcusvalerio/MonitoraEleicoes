@@ -12,7 +12,7 @@ export async function getOverview() {
   if (!debate) return null;
   const s = await getDebateSnapshot(debate.id);
   if (!s) return null;
-  const metrics = (await getRepository()).getSocialMetrics(debate.id, { to: s.offset });
+  const metrics = await (await getRepository()).getSocialMetrics(debate.id, { to: s.offset });
   const MODERATOR_ID = s.moderatorId;
   const name = (id: string) => s.participants.find((p) => p.id === id)?.name ?? "Moderação";
 

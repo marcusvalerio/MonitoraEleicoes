@@ -6,7 +6,7 @@ import { confidenceLevel } from "@/domain/quality";
 import { computeSegmentRelevance, toSpeechClassification, validateClassifierOutput, type SpeechClassifier } from "@/ai/classifier";
 import { NormalizationContext } from "@/normalization/context";
 import { normalize, type Normalized } from "@/normalization/normalizers";
-import { collectAll, type ElectionProvider, type MediaProvider, type RawRecord, type SocialProvider, type TranscriptProvider } from "@/providers/contracts";
+import { collectAll, collectFrom, type ElectionProvider, type MediaProvider, type RawRecord, type SocialProvider, type TranscriptProvider } from "@/providers/contracts";
 import { ProviderError } from "@/providers/errors";
 import { withRetry } from "@/providers/resilience";
 import { DataStore, type IngestionReport } from "./store";
@@ -22,6 +22,10 @@ export interface IngestionSources {
   aiSourceId: string;
   /** Para testes: não esperar entre retries. */
   sleep?: (ms: number) => Promise<void>;
+  /** Ingestão incremental: cursor salvo por fluxo (provider + stream); null = desde o início. */
+  startCursor?: (providerId: string, stream: string) => string | null;
+  /** Pula classificação já persistida para este modelo/versão (idempotência de análise). */
+  alreadyClassified?: (segmentId: string, model: import("@/domain/types").ModelInfo) => boolean;
 }
 
 /**
@@ -38,11 +42,15 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
     fetchAll: () => Promise<RawRecord[]>,
     accept: (n: Normalized, r: RawRecord) => void,
   ) {
+    const reportIndex = store.reports.length;
     const report: IngestionReport = { providerId: provider.info.id, sourceId: provider.info.sourceId, kind: `${provider.info.kind}:${label}`, status: "ok", fetched: 0, normalized: 0, rejected: 0, issues: [], startedAt: new Date().toISOString(), finishedAt: "" };
     try {
       const raws = await withRetry(() => fetchAll(), provider.info.retry, { sleep: src.sleep });
       report.fetched = raws.length;
       for (const r of raws) {
+        const recordId = `${r.providerId}:${r.externalId}`;
+        const hash = payloadHash(r.payload);
+        store.raws.set(recordId, { raw: r, sourceId: provider.info.sourceId, hash, reportIndex, accepted: false });
         try {
           const n = normalize(r, ctx, provider.info.sourceId);
           const sr: SourceRecord = {
@@ -55,13 +63,16 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
             publishedAt: r.publishedAt,
             collectedAt: r.collectedAt,
             ingestedAt: store.ingestedAt,
-            payloadHash: payloadHash(r.payload),
+            payloadHash: hash,
           };
           store.sourceRecords.set(sr.id, sr);
           accept(n, r);
+          store.raws.get(recordId)!.accepted = true;
           report.normalized++;
         } catch (e) {
           report.rejected++;
+          const pe0 = e instanceof ProviderError ? e : null;
+          store.rejections.push({ reportIndex, recordId, externalId: r.externalId, code: pe0?.code ?? "normalization_error", field: (pe0 as { field?: string | null } | null)?.field ?? null, message: (e as Error).message });
           if (report.issues.length < 25) {
             const pe = e instanceof ProviderError ? e : null;
             report.issues.push({ externalId: r.externalId, code: pe?.code ?? "normalization_error", message: (e as Error).message, field: (pe as { field?: string | null } | null)?.field ?? null });
@@ -72,6 +83,7 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
     } catch (e) {
       report.status = "failed";
       report.message = e instanceof Error ? e.message : String(e);
+      store.rejections.push({ reportIndex, recordId: null, externalId: "", code: e instanceof ProviderError ? e.code : "provider_error", field: null, message: report.message });
     }
     report.finishedAt = new Date().toISOString();
     store.reports.push(report);
@@ -79,6 +91,12 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
 
   // 1 · Eleições: partidos → candidatos → identidade visual
   const pageOf = <T,>(f: (p: { cursor?: string | null; limit?: number }) => Promise<import("@/providers/contracts").Page<T>>) => () => collectAll(f, 200);
+  /** Fluxo incremental: começa do cursor salvo e registra o cursor de retomada. */
+  const streamOf = <T,>(providerId: string, stream: string, f: (p: { cursor?: string | null; limit?: number }) => Promise<import("@/providers/contracts").Page<T>>) => async () => {
+    const r = await collectFrom(f, 200, 10_000, src.startCursor?.(providerId, stream) ?? null);
+    store.cursors.set(`${providerId}|${stream}`, r.resumeCursor);
+    return r.items;
+  };
   await run(src.election, "parties", pageOf((p) => src.election.fetchParties({}, p)), (n) => {
     if (n.type !== "party") return;
     store.parties.set(n.value.id, n.value);
@@ -109,7 +127,7 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
     store.blocks.set(n.value.id, n.blocks.map((b) => ({ ...b, startOffset: 0, endOffset: 0 })));
   });
   for (const [debateId, ext] of eventExt) {
-    await run(src.transcript, `segments:${debateId}`, pageOf((p) => src.transcript.fetchSegments(ext, p)), (n) => {
+    await run(src.transcript, `segments:${debateId}`, streamOf(src.transcript.info.id, `segments:${debateId}`, (p) => src.transcript.fetchSegments(ext, p)), (n) => {
       if (n.type === "segment") store.push(store.segments, n.value.debateId, n.value);
     });
     // Ordem: tempo quando conhecido; caso contrário, sequência declarada pela fonte.
@@ -122,9 +140,9 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
   for (const [debateId, ext] of eventExt) {
     const q = { eventExternalId: ext };
     if (src.social.info.capabilities.aggregatedCounts)
-      await run(src.social, `counts:${debateId}`, pageOf((p) => src.social.fetchCounts(q, p)), (n) => n.type === "social_metric" && store.push(store.socialMetrics, debateId, n.value));
+      await run(src.social, `counts:${debateId}`, streamOf(src.social.info.id, `counts:${debateId}`, (p) => src.social.fetchCounts(q, p)), (n) => n.type === "social_metric" && store.push(store.socialMetrics, debateId, n.value));
     if (src.social.info.capabilities.posts)
-      await run(src.social, `posts:${debateId}`, pageOf((p) => src.social.fetchPosts(q, p)), (n) => {
+      await run(src.social, `posts:${debateId}`, streamOf(src.social.info.id, `posts:${debateId}`, (p) => src.social.fetchPosts(q, p)), (n) => {
         if (n.type !== "social_post") return;
         store.push(store.socialPosts, debateId, n.value);
         for (const cid of n.value.mentionsCandidateIds) {
@@ -135,7 +153,7 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
         if (n.value.topic) store.topicMentions.push({ postId: n.value.id, topic: n.value.topic, confidence: "medium", model: null });
       });
     if (src.social.info.capabilities.geolocation !== "none")
-      await run(src.social, `regional:${debateId}`, pageOf((p) => src.social.fetchRegionalCounts(q, p)), (n) => n.type === "geo_metric" && store.push(store.geoMetrics, debateId, n.value));
+      await run(src.social, `regional:${debateId}`, streamOf(src.social.info.id, `regional:${debateId}`, (p) => src.social.fetchRegionalCounts(q, p)), (n) => n.type === "geo_metric" && store.push(store.geoMetrics, debateId, n.value));
   }
 
   // 4 · Imprensa
@@ -171,7 +189,7 @@ function computeBlocks(ctx: NormalizationContext, ext: string, declared: DebateB
   return out.sort((a, b) => (a.startOffset ?? Infinity) - (b.startOffset ?? Infinity));
 }
 
-async function classifyAll(store: DataStore, classifier: SpeechClassifier, sourceId: string, src: { mode: "demo" | "live" }) {
+async function classifyAll(store: DataStore, classifier: SpeechClassifier, sourceId: string, src: Pick<IngestionSources, "mode" | "alreadyClassified">) {
   const report: IngestionReport = { providerId: `ai:${classifier.model.model}`, sourceId, kind: "ai:classification", status: "ok", fetched: 0, normalized: 0, rejected: 0, issues: [], startedAt: new Date().toISOString(), finishedAt: "" };
   for (const [debateId, segs] of store.segments) {
     const debate = store.debates.get(debateId) as Debate;
@@ -183,6 +201,7 @@ async function classifyAll(store: DataStore, classifier: SpeechClassifier, sourc
     };
     for (let i = 0; i < segs.length; i++) {
       const seg = segs[i];
+      if (src.alreadyClassified?.(seg.id, classifier.model)) continue; // análise já persistida para este modelo
       report.fetched++;
       try {
         const out = await classifier.classify(seg, { candidates: [...store.candidates.values()], triggersReply: false, socialLift: 0 });

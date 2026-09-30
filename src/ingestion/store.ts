@@ -59,6 +59,12 @@ export class DataStore {
   geoMetrics = new Map<string, GeoMetric[]>();
   articles: MediaArticle[] = [];
   reports: IngestionReport[] = [];
+  /** Payload bruto de TODO registro recebido (aceito ou rejeitado), por id interno. */
+  raws = new Map<string, { raw: import("@/providers/contracts").RawRecord; sourceId: string; hash: string; reportIndex: number; accepted: boolean }>();
+  /** TODAS as rejeições (o relatório guarda só as primeiras para exibição). */
+  rejections: { reportIndex: number; recordId: string | null; externalId: string; code: string; field: string | null; message: string }[] = [];
+  /** Cursor de retomada por fluxo (ingestão incremental). */
+  cursors = new Map<string, string | null>();
   ingestedAt = new Date().toISOString();
 
   push<K>(map: Map<K, unknown[]>, key: K, v: unknown) {

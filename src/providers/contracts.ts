@@ -56,6 +56,8 @@ export interface Page<T> {
   items: T[];
   nextCursor: string | null;
   hasMore: boolean;
+  /** Cursor para retomar mais tarde, quando novos itens chegarem (ingestão incremental). */
+  resumeCursor?: string | null;
 }
 
 export interface TimeRange {
@@ -206,17 +208,22 @@ export function paginate<T>(all: T[], page?: PageRequest, maxLimit = 500): Page<
   if (!Number.isInteger(start) || start < 0) throw new Error(`cursor inválido: ${page?.cursor}`);
   const items = all.slice(start, start + limit);
   const next = start + items.length;
-  return { items, nextCursor: next < all.length ? String(next) : null, hasMore: next < all.length };
+  return { items, nextCursor: next < all.length ? String(next) : null, hasMore: next < all.length, resumeCursor: String(next) };
 }
 
 /** Percorre todas as páginas — usar só na ingestão, nunca em request de UI. */
-export async function collectAll<T>(fetchPage: (p: PageRequest) => Promise<Page<T>>, limit = 500, maxPages = 10_000): Promise<T[]> {
+export async function collectAll<T>(fetchPage: (p: PageRequest) => Promise<Page<T>>, limit = 500, maxPages = 10_000, startCursor: string | null = null): Promise<T[]> {
+  return (await collectFrom(fetchPage, limit, maxPages, startCursor)).items;
+}
+
+/** Como collectAll, mas começa de um cursor salvo e devolve o cursor de retomada. */
+export async function collectFrom<T>(fetchPage: (p: PageRequest) => Promise<Page<T>>, limit = 500, maxPages = 10_000, startCursor: string | null = null): Promise<{ items: T[]; resumeCursor: string | null }> {
   const out: T[] = [];
-  let cursor: string | null = null;
+  let cursor: string | null = startCursor;
   for (let i = 0; i < maxPages; i++) {
     const page: Page<T> = await fetchPage({ cursor, limit });
     out.push(...page.items);
-    if (!page.hasMore || !page.nextCursor) return out;
+    if (!page.hasMore || !page.nextCursor) return { items: out, resumeCursor: page.resumeCursor ?? cursor };
     cursor = page.nextCursor;
   }
   throw new Error("paginação excedeu o limite de páginas");

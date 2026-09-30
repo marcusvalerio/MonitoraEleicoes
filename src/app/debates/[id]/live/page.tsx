@@ -19,7 +19,7 @@ export default async function LivePage({ params, searchParams }: { params: Promi
   }
   // Link para uma fala específica: em replay, avança o relógio até ela.
   if (seg) {
-    const target = (await getRepository()).getSegment(id, seg);
+    const target = await (await getRepository()).getSegment(id, seg);
     if (target && target.endOffset !== null && target.endOffset > s.offset) s = (await getDebateSnapshot(id, target.endOffset + 1))!;
   }
   return (

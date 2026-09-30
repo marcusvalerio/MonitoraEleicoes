@@ -1,8 +1,8 @@
 # Arquitetura
 
 ```
-EXTERNAL PROVIDERS ─► INGESTION ─► NORMALIZATION ─► DOMAIN (store) ─► ANALYTICS ─► SERVICES/API ─► UI
-   RawRecord            pipeline      normalizers        repository         puras        server comps
+EXTERNAL PROVIDERS ─► INGESTION ─► NORMALIZATION ─► DOMAIN (store) ─► PERSISTENCE ─► REPOSITORY ─► ANALYTICS ─► SERVICES/API ─► UI
+   RawRecord            pipeline      normalizers        DataStore       PostgreSQL     memory|pg       puras        server comps
 ```
 
 ## Camadas (`src/`)
@@ -14,13 +14,14 @@ EXTERNAL PROVIDERS ─► INGESTION ─► NORMALIZATION ─► DOMAIN (store) �
 | `normalization/` | Esquemas RAW versionados (`schemas/`) e normalizadores por esquema; contexto de resolução de entidades | domain, geo |
 | `ingestion/` | Pipeline provider → RAW → `SourceRecord` → normalização → store → IA; relatórios de ingestão | providers, normalization, ai |
 | `ai/` | Contrato do classificador, validação da saída, classificador por regras | domain |
-| `repository/` | Consultas de domínio sobre o store (a **única** porta de leitura dos services) | ingestion, analytics |
+| `persistence/` | Cliente Neon, marcador de ambiente, gravador idempotente store → PostgreSQL | ingestion, domain |
+| `repository/` | Interface `Repository` (assíncrona, **única** porta de leitura dos services); `StoreQueries` (consultas de domínio); implementações `memory` e `postgres` | ingestion, analytics, persistence |
 | `analytics/` | Agregações puras: eventos, temporal (1/5/15/30 min/debate), menções, plataformas, momentum, cobertura | domain, geo |
 | `geo/` | Hierarquia territorial, agregação geográfica, tipos (independente do componente de mapa) | domain |
 | `services/` | Orquestração para páginas (server components) | repository, analytics |
 | `app/api/` | API REST de domínio | repository |
 | `components/`, `app/` | UI | services (via props) |
-| `infrastructure/` | Cache com TTL | — |
+| `infrastructure/` | Cache com TTL, log estruturado (JSON) | — |
 
 ## Regras
 
@@ -35,6 +36,11 @@ EXTERNAL PROVIDERS ─► INGESTION ─► NORMALIZATION ─► DOMAIN (store) �
 
 `DATA_MODE=fixture` troca **todos** os providers por implementações com formatos RAW, IDs, cores de partido e classificador diferentes (`src/providers/fixture`). Nenhum componente muda. Coberto por `src/ingestion/ingestion.test.ts` e pelo E2E (`BASE_URL=… DEBATE_ID=fx-show-0001 npm run e2e`).
 
-## Ciclo de vida do store
+## Persistência
 
-Hoje: ingestão em memória na primeira requisição do processo (memoizada). Em produção: workers de ingestão gravam no PostgreSQL (`db/schema.sql`); o `Repository` passa a consultar o banco mantendo a mesma interface.
+| Perfil | Repositório | Escrita |
+|---|---|---|
+| `demo`, `fixture` | `MemoryRepository` (ingestão em memória na 1ª requisição) | nenhuma — nunca tocam o banco |
+| `live` | `PostgresRepository` (Neon) | worker de ingestão (`npm run ingest`), fora do ciclo HTTP |
+
+Os dois repositórios reutilizam exatamente as mesmas consultas (`StoreQueries`): o `PostgresRepository` hidrata um `DataStore` a partir de consultas indexadas (análise vigente = mais recente por segmento) e recarrega a cada TTL. Services, API e UI não sabem qual está em uso. Detalhes: `docs/DATABASE.md`, `docs/INGESTION.md`, `docs/LIVE-DATA.md`.

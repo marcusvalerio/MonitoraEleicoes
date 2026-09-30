@@ -215,6 +215,8 @@ export interface SpeechClassification {
   mentions: string[];
   relevance: Relevance;
   relevanceScore: number;
+  /** Metodologia/versão que calculou a relevância (independente do modelo). */
+  relevanceMethod?: { method: string; version: string };
   /** Critérios objetivos que compõem a relevância (transparência). */
   relevanceFeatures: {
     verifiableClaim: boolean;

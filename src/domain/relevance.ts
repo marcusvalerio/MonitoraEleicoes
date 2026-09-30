@@ -56,6 +56,25 @@ export function isConcreteProposalType(t: SpeechType): boolean {
 }
 
 /** Heurística determinística para "afirmação verificável": presença de números, percentuais ou valores. */
+/** Identificação da metodologia de relevância (persistida junto a cada análise). */
+export const RELEVANCE_METHOD = { method: "criteria-sum", version: "2" } as const;
+
+/**
+ * "Afirmação verificável" (metodologia v2): quantidade com unidade ou escala que
+ * pode ser checada contra dados. NÃO contam: números de urna ("vote 22", "é 50",
+ * "crava 10"), anos isolados (2018), datas ("dia 4", "domingo, 4"), ordinais e
+ * números pequenos sem unidade.
+ */
+const UNIT = String.raw`(?:%|por\s*cento|pontos?\s+percentuais|mil\b|milh(?:ão|ões)|bilh(?:ão|ões)|reais|r\$|anos?\b|meses|dias\b|horas|km|quil[oô]metros|escolas|hospitais|leitos|vagas|empregos|pessoas|fam[ií]lias|munic[ií]pios|obras|policiais|professores|crian[çc]as|alunos|mortes|homic[ií]dios|casos|toneladas|litros|vezes)`;
+const NUMBER = String.raw`\d{1,3}(?:[.\s]\d{3})*(?:,\d+)?|\d+(?:,\d+)?`;
+const QUANTITY = new RegExp(String.raw`(?:r\$\s*(?:${NUMBER}))|(?:(?:${NUMBER})\s*${UNIT})`, "i");
+const BALLOT = /\b(?:vot[eoa]r?|n[úu]mero|crava|digit[ea]|apert[ea]|[ée])\s+(?:o\s+|no\s+)?\d{1,5}\b/gi;
+const YEAR = /\b(?:19|20)\d{2}\b/g;
+const DATE = /\b(?:dia|domingo|segunda|terça|quarta|quinta|sexta|sábado)[,\s]+\d{1,2}\b/gi;
+
 export function hasVerifiableClaim(text: string): boolean {
-  return /\d/.test(text) || /\b(mil|milhões|bilhões|por cento)\b/i.test(text);
+  const cleaned = text.replace(BALLOT, " ").replace(DATE, " ").replace(YEAR, " ");
+  if (QUANTITY.test(cleaned)) return true;
+  // número "grande" sem unidade explícita ainda pode ser dado (ex.: "8 mil obras" já coberto; "40 mil" coberto)
+  return /\b\d{3,}(?:[.,]\d+)?\b/.test(cleaned);
 }

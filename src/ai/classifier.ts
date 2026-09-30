@@ -9,7 +9,7 @@ import type {
   TranscriptSegment,
 } from "@/domain/types";
 import { confidenceLevel } from "@/domain/quality";
-import { hasVerifiableClaim, isConcreteProposalType, relevanceBand, relevanceScore } from "@/domain/relevance";
+import { RELEVANCE_METHOD, hasVerifiableClaim, isConcreteProposalType, relevanceBand, relevanceScore } from "@/domain/relevance";
 
 /**
  * Pipeline de classificação. Em produção, `SpeechClassifier` chama um LLM no servidor
@@ -103,6 +103,7 @@ export function toSpeechClassification(
     relevance: out.relevance,
     relevanceScore: opts.relevanceScore,
     relevanceFeatures: opts.relevanceFeatures,
+    relevanceMethod: { ...RELEVANCE_METHOD },
     factCheck: opts.factCheck ?? (out.fact_check_required ? "verificar" : "nao_necessario"),
     confidence: out.confidence,
     confidenceLevel: confidenceLevel(out.confidence),

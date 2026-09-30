@@ -37,7 +37,7 @@ function S({ id, title, children }: { id: string; title: string; children: React
 export default async function MethodologyPage() {
   const repo = await getRepository();
   const mode = repo.mode;
-  const ai = repo.getReports().find((r) => r.kind === "ai:classification");
+  const ai = (await repo.getReports()).find((r) => r.kind === "ai:classification");
   return (
     <div className="mx-auto max-w-[1100px] px-4 py-6 md:px-6">
       <PageHeader eyebrow="Metodologia · v1" title="Como o Monitora Eleições funciona" description="Não dizemos ao usuário o que pensar. Explicamos como cada dado foi obtido, transformado e classificado — e onde estão os limites." />

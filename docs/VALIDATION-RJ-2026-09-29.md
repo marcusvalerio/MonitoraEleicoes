@@ -68,7 +68,21 @@ O motor **não está pronto** para debates reais ao vivo. Faltam:
 1. **Fonte de texto com tempo**: provider de legenda/ASR ao vivo (stream de áudio → segmentos com `start/end`), ou acordo de acesso a legendas da emissora.
 2. **Diarização**: identificar orador automaticamente (hoje depende de rótulo na fonte ou mapa manual).
 3. **Classificador real**: LLM com saída estruturada validada (o contrato já existe); o de palavras-chave não serve para produção.
-4. **Correção da heurística de "afirmação verificável"** (excluir números de urna/anos isolados) — mudança de metodologia a ser documentada.
-5. **Ingestão incremental persistente** (workers + PostgreSQL) em vez do store em memória montado na primeira requisição.
+4. ~~Correção da heurística de "afirmação verificável"~~ — feita na v2 (ver §8).
+5. ~~Ingestão incremental persistente~~ — feita na Fase 0.7 (`docs/INGESTION.md`).
 6. **Identificadores oficiais** (TSE) para candidatos — próxima integração.
 7. **Provider social real** para repercussão (hoje `not_configured`).
+
+## 8. Reavaliação — classificador por regras v2 (Fase 0.7)
+
+Mudanças **genéricas** (nenhuma regra citando estas falas): temas por pontuação ponderada com exigência de termo forte; "afirmação verificável" ignora números de urna, anos e datas; tipos de fala com regras de defesa/ataque/comparação e "proposta" exigindo verbo de ação. Versões: `rule-based-classifier 0.2.1 / keywords-v2`, relevância `criteria-sum v2`. O dataset está persistido no Neon (`dataset validation-rj-2026-09-29`, kind `validation`) em dev e produção; as análises v1/0.2.0 continuam no banco ao lado das 0.2.1.
+
+| Fala | v1 (tema · tipo · relevância · fact-check) | v2 0.2.1 | Avaliação |
+|---|---|---|---|
+| André Marinho | Assist. social · resposta · baixa · verificar | Outros · resposta · baixa (0,00) · não necessário | Tema corrigido ("família", "dinheiro", "bolso" são fracos). Fact-check por "30" eliminado. Tipo ainda impreciso (é apelo final; taxonomia não tem `apelo`). |
+| Douglas Ruas | Segurança · crítica · média · verificar | Educação · crítica · média (0,45) · verificar | Tema **discutível**: 1 termo forte ("educação") contra 1 fraco ("segurança"); a fala é sobretudo comparação política. Crítica correta. |
+| Eduardo Paes | Outros · proposta · **alta** · verificar | Outros · ataque · baixa (0,15) · não necessário | "Proposta" e relevância inflada por anos corrigidas. "Ataque" vem de "enganar" + menção — defensável como crítica dura, mas o rótulo é forte. |
+| William Siri | Assist. social · crítica · média · verificar | Outros · defesa · baixa (0,15) · não necessário | Tema corrigido. **Tipo errado**: "eu não fujo" disparou defesa; a fala critica Ruas. |
+| Anthony Garotinho | Segurança · resposta · baixa · verificar | Segurança · defesa · baixa (0,00) · não necessário | Tema correto; "defesa" coerente com a autodefesa ("fui eu que fiz"). |
+
+Resultado honesto: temas 4/5 aceitáveis (antes 3/5); falsos positivos de fact-check eliminados (0/5, antes 5/5 "verificar"); tipos continuam frágeis (2/5 discutíveis). Confirma a conclusão da §7: regras são baseline auditável; produção exige classificador com saída estruturada validada e revisão humana amostral. Nenhum ajuste foi feito para "acertar" estas falas — o caso Siri permanece errado de propósito como registro.

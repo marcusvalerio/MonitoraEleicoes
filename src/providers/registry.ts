@@ -39,6 +39,8 @@ export interface ProviderProfile {
   aiSourceId: string;
   sources: Source[];
   clock: ClockSpec;
+  /** Onde o domínio é armazenado/lido: memória (demo/fixture) ou PostgreSQL/Neon (live). */
+  persistence: "memory" | "postgres";
 }
 
 export function getProfileId(): ProfileId {
@@ -46,7 +48,7 @@ export function getProfileId(): ProfileId {
   return v === "live" || v === "fixture" ? v : "demo";
 }
 
-function build(id: ProfileId): ProviderProfile {
+export function buildProfile(id: ProfileId): ProviderProfile {
   if (id === "fixture") {
     return {
       id,
@@ -61,6 +63,7 @@ function build(id: ProfileId): ProviderProfile {
       aiSourceId: "src-fixture-ai",
       sources: FIXTURE_SOURCES,
       clock: { kind: "replay", minOffset: 1800 },
+      persistence: "memory",
     };
   }
   if (id === "live") {
@@ -78,6 +81,7 @@ function build(id: ProfileId): ProviderProfile {
       aiSourceId: "src-ai-rules",
       sources: LIVE_SOURCES,
       clock: { kind: "replay", minOffset: 0 },
+      persistence: "postgres",
     };
   }
   return {
@@ -93,12 +97,13 @@ function build(id: ProfileId): ProviderProfile {
     aiSourceId: "src-demo-ai",
     sources: DEMO_SOURCES,
     clock: { kind: "replay", minOffset: 1800 },
+    persistence: "memory",
   };
 }
 
 let profile: ProviderProfile | null = null;
 export function getProfile(): ProviderProfile {
-  if (!profile) profile = build(getProfileId());
+  if (!profile) profile = buildProfile(getProfileId());
   return profile;
 }
 

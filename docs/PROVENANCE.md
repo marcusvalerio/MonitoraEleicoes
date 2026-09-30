@@ -8,11 +8,24 @@ Source ─► Provider ─► RawRecord ─► SourceRecord ─► entidade de d
 - **SourceRecord**: um por item recebido — `id = providerId:externalId`, `schema`, `sourceUrl`, `publishedAt` (origem), `collectedAt` (provider), `ingestedAt` (Monitora), `payloadHash` (FNV-1a do payload, detecta alterações).
 - **Provenance** (em cada entidade): `nature` (`official` | `collected` | `ai` | `analysis`), `sourceId`, `mode` (`demo`|`live`) e `record` (`recordId`, `externalId`, `providerId`).
 
+## Persistência da cadeia
+
+```
+source ─► source_record (provider_id + external_id) ─► raw_record (payload jsonb + hash, por versão) ─► ingestion_run
+                  ▲                                                                                        │
+     entidade.source_record_id (debate, segmento, candidato, post, matéria…)            ingestion_error (rejeições)
+                  ▲
+             analysis (segment_id + model/versões)
+```
+
+Qualquer segmento exibido pode ser rastreado até o payload bruto que o originou e a execução que o trouxe (consulta coberta por `npm run test:db`). Detalhes em `docs/DATABASE.md`.
+
 ## RAW × normalizado × análise
 
 - O texto original (`TranscriptSegment.text`) **nunca** é alterado.
 - Classificações de IA (`SpeechClassification`) ficam em estrutura separada, com `model`, `version`, `promptVersion`, `confidence`, `confidenceLevel`, `classifiedAt`, `humanReviewed`.
-- Relevância não vem do modelo: é calculada por critérios objetivos (`domain/relevance.ts`) e os critérios ficam gravados (`relevanceFeatures`).
+- Relevância não vem do modelo: é calculada por critérios objetivos (`domain/relevance.ts`), com metodologia versionada (`relevanceMethod = criteria-sum v2`) e os critérios gravados (`relevanceFeatures`).
+- No banco, `analysis` nunca é sobrescrita: nova versão de modelo/prompt/metodologia = nova linha; a leitura usa a mais recente.
 
 ## Fato × medição × interpretação
 
@@ -28,7 +41,7 @@ Todo `DebateEvent` traz `statements[]`:
 
 ## Dados ausentes
 
-`DataValue<T>` distingue `value` (inclusive 0), `unknown`, `not_available`, `not_collected`, `not_applicable` — com `reason`. A UI mostra "—" com o motivo, nunca 0. Resultados eleitorais sem importação retornam `status: not_collected`.
+`DataValue<T>` distingue `value` (inclusive 0), `unknown`, `not_available`, `not_collected`, `not_applicable` — com `reason`. A UI mostra "—" com o motivo, nunca 0. No banco, o enum `value_status` acompanha cada medida (`CHECK`: valor NULL ⇔ status ≠ `value`); offsets de fala desconhecidos são `NULL` + `timestamp_precision`. Resultados eleitorais sem importação retornam `status: not_collected`.
 
 ## Confiança
 

@@ -7,9 +7,9 @@ const G: Record<string, SpeechGranularity> = { "60": 60, "300": 300, "900": 900,
 export const GET = (req: Request, ctx: { params: Promise<{ id: string }> }) =>
   handle(async (repo) => {
     const { id } = await ctx.params;
-    if (!repo.getDebate(id)) return fail(404, "not_found", "debate não encontrado");
+    if (!await repo.getDebate(id)) return fail(404, "not_found", "debate não encontrado");
     const g = G[new URL(req.url).searchParams.get("granularity") ?? "60"];
     if (!g) return fail(400, "bad_request", "granularity ∈ 60|300|900|1800|total");
-    const { segments } = repo.getTranscript(id);
+    const { segments } = await repo.getTranscript(id);
     return ok(debateTimeline(segments, g), { granularity: g, timing: timingSummary(segments) });
   });

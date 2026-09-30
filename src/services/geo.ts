@@ -16,7 +16,7 @@ export async function queryGeo(q: { debateId: string; parentKey: string; childLe
   const childLevel: GeoLevelId = q.childLevel ?? (parent.level === "pais" ? "uf" : parent.level === "regiao" ? "uf" : parent.level === "uf" ? "municipio" : "zona");
   const from = Math.max(0, q.from ?? 0);
   const trendWindow = 900;
-  const coverage = repo.getGeoCoverage(q.debateId, { from, to: q.to });
+  const coverage = await repo.getGeoCoverage(q.debateId, { from, to: q.to });
   const base = {
     mode: repo.mode,
     coverage,
@@ -33,7 +33,7 @@ export async function queryGeo(q: { debateId: string; parentKey: string; childLe
       unavailableReason: `Publicações em redes sociais não têm localização precisa abaixo de ${SOCIAL_MAX_LEVEL}. Zonas, locais e seções existem apenas nos dados oficiais do Explorador eleitoral.`,
     };
   }
-  const metrics = repo.getGeoMetrics(q.debateId, { to: q.to });
+  const metrics = await repo.getGeoMetrics(q.debateId, { to: q.to });
   if (!metrics.length) {
     return { ...base, rows: [], totals: { posts: 0, topicPosts: 0, geolocatedShare: null }, unavailableReason: "Repercussão geolocalizada não coletada para este debate (nenhum provider social configurado)." };
   }
@@ -62,7 +62,7 @@ export async function getMapBootstrap(debateId: string, opts: { parentKey?: stri
   const parentKey = opts.parentKey && getRegion(opts.parentKey) ? opts.parentKey : "BR";
   const initial = await queryGeo({ debateId, parentKey, to: s.offset, topic: opts.topic ?? null });
   if (!initial) return null;
-  const metrics = (await getRepository()).getGeoMetrics(debateId, { to: s.offset });
+  const metrics = await (await getRepository()).getGeoMetrics(debateId, { to: s.offset });
   const topics = s.topics.map((t) => t.topic);
   return {
     debateId,

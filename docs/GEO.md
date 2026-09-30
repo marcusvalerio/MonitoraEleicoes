@@ -33,6 +33,10 @@ Localização inferida nunca é apresentada como exata. Município fora da refer
 
 Nenhuma camada representa intenção de voto, preferência, força eleitoral ou previsão.
 
+## Persistência
+
+`geo_entity` guarda a hierarquia/geometria de referência (chave, nível, pai); `geo_observation` guarda observações por região e bucket, sempre com `geo_precision`, `geo_source` e `geo_confidence` — geometria e observação nunca se misturam.
+
 ## Limitações
 
 - Redes sociais não chegam a zona/local/seção — esses níveis existem apenas nos dados oficiais do TSE.

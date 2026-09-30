@@ -25,13 +25,13 @@ export async function getCurrentDebate(): Promise<Debate | null> {
 export async function currentOffset(d: Debate): Promise<number> {
   const repo = await getRepository();
   if (d.status === "ended") return Infinity;
-  return clockOffset(repo.clock, Date.now(), d.startsAt, repo.transcriptEnd(d.id));
+  return clockOffset(repo.clock, Date.now(), d.startsAt, await repo.transcriptEnd(d.id));
 }
 
 export async function getParticipants(d: Debate) {
   const repo = await getRepository();
-  const cands = repo.getCandidates();
-  const parties = repo.getParties();
+  const cands = await repo.getCandidates();
+  const parties = await repo.getParties();
   return d.participantIds
     .map((id) => cands.find((c) => c.id === id))
     .filter((c) => !!c)
@@ -43,17 +43,17 @@ export type Participant = Awaited<ReturnType<typeof getParticipants>>[number];
 /** Snapshot completo até `upTo` — usado por Overview, Live (estado inicial) e Analytics. */
 export async function getDebateSnapshot(debateId: string, upTo?: number) {
   const repo = await getRepository();
-  const debate = repo.getDebate(debateId);
+  const debate = await repo.getDebate(debateId);
   if (!debate) return null;
-  const totalEnd = repo.transcriptEnd(debateId) || (debate.endsAt ? (Date.parse(debate.endsAt) - Date.parse(debate.startsAt)) / 1000 : 0);
+  const totalEnd = await repo.transcriptEnd(debateId) || (debate.endsAt ? (Date.parse(debate.endsAt) - Date.parse(debate.startsAt)) / 1000 : 0);
   const at = upTo ?? (await currentOffset(debate));
   const offset = Math.min(at, totalEnd);
   // Debate encerrado sem recorte explícito: tudo disponível (inclusive falas sem horário).
   const to = debate.status === "ended" && upTo === undefined ? undefined : offset;
-  const win = repo.getTranscript(debateId, { to });
-  const events = repo.getEvents(debateId, { to });
+  const win = await repo.getTranscript(debateId, { to });
+  const events = await repo.getEvents(debateId, { to });
   const participants = await getParticipants(debate);
-  const metrics = repo.getSocialMetrics(debateId, { to });
+  const metrics = await repo.getSocialMetrics(debateId, { to });
   const { segments, classifications } = win;
   const cids = participants.map((c) => c.id);
   const moderator = repo.moderatorId();
@@ -69,7 +69,7 @@ export async function getDebateSnapshot(debateId: string, upTo?: number) {
     totalEnd,
     isLive: debate.status === "live" && offset < totalEnd,
     inProgress: win.inProgress,
-    blocks: repo.getBlocks(debateId),
+    blocks: await repo.getBlocks(debateId),
     participants,
     segments,
     classifications,
@@ -82,7 +82,7 @@ export async function getDebateSnapshot(debateId: string, upTo?: number) {
     distribution: candidateSpeechDistribution(cids, segments, classifications),
     speechTimeline: debateTimeline(segments, 60),
     timing: timingSummary(segments),
-    quality: repo.getTranscriptQuality(debateId),
+    quality: await repo.getTranscriptQuality(debateId),
     interactions: interactionEdges(segments, classifications, cids),
     social: {
       series: volumeSeries(metrics),
@@ -91,7 +91,7 @@ export async function getDebateSnapshot(debateId: string, upTo?: number) {
       total: metrics.reduce((a, m) => a + m.posts, 0),
       platforms: repo.platforms(),
     },
-    sources: repo.getSources().filter((s) => debate.sourceIds.includes(s.id) || s.providerKind === "social" || s.providerKind === "ai"),
+    sources: (await repo.getSources()).filter((s) => debate.sourceIds.includes(s.id) || s.providerKind === "social" || s.providerKind === "ai"),
   };
 }
 

@@ -56,6 +56,10 @@ Regras: nenhum horário é inventado (ausente ⇒ `startOffset = null` + `timing
 
 Exemplo real: `data/real/rj-governador-2026-09-29` (ver `docs/VALIDATION-RJ-2026-09-29.md`).
 
+## Persistência e incremental
+
+No perfil `live` os dados vão para o PostgreSQL pelo worker (`docs/INGESTION.md`). Para ser incremental, o provider deve paginar com cursor estável (`Page.resumeCursor`): o worker salva o cursor por fluxo em `ingestion_checkpoint` e retoma dali. `externalId` deve ser estável — é a chave de deduplicação (`provider_id + external_id`).
+
 ## Como criar um provider
 
 1. Defina o esquema RAW em `src/normalization/schemas/<origem>.ts` (versionado: `origem.tipo/v1`).

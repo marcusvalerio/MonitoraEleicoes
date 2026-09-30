@@ -4,12 +4,12 @@ import { parseQuery } from "../_shared";
 
 /** Menções por candidato e por partido (via candidato). Contagens — não são ranking nem intenção de voto. */
 export const GET = (req: Request) =>
-  handle((repo) => {
-    const q = parseQuery(req, repo);
+  handle(async (repo) => {
+    const q = await parseQuery(req, repo);
     if ("error" in q) return q.error!;
-    const m = repo.getSocialMetrics(q.debateId, { to: q.to });
+    const m = await repo.getSocialMetrics(q.debateId, { to: q.to });
     return ok(
-      { candidates: candidateMentions(m, repo.getCandidates()), parties: partyMentions(m, repo.getCandidates(), repo.getParties()) },
+      { candidates: candidateMentions(m, await repo.getCandidates()), parties: partyMentions(m, await repo.getCandidates(), await repo.getParties()) },
       { debateId: q.debateId, caveat: "Menções não indicam apoio, rejeição ou preferência." },
       "private, max-age=15",
     );

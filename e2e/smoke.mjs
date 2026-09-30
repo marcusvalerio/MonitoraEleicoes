@@ -13,7 +13,9 @@ ok((await (await fetch(`${B}/api/debates/${D}/feed?from=10&to=5`)).status) === 4
 // Live ingestão
 await p.goto(`${B}/debates/${D}/live`, { waitUntil: "networkidle" });
 const count = () => p.locator("ol[aria-live] > li[id^=seg-]").count();
-const c0 = await count(); await p.getByRole("button", { name: "10×" }).click(); await p.waitForTimeout(9000);
+const c0 = await count(); await p.getByRole("button", { name: "10×" }).click();
+// Em 10× uma fala longa pode ocupar a janela inteira: espera até 30 s por uma nova fala concluída.
+for (let t = 0; t < 30 && (await count()) <= c0; t++) await p.waitForTimeout(1000);
 ok((await count()) > c0, `live ingere novas falas (${c0} → ${await count()})`);
 // Mapa: drill-down Brasil → Estado → municípios
 await p.goto(`${B}/map`, { waitUntil: "networkidle" });

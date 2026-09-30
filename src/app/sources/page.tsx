@@ -23,10 +23,11 @@ const ORDER: SourceType[] = ["official", "transcript", "ai_analysis", "social", 
 
 export default async function SourcesPage() {
   const repo = await getRepository();
-  const sources = repo.getSources();
+  const sources = await repo.getSources();
   const platforms = repo.platforms();
-  const reports = repo.getReports();
+  const reports = await repo.getReports();
   const p = { mode: repo.mode };
+  const status = await repo.getDataStatus();
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 md:px-6">
@@ -38,11 +39,11 @@ export default async function SourcesPage() {
       )}
       <Panel title="Debates" question="Proveniência e qualidade da transcrição de cada debate ingerido.">
         <div className="space-y-6">
-          {repo.listDebates().map((d) => {
-            const q = repo.getTranscriptQuality(d.id);
-            const seg = repo.getTranscript(d.id).segments[0];
-            const rec = seg?.provenance.record ? repo.getSourceRecord(seg.provenance.record.recordId) : null;
-            const art = repo.getArticles(d.id)[0];
+          {(await Promise.all((await repo.listDebates()).map(async (d) => {
+            const q = await repo.getTranscriptQuality(d.id);
+            const seg = (await repo.getTranscript(d.id)).segments[0];
+            const rec = seg?.provenance.record ? await repo.getSourceRecord(seg.provenance.record.recordId) : null;
+            const art = (await repo.getArticles(d.id))[0];
             const precision = seg?.timing?.precision ?? (seg && seg.startOffset !== null ? "exact" : "—");
             const rows: [string, string][] = [
               ["Debate", `${d.title} · ${d.broadcaster} · ${fmtDateTime(d.startsAt)}`],
@@ -75,7 +76,7 @@ export default async function SourcesPage() {
                 </dl>
               </div>
             );
-          })}
+          })))}
         </div>
       </Panel>
       {ORDER.map((type) => {
@@ -125,6 +126,9 @@ export default async function SourcesPage() {
         );
       })}
       <Panel title="Ingestão" question="Cada provider: registros recebidos, normalizados e rejeitados. Rejeições nunca são corrigidas silenciosamente." bodyClassName="overflow-x-auto">
+        <p className="mb-3 text-[12px] text-fg-3" data-testid="storage">
+          Armazenamento: {status.persistence === "postgres" ? "PostgreSQL (Neon) — última execução por provider" : "memória do processo (perfil de demonstração/teste)"} · ingerido em {fmtDateTime(status.ingestedAt)}
+        </p>
         <table className="w-full min-w-[720px] font-[family-name:var(--font-data)] text-[12px]">
           <thead>
             <tr className="border-b border-border text-left text-[11.5px] text-fg-3">

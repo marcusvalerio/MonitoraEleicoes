@@ -48,6 +48,10 @@ const tl = await api(`/api/debates/${D}/timeline?granularity=300`);
 ok(tl.data.kind === "not_available" && tl.meta.timing.untimed === 5, "api timeline: not_available (sem horários)");
 const tr = await api(`/api/debates/${D}/transcript?limit=2`);
 ok(tr.data.length === 2 && tr.meta.hasMore && /mancheterio\.com\.br/.test(tr.data[0].record.sourceUrl) && tr.data[0].segment.startOffset === null, "api transcript: proveniência e startOffset nulo");
+const src = await api("/api/sources");
+if (process.env.EXPECT_PERSISTENCE) ok(src.meta.status.persistence === process.env.EXPECT_PERSISTENCE && src.meta.ingestion.length > 0, `fontes/ingestão lidas de ${process.env.EXPECT_PERSISTENCE}`);
+await p.goto(B + "/sources", { waitUntil: "networkidle" });
+ok((await p.getByTestId("storage").innerText()).includes(process.env.EXPECT_PERSISTENCE === "postgres" ? "PostgreSQL" : "Armazenamento"), "página Fontes mostra armazenamento");
 const res = await api("/api/elections/2026-geral/results");
 ok(res.meta.status === "not_collected", "resultados oficiais: not_collected");
 
