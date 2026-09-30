@@ -68,6 +68,11 @@ export class DataStore {
   /** Cobertura editorial: fatos da fonte, interpretação versionada e o que cada coleta viu (detecção de remoção). */
   editorial: import("@/domain/editorial").EditorialUpdate[] = [];
   editorialAnalyses = new Map<string, import("@/domain/editorial").EditorialAnalysis>();
+  /** Social listening: conteúdos, métricas públicas (snapshot), análise e janelas de coleta (0 ≠ não coletado). */
+  socialRecords: import("@/domain/social").SocialRecord[] = [];
+  socialMetrics2 = new Map<string, { metrics: import("@/domain/social").SocialMetrics; at: string }>();
+  socialAnalyses = new Map<string, import("@/domain/social").SocialAnalysis>();
+  socialWindows: { sourceId: string; monitorId: string; windowStart: string; windowEnd: string; status: "collected" | "partial" | "failed" | "rate_limited" | "unsupported" | "requires_authorization"; items: number | null; quotaUsed: number | null; reportIndex: number; error: string | null }[] = [];
   editorialSnapshots: { debateId: string; providerId: string; snapshot: import("@/providers/contracts").EditorialSnapshot }[] = [];
   ingestedAt = new Date().toISOString();
 

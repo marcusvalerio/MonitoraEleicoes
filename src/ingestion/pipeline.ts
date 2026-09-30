@@ -6,11 +6,13 @@ import { confidenceLevel } from "@/domain/quality";
 import { computeSegmentRelevance, toSpeechClassification, validateClassifierOutput, type SpeechClassifier } from "@/ai/classifier";
 import { NormalizationContext } from "@/normalization/context";
 import { normalize, type Normalized } from "@/normalization/normalizers";
-import { collectAll, collectFrom, type LiveEditorialProvider, type ElectionProvider, type MediaProvider, type RawRecord, type SocialProvider, type TranscriptProvider } from "@/providers/contracts";
+import { collectAll, collectFrom, type SocialListeningProvider, type SocialListeningQuery, type LiveEditorialProvider, type ElectionProvider, type MediaProvider, type RawRecord, type SocialProvider, type TranscriptProvider } from "@/providers/contracts";
 import { ProviderError } from "@/providers/errors";
 import { withRetry } from "@/providers/resilience";
 import { DataStore, type IngestionReport } from "./store";
 import { classifyEditorial } from "@/ai/editorial";
+import { classifySocial, type SocialContext } from "@/ai/social";
+import type { SocialMonitor } from "@/domain/social";
 
 export interface IngestionSources {
   mode: "demo" | "live";
@@ -29,6 +31,8 @@ export interface IngestionSources {
   alreadyClassified?: (segmentId: string, model: import("@/domain/types").ModelInfo) => boolean;
   /** Fontes de cobertura EDITORIAL (ex.: g1) — mesmo pipeline, entidade própria (nunca viram transcrição). */
   editorial?: LiveEditorialProvider[];
+  /** Social listening por monitor (fontes conectadas); cada item gera uma janela de coleta registrada. */
+  listening?: { provider: SocialListeningProvider; monitor: SocialMonitor; query: SocialListeningQuery; context: SocialContext }[];
 }
 
 /**
@@ -181,6 +185,31 @@ export async function ingest(src: IngestionSources): Promise<DataStore> {
         store.rejections.push({ reportIndex: store.reports.length - 1, recordId: u.provenance.record?.recordId ?? null, externalId: u.externalId, code: "classification_error", message: (e as Error).message, field: null });
       }
     }
+  }
+
+  // 4c · Social listening: coleta por monitor × plataforma; toda coleta vira uma JANELA (collected/partial/falha/sem acesso)
+  for (const L of src.listening ?? []) {
+    const idx = store.reports.length;
+    const before = store.socialRecords.length;
+    let meta = { quota: 0, partial: false, errCode: null as string | null };
+    await run(L.provider, `listening:${L.monitor.id}`, async () => {
+      try {
+        const r = await L.provider.collect(L.query);
+        meta = { quota: r.quotaUsed, partial: r.partial, errCode: null };
+        return r.records;
+      } catch (e) {
+        meta.errCode = e instanceof ProviderError ? e.code : "error";
+        throw e;
+      }
+    }, (n) => {
+      if (n.type === "social_record") store.socialRecords.push({ ...n.value, monitorId: L.monitor.id });
+      else if (n.type === "social_metrics") store.socialMetrics2.set(n.value.recordId, { metrics: n.value.metrics, at: n.value.at });
+    });
+    const rep = store.reports[idx];
+    const items = store.socialRecords.length - before;
+    const status = rep?.status === "failed" ? (meta.errCode === "rate_limited" ? "rate_limited" : meta.errCode === "authentication_required" ? "requires_authorization" : "failed") : meta.partial ? "partial" : "collected";
+    store.socialWindows.push({ sourceId: L.provider.info.platform, monitorId: L.monitor.id, windowStart: L.query.since, windowEnd: L.query.until, status, items: status === "collected" || status === "partial" ? items : null, quotaUsed: meta.quota || null, reportIndex: idx, error: rep?.status === "failed" ? (rep.message ?? rep.issues[0]?.message ?? "falha") : null });
+    for (const r of store.socialRecords.slice(before)) store.socialAnalyses.set(r.id, classifySocial(r, L.context));
   }
 
   // 5 · IA: classificação das falas (RAW preservado; análise separada e versionada)

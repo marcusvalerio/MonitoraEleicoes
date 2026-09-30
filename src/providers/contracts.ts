@@ -177,6 +177,45 @@ export interface SocialProvider extends BaseProvider<SocialCapabilities> {
   fetchRegionalCounts(q: SocialQuery, page?: PageRequest): Promise<Page<RawRecord>>;
 }
 
+// ───────── Social listening (conteúdos reais: posts, comentários, respostas, vídeos) ─────────
+
+/** Capacidades REAIS declaradas por cada plataforma (nunca assumir paridade). */
+export interface SocialListeningCapabilities {
+  search: boolean;
+  comments: boolean;
+  replies: boolean;
+  engagement: boolean;
+  /** Tempo real disponível: polling da API, stream oficial, ou não. */
+  realtime: "polling" | "stream" | false;
+  historical: boolean;
+  /** Autor: identificador público disponível (gravamos só HMAC) ou não. */
+  author: boolean;
+  permalink: boolean;
+  media: boolean;
+}
+export type SocialAccessStatus = "active" | "configured" | "requires_authorization" | "unsupported" | "limited" | "error" | "disabled";
+export interface SocialListeningQuery {
+  terms: string[];
+  /** Janela [since, until) em ISO. */
+  since: string;
+  until: string;
+  /** Orçamento de cota/itens por execução (respeita limites da plataforma). */
+  budget?: number;
+}
+export interface SocialCollectResult {
+  records: RawRecord[];
+  quotaUsed: number;
+  /** true = parou antes do fim da janela (cota/página), a janela fica "partial". */
+  partial: boolean;
+}
+export interface SocialListeningProvider {
+  readonly info: ProviderInfo<SocialListeningCapabilities> & { platform: string; docsUrl: string };
+  /** Estado de acesso real (credencial ausente ⇒ requires_authorization; plataforma sem API adequada ⇒ unsupported). */
+  accessStatus(): { status: SocialAccessStatus; reason: string };
+  health(): Promise<ProviderHealth>;
+  collect(q: SocialListeningQuery): Promise<SocialCollectResult>;
+}
+
 // ───────── Eleições (oficial) ─────────
 
 export interface ElectionCapabilities {

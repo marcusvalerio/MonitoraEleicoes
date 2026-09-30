@@ -277,6 +277,38 @@ export async function persistIngestion(sql: Sql, store: DataStore, o: PersistOpt
     if (snapshot.externalIds.length) await sql.query("update editorial_event set removed_at = null, change_seq = nextval('editorial_change_seq') where provider_id = $1 and removed_at is not null and external_id = any($2::text[])", [providerId, snapshot.externalIds]);
   }
 
+  // 2c · Social listening: conteúdo (texto original; nova versão só se o hash mudar), métricas (snapshot), análise e entidades
+  const socials = store.socialRecords.filter((x) => isNew(x.provenance));
+  await bulk(
+    sql,
+    "social_record",
+    [["id", "text"], ["dataset_id", "text"], ["platform", "text"], ["provider_id", "text"], ["external_id", "text"], ["monitor_id", "text"], ["content_type", "text"], ["parent_id", "text"], ["root_id", "text"], ["author_hash", "text"], ["author_display_name", "text"], ["published_at", "timestamptz"], ["collected_at", "timestamptz"], ["title", "text"], ["text", "text"], ["language", "text"], ["permalink", "text"], ["media_type", "text"], ["content_hash", "text"], ["source_record_id", "text"]],
+    socials.map((x) => ({ id: x.id, dataset_id: ds, platform: x.platform, provider_id: x.providerId, external_id: x.externalId, monitor_id: x.monitorId, content_type: x.contentType, parent_id: x.parentId, root_id: x.rootId, author_hash: x.authorHash, author_display_name: x.authorDisplayName, published_at: x.publishedAt, collected_at: x.collectedAt, title: x.title, text: x.text, language: x.language, permalink: x.permalink, media_type: x.mediaType, content_hash: x.contentHash, source_record_id: recId(x.provenance) })),
+    `on conflict (platform, external_id) do update set title = excluded.title, text = excluded.text, content_hash = excluded.content_hash, collected_at = excluded.collected_at,
+       source_record_id = excluded.source_record_id, version = social_record.version + 1 where social_record.content_hash is distinct from excluded.content_hash`,
+  );
+  count("social_record.changed", socials.length);
+  const mets = [...store.socialMetrics2.entries()].map(([id, m]) => ({ id, metrics: m.metrics, at: m.at }));
+  for (let i = 0; i < mets.length; i += 500)
+    await sql.query("update social_record s set metrics = x.metrics, metrics_at = x.at from jsonb_to_recordset($1::jsonb) as x(id text, metrics jsonb, at timestamptz) where s.id = x.id", [JSON.stringify(mets.slice(i, i + 500))]);
+  const sAnalyses = [...store.socialAnalyses.values()];
+  const insertedS = await bulk(
+    sql,
+    "social_analysis",
+    [["record_id", "text"], ["analysis_version", "text"], ["content_hash", "text"], ["classifier", "text"], ["content_sentiment", "text"], ["sentiment_confidence", "text"], ["topic", "text"], ["topic_confidence", "text"], ["topic_evidence", "text[]"], ["relevant", "boolean"], ["geo_uf", "text"], ["geo_source", "text"], ["geo_evidence", "text"]],
+    sAnalyses.map((a) => ({ record_id: a.recordId, analysis_version: a.analysisVersion, content_hash: a.contentHash, classifier: a.classifier, content_sentiment: a.contentSentiment, sentiment_confidence: a.sentimentConfidence, topic: a.topic, topic_confidence: a.topicConfidence, topic_evidence: a.topicEvidence, relevant: a.relevant, geo_uf: a.geoUf, geo_source: a.geoSource, geo_evidence: a.geoEvidence })),
+    "on conflict do nothing",
+    "record_id",
+  );
+  count("social_analysis.new", insertedS.length);
+  await bulk(
+    sql,
+    "social_record_entity",
+    [["record_id", "text"], ["entity_type", "text"], ["entity_id", "text"], ["analysis_version", "text"], ["mention_type", "text"], ["mention_confidence", "text"], ["entity_sentiment", "text"], ["evidence", "text"]],
+    sAnalyses.flatMap((a) => a.entities.map((e) => ({ record_id: e.recordId, entity_type: e.entityType, entity_id: e.entityId, analysis_version: a.analysisVersion, mention_type: e.mentionType, mention_confidence: e.mentionConfidence, entity_sentiment: e.entitySentiment, evidence: e.evidence }))),
+    "on conflict do nothing",
+  );
+
   // 3 · Execuções, RAW e erros (por último)
   const runIds = store.reports.map(() => randomUUID());
   const newByReport = new Map<number, number>();
@@ -329,6 +361,14 @@ export async function persistIngestion(sql: Sql, store: DataStore, o: PersistOpt
   await Promise.all(tail);
   await bulk(sql, "ingestion_checkpoint", [["provider_id", "text"], ["stream", "text"], ["cursor", "text"]], cps, "on conflict (provider_id, stream) do update set cursor = excluded.cursor, updated_at = now()");
 
+  // Janelas de coleta social (depois das execuções: referência ao run quando guardado)
+  await bulk(
+    sql,
+    "social_collection_window",
+    [["source_id", "text"], ["monitor_id", "text"], ["window_start", "timestamptz"], ["window_end", "timestamptz"], ["status", "text"], ["items", "int"], ["quota_used", "int"], ["ingestion_run_id", "uuid"], ["error", "text"]],
+    store.socialWindows.map((w) => ({ source_id: w.sourceId, monitor_id: w.monitorId, window_start: w.windowStart, window_end: w.windowEnd, status: w.status, items: w.items, quota_used: w.quotaUsed, ingestion_run_id: keep[w.reportIndex] ? runIds[w.reportIndex] : null, error: w.error })),
+    "on conflict (source_id, monitor_id, window_start) do update set window_end = excluded.window_end, status = excluded.status, items = excluded.items, quota_used = excluded.quota_used, ingestion_run_id = excluded.ingestion_run_id, error = excluded.error, collected_at = now()",
+  );
   const runs: PersistResult["runs"] = runRows.map((r) => ({ runId: r.id, providerId: r.provider_id, kind: r.kind, status: r.status, received: r.received_count, normalized: r.normalized_count, rejected: r.rejected_count, unchanged: r.unchanged_count }));
   for (const r of runs) log(r.status === "failed" ? "error" : "info", "ingestion_run.finished", { request_id: o.requestId, ingestion_run_id: r.runId, provider: r.providerId, kind: r.kind, status: r.status, received: r.received, rejected: r.rejected, unchanged: r.unchanged });
   return { runs, counts };

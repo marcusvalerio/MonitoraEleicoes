@@ -12,6 +12,9 @@ import { FilePressProvider, FileRegistryElectionProvider, FileTranscriptProvider
 import { LIVE_SOURCES } from "./files/sources";
 import { ReplayLiveTranscriptProvider, type ReplaySpeed } from "./replay";
 import { G1LiveEditorialProvider, G1_PROVIDER_ID } from "./g1";
+import { YouTubeProvider } from "./youtube";
+import { PLATFORM_MATRIX, UnavailableSocialProvider } from "./social/catalog";
+import type { SocialListeningProvider } from "./contracts";
 import { paginate, type TranscriptProvider as TranscriptProviderT } from "./contracts";
 import { DEMO_SOURCES } from "@/data/demo/sources";
 import { FIXTURE_SOURCES } from "./fixture/sources";
@@ -152,4 +155,13 @@ export function buildControlProviders(
     return { ...base, transcript, editorial };
   }
   throw new Error(`provider não suportado para debate ao vivo: ${c.providerId}`);
+}
+
+/**
+ * Providers de social listening (seleção de provider — por isso aqui). YouTube com chave via env;
+ * as demais plataformas entram como "sem acesso" (requires_authorization / unsupported), nunca fingindo coleta.
+ */
+export function buildSocialProviders(env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch, now: () => number = Date.now): SocialListeningProvider[] {
+  const yt = new YouTubeProvider({ apiKey: env.YOUTUBE_API_KEY, hashKey: env.IDENTITY_HASH_KEY, budget: Number(env.YOUTUBE_QUOTA_PER_RUN ?? 1500) }, fetchImpl, now);
+  return [yt, ...PLATFORM_MATRIX.filter((e) => e.platform !== "youtube").map((e) => new UnavailableSocialProvider(e))];
 }

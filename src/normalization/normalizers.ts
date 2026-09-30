@@ -28,9 +28,12 @@ export type Normalized =
   | { type: "social_post"; value: SocialPost }
   | { type: "geo_metric"; value: GeoMetric }
   | { type: "article"; value: MediaArticle }
-  | { type: "editorial_update"; value: EditorialUpdate };
+  | { type: "editorial_update"; value: EditorialUpdate }
+  | { type: "social_record"; value: SocialRecord }
+  | { type: "social_metrics"; value: { recordId: string; metrics: SocialMetrics; at: string } };
 
 import type { EditorialUpdate } from "@/domain/editorial";
+import type { SocialMetrics, SocialRecord } from "@/domain/social";
 import { payloadHash } from "@/domain/provenance";
 
 type Fn = (r: RawRecord, ctx: NormalizationContext, sourceId: string) => Normalized;
@@ -509,4 +512,35 @@ const g1Post: Fn = (r, ctx, sourceId) => {
   };
 };
 
-Object.assign(NORMALIZERS, { "g1.live-post/v1": g1Post, "live.event/v1": liveEvent, "live.segment/v1": liveSegment, "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });
+// ───────── SOCIAL LISTENING (YouTube) ─────────
+import type { YouTubeCommentV1, YouTubeVideoStatsV1, YouTubeVideoV1 } from "@/providers/youtube";
+
+const num = (v: unknown) => (v === undefined || v === null || v === "" || !Number.isFinite(Number(v)) ? undefined : Number(v));
+const clean = <T extends object>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
+const ytVideo: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as YouTubeVideoV1;
+  if (!p.video_id) fail(r, "vídeo sem id", "video_id");
+  const metrics: SocialMetrics = {};
+  return {
+    type: "social_record",
+    value: { id: `youtube:video:${p.video_id}`, platform: "youtube", providerId: r.providerId, externalId: r.externalId, monitorId: null, contentType: p.live_broadcast === "live" ? "live" : "video", parentId: null, rootId: null, authorHash: p.channel_id, authorDisplayName: p.channel_title, publishedAt: p.published_at, collectedAt: r.collectedAt, title: p.title || null, text: [p.title, p.description].filter(Boolean).join("\n"), language: null, permalink: r.sourceUrl, mediaType: "video", metrics, contentHash: payloadHash(p), provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) } },
+  };
+};
+const ytComment: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as YouTubeCommentV1;
+  if (!p.comment_id) fail(r, "comentário sem id", "comment_id");
+  if (!p.text?.trim()) fail(r, "comentário sem texto", "text");
+  const metrics: SocialMetrics = clean({ likes: p.like_count ?? undefined, replies: p.reply_count ?? undefined });
+  return {
+    type: "social_record",
+    value: { id: `youtube:comment:${p.comment_id}`, platform: "youtube", providerId: r.providerId, externalId: r.externalId, monitorId: null, contentType: p.parent_id ? "reply" : "comment", parentId: p.parent_id ? `youtube:comment:${p.parent_id}` : `youtube:video:${p.video_id}`, rootId: `youtube:video:${p.video_id}`, authorHash: p.author_channel_id, authorDisplayName: null, publishedAt: p.published_at, collectedAt: r.collectedAt, title: null, text: p.text, language: null, permalink: r.sourceUrl, mediaType: null, metrics, contentHash: payloadHash(p), provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) } },
+  };
+};
+
+const ytStats: Fn = (r) => {
+  const p = r.payload as YouTubeVideoStatsV1;
+  // chave ausente (ex.: likeCount oculto pelo canal) ⇒ métrica ausente, nunca 0
+  return { type: "social_metrics", value: { recordId: `youtube:video:${p.video_id}`, metrics: clean({ views: num(p.statistics.viewCount), likes: num(p.statistics.likeCount), comments: num(p.statistics.commentCount) }), at: r.collectedAt } };
+};
+
+Object.assign(NORMALIZERS, { "youtube.video-stats/v1": ytStats, "youtube.video/v1": ytVideo, "youtube.comment/v1": ytComment, "g1.live-post/v1": g1Post, "live.event/v1": liveEvent, "live.segment/v1": liveSegment, "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });

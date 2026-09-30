@@ -48,7 +48,24 @@ async function execute(p, dsId, kind, requestId) {
   );
 }
 
-if (args.includes("--live")) {
+if (args.includes("--social")) {
+  // Worker SOCIAL: monitores ativos (social_monitor) × fontes conectadas. Separado do editorial e do histórico.
+  const { runSocialWorker } = await jiti.import("@/ingestion/social-worker");
+  const { buildSocialProviders, buildProfile } = await jiti.import("@/providers/registry");
+  const { syncSocialSources } = await jiti.import("@/control/social");
+  const { LIVE_SOURCES } = await jiti.import("@/providers/files/sources");
+  const providers = buildSocialProviders();
+  await syncSocialSources(sql, providers);
+  const prof = buildProfile("live");
+  let stop = false;
+  for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => (stop ? process.exit(130) : (stop = true)));
+  await runSocialWorker(
+    sql,
+    { providers, base: { mode: "live", election: prof.election, transcript: { ...prof.transcript, listEvents: async () => ({ items: [], nextCursor: null, hasMore: false }) }, social: prof.social, media: { ...prof.media, info: { ...prof.media.info, capabilities: { ...prof.media.info.capabilities, articles: false } } }, classifier: prof.classifier, aiSourceId: prof.aiSourceId }, sources: LIVE_SOURCES, datasetKind: process.env.MONITORA_DATASET_KIND ?? "production" },
+    { intervalMs: Number(arg("--interval", 30)) * 1000, shouldStop: () => stop },
+  );
+  process.exit(0);
+} else if (args.includes("--live")) {
   const { runLiveWorker } = await jiti.import("@/ingestion/live-worker");
   const { buildControlProviders } = await jiti.import("@/providers/registry");
   const { LIVE_SOURCES } = await jiti.import("@/providers/files/sources");
