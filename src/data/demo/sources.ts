@@ -1,0 +1,18 @@
+import type { Source } from "@/domain/types";
+
+const T = "2026-10-02T00:00:00.000Z";
+
+/** Registro de fontes do DEMO. Tudo marcado `mode: "demo"`. */
+export const DEMO_SOURCES: Source[] = [
+  { id: "src-demo-transcript", name: "Transcrição do debate (simulada)", type: "transcript", provider: "MockTranscriptProvider", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Transcrição fictícia gerada para demonstração. Em produção: ASR sobre o áudio oficial da transmissão + revisão humana.", recordCount: 0 },
+  { id: "src-demo-ai", name: "Classificação automática (simulada)", type: "ai_analysis", provider: "demo-classifier 0.1.0 · prompt speech-v1", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Classificações produzidas por um classificador simulado com saída no mesmo formato do pipeline real.", recordCount: 0 },
+  { id: "src-demo-social", name: "Amostra de publicações (simulada)", type: "social", provider: "MockSocialProvider", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Publicações fictícias. Nenhum conteúdo foi coletado de plataformas reais.", recordCount: 0 },
+  { id: "src-demo-social-x", name: "X · volume por minuto (simulado)", type: "social", provider: "MockSocialProvider → XProvider", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Volume simulado. A API real do X possui limites de acesso por plano.", recordCount: 0 },
+  { id: "src-demo-social-youtube", name: "YouTube · comentários por minuto (simulado)", type: "social", provider: "MockSocialProvider → YouTubeProvider", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Volume simulado de comentários/chat ao vivo.", recordCount: 0 },
+  { id: "src-demo-social-tiktok", name: "TikTok · volume por minuto (simulado)", type: "social", provider: "MockSocialProvider → TikTokProvider", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Acesso real depende de programa de pesquisa da plataforma.", recordCount: 0 },
+  { id: "src-demo-social-instagram", name: "Instagram · volume por minuto (simulado)", type: "social", provider: "MockSocialProvider → InstagramProvider", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Acesso real restrito a conteúdo público via APIs oficiais.", recordCount: 0 },
+  { id: "src-demo-social-facebook", name: "Facebook · volume por minuto (simulado)", type: "social", provider: "MockSocialProvider → FacebookProvider", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Acesso real restrito.", recordCount: 0 },
+  { id: "src-demo-social-threads", name: "Threads · volume por minuto (simulado)", type: "social", provider: "MockSocialProvider → ThreadsProvider", url: null, timestamp: T, collectedAt: T, status: "demo", mode: "demo", description: "Acesso real limitado.", recordCount: 0 },
+  { id: "src-telegram", name: "Telegram", type: "social", provider: "TelegramProvider", url: null, timestamp: T, collectedAt: T, status: "unavailable", mode: "demo", description: "Provider não implementado no MVP. Nenhum dado exibido.", recordCount: 0 },
+  { id: "src-tse", name: "TSE · Dados Abertos (resultados)", type: "official", provider: "TSEProvider", url: "https://dadosabertos.tse.jus.br", timestamp: T, collectedAt: T, status: "pending", mode: "live", description: "Fonte oficial para resultados eleitorais. Importação prevista na fase P1; nenhum número eleitoral é exibido até lá.", recordCount: 0 },
+];

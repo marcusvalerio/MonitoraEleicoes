@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* ───────── MONITORA ELEIÇÕES · Design tokens ───────── */
+@theme {
+  --color-bg: #0a0a0b;
+  --color-surface: #111113;
+  --color-elevated: #171719;
+  --color-hover: #1d1d20;
+  --color-border: #252529;
+  --color-border-strong: #34343a;
+  --color-fg: #f2f2f0;
+  --color-fg-2: #a4a4a8;
+  --color-fg-3: #68686e;
+
+  /* Semânticas (uso controlado; nunca para candidatos) */
+  --color-pos: #4cb782;
+  --color-pos-bg: #4cb7821a;
+  --color-neg: #e5645f;
+  --color-neg-bg: #e5645f1a;
+  --color-warn: #e2a336;
+  --color-warn-bg: #e2a3361a;
+  --color-info: #6b9cf2;
+  --color-info-bg: #6b9cf21a;
+
+  /* Categóricas de tipo de fala (validadas CVD no surface) */
+  --color-grp-1: #3987e5;
+  --color-grp-2: #d95926;
+  --color-grp-3: #199e70;
+  --color-grp-4: #c98500;
+  --color-grp-5: #9085e9;
+
+  --font-display: var(--font-familjen), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  --font-data: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --text-2xs: 10.5px;
+  --text-2xs--line-height: 14px;
+
+  --animate-pulse-dot: pulse-dot 1.8s ease-in-out infinite;
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.85); }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection { background: #6b9cf240; }
+
+* { scrollbar-width: thin; scrollbar-color: #2c2c31 transparent; }
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Rótulo técnico em caixa-alta */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fg-3);
+  font-weight: 500;
+}
+
+/* Faixa de dados demonstrativos */
+.demo-stripes {
+  background-image: repeating-linear-gradient(135deg, #e2a3361f 0 6px, transparent 6px 12px);
+}
+
+/* Grade sutil de fundo para o hero */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, #ffffff08 1px, transparent 1px),
+    linear-gradient(to bottom, #ffffff08 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse at 20% 0%, black 30%, transparent 75%);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
