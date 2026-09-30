@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Pause, Play, Radio, Search, X } from "lucide-react";
 import type { Candidate, DebateBlock, DebateEvent, Party, SpeechClassification, TopicId, TranscriptSegment } from "@/domain/types";
-import { TOPIC_LABEL } from "@/domain/labels";
-import { Avatar, DemoBadge, LiveDot, NatureBadge, Panel } from "@/components/ui/primitives";
+import { RELEVANCE_LABEL, TOPIC_LABEL } from "@/domain/labels";
+import { Avatar, LiveDot, NatureBadge, Panel } from "@/components/ui/primitives";
 import { Notice, StateView } from "@/components/ui/states";
 import { ClassificationTags } from "./tags";
 import { AnalysisPanel } from "./AnalysisPanel";
@@ -293,8 +293,11 @@ export function LiveDebate({ debate, participants, blocks, initial, focusSegment
                     <span className={cn("block text-[11px] font-semibold tracking-wider uppercase", isMod ? "text-fg-3" : "text-fg")}>{p?.name ?? "Moderação"}</span>
                     <span className={cn("mt-0.5 block text-[13.5px] leading-relaxed", isMod ? "text-fg-3" : "text-fg-2 group-hover:text-fg")}>“{s.text}”</span>
                     {c && !isMod && (
-                      <span className="mt-2 block">
-                        <ClassificationTags c={c} compact />
+                      <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <ClassificationTags c={c} />
+                        <span className="text-[10.5px] text-fg-3 tnum">
+                          relevância {RELEVANCE_LABEL[c.relevance].toLowerCase()} · conf. {c.confidence.toFixed(2)}
+                        </span>
                       </span>
                     )}
                   </span>
@@ -328,7 +331,6 @@ export function LiveDebate({ debate, participants, blocks, initial, focusSegment
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             {ended ? <span className="text-2xs font-semibold tracking-wider text-fg-3">ENCERRADO</span> : <LiveDot label={debate.mode === "demo" ? "AO VIVO · REPLAY" : "AO VIVO"} />}
-            {debate.mode === "demo" && <DemoBadge />}
             <NatureBadge nature="collected" compact />
           </div>
           <h1 className="mt-1 font-display text-[22px] leading-tight font-bold tracking-tight uppercase md:text-[26px]">{debate.title}</h1>
@@ -403,7 +405,7 @@ export function LiveDebate({ debate, participants, blocks, initial, focusSegment
         </section>
         <div className="h-[calc(100dvh-160px)] min-h-[520px] space-y-4 overflow-y-auto pr-0.5">
           <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 xl:hidden">{speakerPanel}</div>
-          <Panel title="Análise atual" bodyClassName="p-4">
+          <Panel variant="card" title="Análise atual" bodyClassName="p-4">
             {analysis}
             {!following && (
               <button type="button" onClick={() => setSelected(null)} className="mt-3 text-[12px] text-fg-3 underline decoration-border-strong underline-offset-2 hover:text-fg">
@@ -411,7 +413,7 @@ export function LiveDebate({ debate, participants, blocks, initial, focusSegment
               </button>
             )}
           </Panel>
-          <Panel title="Eventos" question={`${events.length} detectados`} nature="analysis">
+          <Panel variant="card" title="Eventos" question={`${events.length} detectados`} nature="analysis">
             {eventList}
           </Panel>
         </div>

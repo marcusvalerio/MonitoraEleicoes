@@ -19,6 +19,7 @@ const SECTIONS = [
   ["tom", "Tom"],
   ["eventos", "Eventos"],
   ["redes", "Redes sociais"],
+  ["mapa", "Mapa de repercussão"],
   ["oficiais", "Dados oficiais"],
   ["humana", "Análise humana"],
   ["limitacoes", "Limitações"],
@@ -114,6 +115,12 @@ export default function MethodologyPage() {
           <S id="redes" title="Como as redes são coletadas">
             <p>Cada plataforma tem um adapter próprio (X, YouTube, TikTok, Instagram, Facebook, Threads, Telegram). Os níveis de acesso às APIs são diferentes: algumas oferecem amostras, outras apenas conteúdo público via programas de pesquisa, outras nenhum acesso. Por isso, <strong>volumes não são comparáveis entre plataformas</strong> e não representam a opinião da população.</p>
             <p>Mostramos volume e comportamento da conversa. Não mostramos “candidato mais popular” nem “quem está ganhando nas redes”.</p>
+          </S>
+          <S id="mapa" title="Mapa de repercussão">
+            <p>O mapa mostra onde está a <strong>conversa pública</strong> — não votos, apoio ou intenção de voto. Considera apenas publicações com localização inferida (perfil, geotag ou menção a local), uma fração do total, informada no próprio mapa.</p>
+            <p><strong>Camadas:</strong> Volume (publicações), Partido e Candidato (quem é mais mencionado — a cor identifica a entidade e a intensidade indica sua participação nas menções), Tema (publicações sobre o tema escolhido) e Tendência (últimos 15 min vs. 15 min anteriores; exige ao menos 20 publicações na base).</p>
+            <p><strong>Drill-down:</strong> Brasil → Região → Estado → Município. Zona, local e seção existem apenas nos dados oficiais do TSE; redes sociais não oferecem essa precisão. Todos os níveis são somas do nível mais fino, garantindo consistência.</p>
+            <p>Valores absolutos acompanham o tamanho da população. Picos marcados no controle de tempo são <em>temporalmente associados</em> a eventos, sem relação causal estabelecida.</p>
           </S>
           <S id="oficiais" title="Dados oficiais">
             <p>O Tribunal Superior Eleitoral (TSE) é a autoridade para resultados eleitorais. Arquivos oficiais passam por: arquivo bruto → validação → normalização → banco → agregação → painel, com registro de eleição, arquivo, versão, data de importação e checksum. Nenhum número eleitoral é digitado manualmente ou estimado. Dados ausentes aparecem como ausentes.</p>

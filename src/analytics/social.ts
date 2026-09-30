@@ -26,3 +26,29 @@ export function mentionsByCandidate(metrics: SocialMetric[], upTo?: number): Rec
   }
   return out;
 }
+
+/** Série por plataforma em janelas maiores (para sparklines). */
+export function platformSeries(metrics: SocialMetric[], bucket: number, upTo?: number): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  const end = upTo ?? Math.max(0, ...metrics.map((m) => m.bucketStart + m.bucketSize));
+  const n = Math.max(1, Math.ceil(end / bucket));
+  for (const m of metrics) {
+    if (m.bucketStart + m.bucketSize > end) continue;
+    const arr = (out[m.platform] ??= new Array(n).fill(0));
+    const i = Math.floor(m.bucketStart / bucket);
+    if (i < n) arr[i] += m.posts;
+  }
+  return out;
+}
+
+/** Variação percentual do volume total: últimos `w` segundos vs. os `w` anteriores. */
+export function volumeChange(metrics: SocialMetric[], at: number, w = 300): number | null {
+  let recent = 0;
+  let prev = 0;
+  for (const m of metrics) {
+    const e = m.bucketStart + m.bucketSize;
+    if (m.bucketStart >= at - w && e <= at) recent += m.posts;
+    else if (m.bucketStart >= at - 2 * w && e <= at - w) prev += m.posts;
+  }
+  return prev ? (recent - prev) / prev : null;
+}

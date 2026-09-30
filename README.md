@@ -21,7 +21,8 @@ Funciona sem nenhuma API externa: `DATA_MODE=demo` (padrão). Todos os dados dem
 src/
   domain/      entidades, rótulos, regra de relevância, guardas editoriais (sem React)
   ai/          contrato do classificador, validação de saída, relevância por segmento
-  analytics/   agregações puras + Event Engine
+  analytics/   agregações puras, Event Engine, momentum de temas, narrativa descritiva
+  geo/         camada geoespacial: hierarquia, agregação, tipos (independente do mapa)
   providers/   interfaces (Transcript, Social, TSE, FactCheck) + mocks + registry (server-only)
   data/demo/   dataset determinístico (4 candidatos fictícios, 101 falas, 12 temas)
   services/    orquestração para server components
@@ -42,5 +43,6 @@ db/schema.sql  schema PostgreSQL/Supabase (RAW × AI separados, pipeline TSE)
 ## Roadmap
 
 - **P0 (entregue):** shell, design system, overview, ao vivo, transcrição, classificação mock, analytics, timeline de eventos, demo mode, fontes, metodologia.
-- **P1:** providers sociais reais, importação TSE (validação → normalização → agregação), explorador eleitoral hierárquico.
+- **Redesign editorial (v2):** Overview como central de comando, gráfico protagonista com temas e eventos, small multiples, mapa de repercussão (camadas, drill-down, controle temporal), indicador DEMO único no shell.
+- **P1:** providers sociais reais, importação TSE, explorador eleitoral hierárquico, geometria municipal.
 - **P2:** histórico/comparação, mapas, fact-checking, debate × eleição, busca semântica, alertas.

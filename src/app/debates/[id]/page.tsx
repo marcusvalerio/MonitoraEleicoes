@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { BarChart3, Radio } from "lucide-react";
 import { getDebateSnapshot } from "@/services/debates";
 import { fmtDate, fmtDuration, wallClock } from "@/lib/format";
-import { Avatar, ButtonLink, DemoBadge, LiveDot, PageHeader, Panel, Tag } from "@/components/ui/primitives";
+import { Avatar, ButtonLink, LiveDot, PageHeader, Panel, Tag } from "@/components/ui/primitives";
 import { StateView } from "@/components/ui/states";
 import { SOURCE_TYPE_LABEL } from "@/domain/labels";
 
@@ -24,7 +24,6 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
           <>
             <Link href="/debates" className="hover:text-fg-2">Debates</Link> <span>/</span>
             {s.isLive && <LiveDot />}
-            {debate.mode === "demo" && <DemoBadge />}
           </>
         }
         title={debate.title}

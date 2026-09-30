@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { listDebates } from "@/services/debates";
 import { fmtDate, wallClock } from "@/lib/format";
-import { DemoBadge, LiveDot, PageHeader, Tag } from "@/components/ui/primitives";
+import { LiveDot, PageHeader, Tag } from "@/components/ui/primitives";
 import { StateView } from "@/components/ui/states";
 
 export const metadata: Metadata = { title: "Debates" };
@@ -29,7 +29,6 @@ export default async function DebatesPage() {
                     {d.status === "live" && <LiveDot />}
                     {d.status === "ended" && <Tag>Encerrado</Tag>}
                     {d.status === "scheduled" && <Tag tone="info">Agendado</Tag>}
-                    {d.mode === "demo" && <DemoBadge />}
                   </div>
                   <p className="mt-1 text-[14px] font-medium text-fg">{d.title}</p>
                   <p className="text-[12px] text-fg-3">

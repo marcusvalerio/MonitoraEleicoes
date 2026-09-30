@@ -6,7 +6,6 @@ import type {
   DebateEvent,
   ElectoralResult,
   FactCheckStatus,
-  GeoLevel,
   ImportBatch,
   Party,
   SocialMetric,
@@ -17,6 +16,7 @@ import type {
   SpeechClassification,
   TranscriptSegment,
 } from "@/domain/types";
+import type { GeoBoundarySet, GeoLevelId as GeoLevel, GeoMetric } from "@/geo/types";
 
 /**
  * Contratos de providers. O domínio e a UI dependem SOMENTE destas interfaces.
@@ -81,7 +81,7 @@ export interface ResultQuery {
   year: number;
   round: 1 | 2;
   officeId: string;
-  level: GeoLevel;
+  level: import("@/domain/types").GeoLevel;
   parentKey?: string;
 }
 
@@ -93,6 +93,17 @@ export interface TSEProvider {
   results(q: ResultQuery): Promise<ElectoralResult[]>;
   importBatches(): Promise<ImportBatch[]>;
   health(): Promise<ProviderHealth>;
+}
+
+export interface GeoProvider {
+  readonly id: string;
+  readonly mode: DataMode;
+  /** Fração das publicações com localização inferível. */
+  readonly geolocatedShare: number;
+  /** Contornos para um nível; `null` quando não há geometria (UI usa grade). */
+  boundaries(level: GeoLevel): Promise<GeoBoundarySet | null>;
+  /** Métricas na granularidade mais fina disponível, até `to`. */
+  metrics(debateId: string, range?: { to?: number }): Promise<GeoMetric[]>;
 }
 
 export interface FactCheckProvider {

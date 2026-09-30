@@ -1,6 +1,7 @@
 import "server-only";
 import type { DataMode } from "@/domain/types";
-import type { SocialProvider, SourceRegistry, TSEProvider, TranscriptProvider } from "./types";
+import type { GeoProvider, SocialProvider, SourceRegistry, TSEProvider, TranscriptProvider } from "./types";
+import { StaticGeoProvider } from "./mock/geo";
 import { MockTranscriptProvider } from "./mock/transcript";
 import { MockSocialProvider } from "./mock/social";
 import { MockTSEProvider } from "./mock/tse";
@@ -19,6 +20,7 @@ export interface Providers {
   transcript: TranscriptProvider;
   social: SocialProvider;
   tse: TSEProvider;
+  geo: GeoProvider;
   sources: SourceRegistry;
 }
 
@@ -36,6 +38,7 @@ export function getProviders(): Providers {
     transcript: new MockTranscriptProvider(),
     social: new MockSocialProvider(),
     tse: new MockTSEProvider(),
+    geo: new StaticGeoProvider(),
     sources: {
       list: async () => DEMO_SOURCES,
       get: async (id) => DEMO_SOURCES.find((s) => s.id === id) ?? null,

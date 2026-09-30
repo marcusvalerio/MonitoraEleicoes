@@ -7,14 +7,13 @@ import { SPEECH_GROUPS, TOPIC_LABEL } from "@/domain/labels";
 import type { TopicId } from "@/domain/types";
 import { TOPICS } from "@/domain/types";
 import { fmtDuration, fmtInt, fmtPct, wallClock } from "@/lib/format";
-import { Avatar, ButtonLink, DemoBadge, Kpi, KpiStrip, NatureBadge, PageHeader, Panel } from "@/components/ui/primitives";
+import { Avatar, ButtonLink, Kpi, KpiStrip, NatureBadge, PageHeader, Panel } from "@/components/ui/primitives";
 import { Notice, StateView } from "@/components/ui/states";
 import { BarList } from "@/components/charts/BarList";
 import { Heatmap } from "@/components/charts/Heatmap";
-import { TopicTimeline } from "@/components/charts/TopicTimeline";
 import { StackedBars } from "@/components/charts/StackedBars";
 import { InteractionMap } from "@/components/charts/InteractionMap";
-import { VolumeChart } from "@/components/charts/VolumeChart";
+import { ConversationChart } from "@/components/charts/ConversationChart";
 import { EventList } from "@/components/debate/EventList";
 import { AutoRefresh } from "@/components/shell/AutoRefresh";
 import { emptyComposition } from "@/analytics/debate";
@@ -62,7 +61,6 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
         eyebrow={
           <>
             <Link href={`/debates/${debate.id}`} className="hover:text-fg-2">Debate</Link> <span>/</span> <span>Análise</span>
-            {s.mode === "demo" && <DemoBadge />}
           </>
         }
         title={debate.title}
@@ -84,7 +82,6 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
       <nav aria-label="Seções" className="-mx-1 flex gap-1 overflow-x-auto text-[12px]">
         {[
           ["temas", "Temas"],
-          ["linha-do-tempo", "Linha do tempo"],
           ["candidatos", "Participação"],
           ["composicao", "Composição"],
           ["interacoes", "Interações"],
@@ -106,20 +103,16 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
       </KpiStrip>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.5fr]">
-        <Panel id="temas" title="Frequência de temas" question="Quantas falas de candidatos abordaram cada tema?" nature="ai">
+        <Panel index="01" id="temas" title="Frequência de temas" question="Quantas falas de candidatos abordaram cada tema?" nature="ai">
           <BarList items={s.topics.map((t) => ({ id: t.topic, label: TOPIC_LABEL[t.topic], value: t.segments, secondary: fmtPct(t.share), highlighted: t.topic === highlight }))} />
           <p className="mt-3 text-[11.5px] text-fg-3">Percentual sobre {cand.length} falas de candidatos. Falas de moderação e apresentações não entram na contagem.</p>
         </Panel>
-        <Panel title="Intensidade por período" question="Em que momento do debate cada tema ocupou mais tempo de fala?" nature="analysis">
+        <Panel index="02" title="Intensidade por período" question="Em que momento do debate cada tema ocupou mais tempo de fala?" nature="analysis">
           <Heatmap rows={s.heatmap.topics.map((t) => ({ id: t, label: TOPIC_LABEL[t] }))} grid={s.heatmap.grid} windowSize={s.heatmap.windowSize} startsAt={debate.startsAt} currentWindow={s.isLive ? Math.floor(s.offset / s.heatmap.windowSize) : undefined} />
         </Panel>
       </div>
 
-      <Panel id="linha-do-tempo" title="Linha do tempo de temas" question="Em que ordem os assuntos apareceram?" nature="ai">
-        <TopicTimeline runs={s.timeline} startsAt={debate.startsAt} domainEnd={s.totalEnd} now={s.isLive ? s.offset : undefined} highlight={highlight} />
-      </Panel>
-
-      <Panel id="candidatos" title="Participação dos candidatos" question="Quanto cada candidato falou, perguntou, respondeu e mencionou?" nature="analysis" bodyClassName="p-0">
+      <Panel index="03" id="candidatos" title="Participação dos candidatos" question="Quanto cada candidato falou, perguntou, respondeu e mencionou?" nature="analysis" bodyClassName="p-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] font-[family-name:var(--font-data)] text-[12.5px]">
             <thead>
@@ -154,7 +147,7 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
         <p className="border-t border-border px-4 py-2.5 text-[11.5px] text-fg-3">Ordem fixa dos participantes (púlpito), não ranking. Tempo de fala depende das regras da emissora.</p>
       </Panel>
 
-      <Panel id="composicao" title="Composição das falas" question="Que tipo de fala cada candidato usou? (classificação automática)" nature="ai">
+      <Panel index="04" id="composicao" title="Composição das falas" question="Que tipo de fala cada candidato usou? (classificação automática)" nature="ai">
         <StackedBars
           keys={keys}
           rows={[
@@ -167,14 +160,22 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
         </p>
       </Panel>
 
-      <Panel id="interacoes" title="Mapa de interações" question="Quem mencionou, perguntou ou respondeu a quem?" nature="analysis">
+      <Panel index="05" id="interacoes" title="Mapa de interações" question="Quem mencionou, perguntou ou respondeu a quem?" nature="analysis">
         <InteractionMap nodes={s.participants.map((p) => ({ id: p.id, label: p.name, initials: p.initials, color: p.swatch }))} edges={s.interactions} segmentText={segmentText} />
       </Panel>
 
-      <Panel id="eventos" title="Debate → Evento → Repercussão" question="O que aconteceu no debate e como o volume de publicações se comportou no mesmo período?" nature="analysis">
-        <VolumeChart series={s.social.series} startsAt={debate.startsAt} markers={s.events.map((e) => ({ t: e.startOffset, label: e.title, code: e.code }))} domainEnd={s.totalEnd} now={s.isLive ? s.offset : undefined} height={200} />
+      <Panel index="06" id="eventos" title="Debate → Evento → Repercussão" question="O que aconteceu no debate e como o volume de publicações se comportou no mesmo período?" nature="analysis">
+        <ConversationChart
+          series={s.social.series}
+          startsAt={debate.startsAt}
+          domainEnd={s.totalEnd}
+          now={s.isLive ? s.offset : undefined}
+          runs={s.timeline}
+          annotations={s.events.filter((e) => e.kind === "social_spike" || e.kind === "fact_check_flag").map((e) => ({ t: e.startOffset, code: e.code, kind: e.kind === "social_spike" ? ("spike" as const) : ("flag" as const), label: e.kind === "social_spike" ? `Pico · ${TOPIC_LABEL[e.topic]}` : "Dado citado" }))}
+          height={280}
+        />
         <p className="mt-1 mb-4 flex items-center gap-2 text-[11.5px] text-fg-3">
-          <NatureBadge nature="collected" compact /> Publicações/min (DEMO). Traços no topo = eventos. Proximidade temporal não indica causalidade.
+          <NatureBadge nature="collected" compact /> Publicações/min. Faixa inferior = tema em debate. Traços no topo = eventos. Proximidade temporal não indica causalidade.
         </p>
         <div className="max-h-[560px] overflow-y-auto pr-1">
           <EventList events={s.events} startsAt={debate.startsAt} debateId={debate.id} newestFirst={false} />

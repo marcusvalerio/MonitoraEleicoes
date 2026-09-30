@@ -4,7 +4,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || u
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 const errs = []; p.on("pageerror", (e) => errs.push(String(e))); p.on("console", (m) => m.type() === "error" && errs.push(m.text()));
 let fail = 0; const ok = (c, m) => { console.log(c ? "PASS" : "FAIL", m); if (!c) fail++; };
-for (const r of ["/", "/overview", "/debates", `/debates/${D}`, `/debates/${D}/live`, `/debates/${D}/analytics`, "/social", "/elections", "/elections/2026/RJ/rio", "/analyses", "/sources", "/methodology", "/debates/debate-presidencial-2026-sabatina", "/debates/debate-presidencial-2026-sabatina/analytics"]) {
+for (const r of ["/", "/overview", "/debates", `/debates/${D}`, `/debates/${D}/live`, `/debates/${D}/analytics`, "/social", "/map", "/map?territorio=UF:RJ", "/elections", "/elections/2026/RJ/rio", "/analyses", "/sources", "/methodology", "/debates/debate-presidencial-2026-sabatina", "/debates/debate-presidencial-2026-sabatina/analytics"]) {
   const res = await p.goto(B + r, { waitUntil: "networkidle" }); ok(res.status() === 200, `${r} ${res.status()}`);
 }
 ok((await p.goto(B + "/debates/nope")).status() === 404, "404 debate inexistente");
@@ -14,6 +14,15 @@ await p.goto(`${B}/debates/${D}/live`, { waitUntil: "networkidle" });
 const count = () => p.locator("ol[aria-live] > li[id^=seg-]").count();
 const c0 = await count(); await p.getByRole("button", { name: "16×" }).click(); await p.waitForTimeout(9000);
 ok((await count()) > c0, `live ingere novas falas (${c0} → ${await count()})`);
+// Mapa: drill-down Brasil → Estado → municípios
+await p.goto(`${B}/map`, { waitUntil: "networkidle" });
+await p.getByRole("button", { name: /^São Paulo:/ }).click();
+await p.waitForTimeout(1500);
+ok((await p.getByRole("button", { name: /^Campinas:/ }).count()) === 1, "mapa: drill-down SP → municípios");
+await p.getByRole("radio", { name: "Tendência" }).click();
+await p.waitForTimeout(600);
+ok(/Tendência|crescendo/.test((await p.textContent("main")) ?? ""), "mapa: troca de camada");
+ok((await (await fetch(`${B}/api/geo?parent=UF:XX&to=100`)).status) === 404, "api geo: território inválido → 404");
 // Busca
 await p.keyboard.press("Control+k"); await p.getByLabel("Termo de busca").fill("Helena"); await p.waitForTimeout(800);
 ok((await p.getByRole("dialog").getByText("Helena Duarte").count()) > 0, "busca global encontra candidato");

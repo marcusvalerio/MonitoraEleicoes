@@ -36,7 +36,7 @@ export function ClassificationTags({ c, compact }: { c: SpeechClassification; co
         </Tag>
       )}
       {c.factCheck !== "nao_necessario" && <Tag tone={FACT_TAG[c.factCheck]}>{FACT_CHECK_LABEL[c.factCheck]}</Tag>}
-      {c.relevance === "alta" && <Tag tone="strong">Relevância {RELEVANCE_LABEL[c.relevance].toLowerCase()}</Tag>}
+      {c.relevance === "alta" && compact && <Tag tone="strong">Relevância {RELEVANCE_LABEL[c.relevance].toLowerCase()}</Tag>}
     </div>
   );
 }

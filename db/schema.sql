@@ -125,3 +125,23 @@ alter table transcript_segment enable row level security;
 create policy public_read on transcript_segment for select using (true);
 alter table speech_classification enable row level security;
 create policy public_read on speech_classification for select using (true);
+
+-- ───────── Geoespacial (independente da tecnologia de mapa) ─────────
+create table geo_region (
+  key text primary key,                -- 'BR' · 'R:SE' · 'UF:RJ' · 'M:RJ:niteroi'
+  level text not null check (level in ('pais','regiao','uf','municipio','zona','local','secao')),
+  name text not null,
+  parent_key text references geo_region(key),
+  ibge_code int, tse_code int
+);
+create index on geo_region (parent_key);
+-- Geometria servida simplificada por nível (TopoJSON/GeoJSON); nunca enviada inteira ao browser.
+create table geo_boundary (region_key text primary key references geo_region(key), level text not null, geom_simplified jsonb not null, source_id text not null references source(id));
+-- Métricas na granularidade mais fina; níveis superiores são agregados (materialized views).
+create table geo_metric (
+  region_key text not null references geo_region(key), debate_id text not null references debate(id),
+  bucket_start timestamptz not null, bucket_seconds int not null, posts int not null,
+  mentions_by_candidate jsonb not null default '{}', by_topic jsonb not null default '{}', source_id text not null references source(id),
+  primary key (debate_id, region_key, bucket_start)
+);
+create index on geo_metric (debate_id, bucket_start);

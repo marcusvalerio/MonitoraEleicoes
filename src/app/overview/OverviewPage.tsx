@@ -1,178 +1,130 @@
 import Link from "next/link";
-import { ArrowRight, Radio, BarChart3 } from "lucide-react";
-import { getCurrentDebate, getDebateSnapshot } from "@/services/debates";
-import { TOPIC_LABEL } from "@/domain/labels";
-import { fmtCompact, fmtDate, fmtDuration, fmtInt, fmtPct, wallClock } from "@/lib/format";
-import { Avatar, ButtonLink, DemoBadge, Kpi, KpiStrip, LiveDot, NatureBadge, Panel } from "@/components/ui/primitives";
-import { StateView, Notice } from "@/components/ui/states";
-import { BarList } from "@/components/charts/BarList";
-import { VolumeChart } from "@/components/charts/VolumeChart";
+import { ArrowUpRight } from "lucide-react";
+import { getOverview } from "@/services/overview";
+import { fmtDate, fmtDuration, fmtInt, wallClock } from "@/lib/format";
+import { NatureBadge, Panel } from "@/components/ui/primitives";
+import { Notice, StateView } from "@/components/ui/states";
+import { ConversationChart, type Annotation } from "@/components/charts/ConversationChart";
 import { EventList } from "@/components/debate/EventList";
-import { ClassificationTags } from "@/components/debate/tags";
-import { NatureLegend } from "@/components/debate/NatureLegend";
+import { NowBlock } from "@/components/overview/NowBlock";
+import { MentionList, PlatformList, TopicMomentumList } from "@/components/overview/Modules";
+import { MapExplorer } from "@/components/map/MapExplorer";
 import { AutoRefresh } from "@/components/shell/AutoRefresh";
-import { MODERATOR_ID } from "@/data/demo/entities";
+import { TOPIC_LABEL } from "@/domain/labels";
+
+const KIND: Record<string, Annotation["kind"]> = { social_spike: "spike", topic_shift: "topic", mention: "mention", reply_chain: "mention", fact_check_flag: "flag" };
 
 export async function OverviewPage() {
-  const current = await getCurrentDebate();
-  if (!current) {
+  const o = await getOverview();
+  if (!o) {
     return (
-      <div className="px-4 py-10 md:px-6">
+      <div className="px-4 py-10 md:px-8">
         <StateView state="empty" title="Nenhum evento monitorado">Quando um debate for agendado, ele aparecerá aqui.</StateView>
       </div>
     );
   }
-  const s = await getDebateSnapshot(current.id);
-  if (!s) return null;
+  const { s } = o;
   const { debate } = s;
-  const speakerSegs = s.segments.filter((x) => x.speakerId !== MODERATOR_ID);
-  const analyzedSeconds = s.segments.reduce((a, x) => a + (x.endOffset - x.startOffset), 0);
-  const proposals = s.classifications.filter((c) => c.speechType === "proposta" || c.speechType === "promessa").length;
-  const last = [...speakerSegs].reverse()[0];
-  const lastCls = last ? s.classifications.find((c) => c.segmentId === last.id) : undefined;
-  const lastSpeaker = last ? s.participants.find((p) => p.id === last.speakerId) : undefined;
-  const connectedSources = s.sources.filter((x) => x.status !== "unavailable" && x.status !== "pending").length;
+  const annotations: Annotation[] = s.events.map((e) => ({
+    t: e.startOffset,
+    code: e.code,
+    kind: KIND[e.kind],
+    label: e.kind === "social_spike" ? `Pico · ${TOPIC_LABEL[e.topic]}` : e.kind === "topic_shift" ? TOPIC_LABEL[e.topic] : e.kind === "fact_check_flag" ? "Dado citado" : e.title.split(" ").slice(0, 1).join(" ") + " → " + (s.participants.find((p) => p.id === e.candidateIds[1])?.name.split(" ")[0] ?? ""),
+  }));
+  const mentionTotal = Object.values(s.social.mentions).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-5 md:px-6 md:py-6">
+    <div className="mx-auto max-w-[1480px] px-4 py-6 md:px-8 md:py-8">
       <AutoRefresh enabled={s.isLive} />
 
-      {/* HERO — evento atual */}
-      <section className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface">
-        <div className="grid-bg pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative grid gap-6 p-5 md:p-7 lg:grid-cols-[1.1fr_1fr]">
-          <div className="flex flex-col justify-between gap-6">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="eyebrow">Evento atual</span>
-                {s.isLive && <LiveDot label={s.mode === "demo" ? "AO VIVO · REPLAY DEMO" : "AO VIVO"} />}
-                {s.mode === "demo" && <DemoBadge />}
-              </div>
-              <h1 className="mt-3 font-display text-[34px] leading-[1.02] font-bold tracking-tight text-fg uppercase md:text-[48px]">{debate.title}</h1>
-              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-2">
-                <span className="font-display text-[15px] font-semibold tracking-wide text-fg tnum">{fmtDate(debate.startsAt)}</span>
-                <span className="text-fg-3">·</span>
-                <span>{debate.broadcaster}</span>
-                <span className="text-fg-3">·</span>
-                <span>{debate.officeLabel} · {debate.round}º turno</span>
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <ButtonLink href={`/debates/${debate.id}/live`} variant="primary">
-                <Radio size={14} aria-hidden /> Acompanhar ao vivo
-              </ButtonLink>
-              <ButtonLink href={`/debates/${debate.id}/analytics`}>
-                <BarChart3 size={14} aria-hidden /> Análise do debate
-              </ButtonLink>
-              <span className="ml-1 text-[12px] text-fg-3 tnum">
-                {wallClock(debate.startsAt, 0, false)} → agora {wallClock(debate.startsAt, s.offset, false)}
-              </span>
-            </div>
-          </div>
-
-          {last && lastSpeaker && lastCls ? (
-            <Link href={`/debates/${debate.id}/live?seg=${last.id}`} className="group block rounded-[var(--radius-md)] border border-border bg-bg/70 p-4 transition-colors hover:border-border-strong">
-              <div className="flex items-center justify-between">
-                <span className="eyebrow">Última fala transcrita</span>
-                <span className="font-mono text-[11px] text-fg-3">{wallClock(debate.startsAt, last.startOffset)}</span>
-              </div>
-              <div className="mt-3 flex items-center gap-2.5">
-                <Avatar initials={lastSpeaker.initials} color={lastSpeaker.swatch} size={30} />
-                <div>
-                  <p className="text-[13px] font-medium text-fg">{lastSpeaker.name}</p>
-                  <p className="text-[11.5px] text-fg-3">{lastSpeaker.party?.acronym} · {lastSpeaker.party?.name}</p>
-                </div>
-              </div>
-              <blockquote className="mt-3 line-clamp-4 font-display text-[17px] leading-snug text-fg">“{last.text}”</blockquote>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <ClassificationTags c={lastCls} compact />
-                <span className="flex items-center gap-1 text-[11.5px] text-fg-3 group-hover:text-fg-2">
-                  Contexto <ArrowRight size={12} aria-hidden />
-                </span>
-              </div>
-            </Link>
-          ) : (
-            <StateView state="processing" compact>Aguardando as primeiras falas.</StateView>
-          )}
+      {/* Cabeçalho do evento */}
+      <header className="flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="eyebrow">
+            {debate.broadcaster} · {debate.officeLabel} · {debate.round}º turno · {fmtDate(debate.startsAt)}
+          </p>
+          <h1 className="mt-2 font-display text-[40px] leading-[0.95] font-bold tracking-[-0.02em] text-fg uppercase md:text-[64px]">{debate.title}</h1>
         </div>
+        <dl className="flex gap-6 text-right">
+          {[
+            ["Em andamento", fmtDuration(s.offset)],
+            ["Falas", fmtInt(s.segments.length)],
+            ["Temas", String(s.topics.length)],
+            ["Eventos", String(s.events.length)],
+          ].map(([k, v]) => (
+            <div key={k}>
+              <dt className="eyebrow">{k}</dt>
+              <dd className="mt-1 font-display text-[22px] leading-none font-semibold tnum">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </header>
+
+      {/* 01 — Agora */}
+      <section className="py-8" aria-label="O que está acontecendo agora">
+        {o.now ? <NowBlock data={o.now} startsAt={debate.startsAt} debateId={debate.id} /> : <StateView state="processing" compact>Aguardando as primeiras falas.</StateView>}
       </section>
 
-      {/* KPIs — cada um responde a uma pergunta */}
-      <KpiStrip className="grid-cols-2 sm:grid-cols-4 xl:grid-cols-8">
-        <Kpi label="Duração" value={fmtDuration(s.offset)} hint="desde a abertura" question="Há quanto tempo o debate está em andamento?" />
-        <Kpi label="Tempo analisado" value={fmtDuration(analyzedSeconds)} hint={`${fmtPct(analyzedSeconds / Math.max(1, s.offset))} do total`} question="Quanto do debate já foi transcrito e classificado?" />
-        <Kpi label="Falas" value={fmtInt(s.segments.length)} hint={`${speakerSegs.length} de candidatos`} href={`/debates/${debate.id}/live`} question="Quantos segmentos de fala foram analisados?" />
-        <Kpi label="Temas" value={s.topics.length} hint="detectados" href={`/debates/${debate.id}/analytics#temas`} question="Quantos temas diferentes apareceram?" />
-        <Kpi label="Propostas" value={proposals} hint="propostas e promessas" href={`/debates/${debate.id}/analytics#composicao`} question="Quantas falas foram classificadas como proposta?" />
-        <Kpi label="Eventos" value={s.events.length} hint="detectados" href={`/debates/${debate.id}/analytics#eventos`} question="Quantos acontecimentos relevantes foram registrados?" />
-        <Kpi label="Volume social" value={fmtCompact(s.social.total)} hint="publicações" href="/social" question="Quanto se publicou sobre o debate?" />
-        <Kpi label="Fontes" value={connectedSources} hint={`de ${s.sources.length} registradas`} href="/sources" question="De onde vêm estes dados?" />
-      </KpiStrip>
+      {/* 02 — Conversa (protagonista) */}
+      <Panel
+        index="01"
+        title="Conversa ao longo do debate"
+        question="Publicações por minuto em todas as plataformas, com os temas em debate e os eventos detectados."
+        nature="collected"
+        actions={
+          <Link href="/social" className="flex items-center gap-1 text-[12px] text-fg-3 hover:text-fg">
+            Repercussão <ArrowUpRight size={12} aria-hidden />
+          </Link>
+        }
+      >
+        <ConversationChart series={s.social.series} startsAt={debate.startsAt} domainEnd={s.totalEnd} now={s.isLive ? s.offset : undefined} runs={s.timeline} annotations={annotations} height={330} />
+        <p className="mt-2 text-[11.5px] text-fg-3">Faixa inferior: tema da fala em cada momento. Marcadores: eventos detectados. Proximidade temporal entre evento e volume não indica causalidade.</p>
+      </Panel>
 
-      {s.mode === "demo" && (
-        <Notice state="partial">
-          Modo demonstração: transcrição, classificações e repercussão são <strong className="text-fg">fictícias</strong> e reproduzidas em replay. Nenhum dado eleitoral real é exibido.
+      {/* 03 — Assuntos · Plataformas · Nomes */}
+      <div className="mt-10 grid gap-x-10 gap-y-10 lg:grid-cols-3">
+        <Panel index="02" title="Assuntos em movimento" question="Publicações por tema nos últimos 15 min, comparadas aos 15 anteriores.">
+          <TopicMomentumList items={o.momentum} startsAt={debate.startsAt} />
+        </Panel>
+        <Panel index="03" title="Onde a conversa está" question="Participação de cada plataforma no volume. Acessos às APIs diferem.">
+          <PlatformList items={o.platforms} total={s.social.total} />
+        </Panel>
+        <Panel index="04" title="Nomes mais citados" question="Menções nominais em publicações, na ordem de púlpito.">
+          <MentionList items={s.participants.map((p) => ({ id: p.id, name: p.name, party: p.party?.acronym ?? "", color: p.swatch, count: s.social.mentions[p.id] ?? 0 }))} />
+          <p className="mt-4 text-[11.5px] text-fg-3">Menções não indicam apoio, rejeição ou preferência. Total: {fmtInt(mentionTotal)}.</p>
+        </Panel>
+      </div>
+
+      {/* 04 — Mapa · Eventos */}
+      <div className="mt-10 grid gap-x-10 gap-y-10 lg:grid-cols-[1.4fr_1fr]">
+        <Panel
+          index="05"
+          title="Onde a conversa acontece"
+          question="Candidato mais mencionado por estado, em publicações com localização inferida."
+          actions={
+            <Link href="/map" className="flex items-center gap-1 text-[12px] text-fg-3 hover:text-fg">
+              Abrir mapa <ArrowUpRight size={12} aria-hidden />
+            </Link>
+          }
+        >
+          {o.map ? <MapExplorer {...o.map} compact initialLayer="candidato" /> : <StateView state="provider_unavailable" compact>Dados geográficos indisponíveis.</StateView>}
+        </Panel>
+        <Panel index="06" title="Eventos recentes" question="Acontecimentos detectados a partir das falas e do volume social." nature="analysis">
+          {s.events.length ? <EventList events={s.events} startsAt={debate.startsAt} debateId={debate.id} limit={7} dense /> : <StateView state="empty" compact>Nenhum evento detectado ainda.</StateView>}
+          <Link href={`/debates/${debate.id}/analytics#eventos`} className="mt-3 inline-flex items-center gap-1 text-[12px] text-fg-3 hover:text-fg">
+            Linha do tempo completa <ArrowUpRight size={12} aria-hidden />
+          </Link>
+        </Panel>
+      </div>
+
+      {s.isLive && s.offset < s.totalEnd * 0.98 && (
+        <Notice state="partial" className="mt-10">
+          Dados parciais até {wallClock(debate.startsAt, s.offset)} (horário de Brasília). A página atualiza a cada 30 s.
         </Notice>
       )}
-
-      <div className="grid gap-5 lg:grid-cols-[1fr_1.35fr]">
-        <Panel title="Sobre o que estão falando" question="Participação de cada tema nas falas dos candidatos" nature="ai" actions={<Link href={`/debates/${debate.id}/analytics#temas`} className="text-[12px] text-fg-3 hover:text-fg">Ver tudo</Link>}>
-          {s.topics.length ? (
-            <BarList items={s.topics.slice(0, 7).map((t) => ({ id: t.topic, label: TOPIC_LABEL[t.topic], value: t.segments, secondary: fmtPct(t.share) }))} />
-          ) : (
-            <StateView state="no_data" compact />
-          )}
-        </Panel>
-        <Panel title="O que está repercutindo" question="Publicações por minuto em todas as plataformas monitoradas. Traços no topo marcam eventos do debate." nature="collected">
-          <VolumeChart series={s.social.series} startsAt={debate.startsAt} markers={s.events.filter((e) => e.kind !== "topic_shift").map((e) => ({ t: e.startOffset, label: e.title, code: e.code }))} domainEnd={s.totalEnd} now={s.offset} />
-          <p className="mt-2 text-[11.5px] text-fg-3">Proximidade temporal entre evento e volume não indica causalidade.</p>
-        </Panel>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
-        <Panel title="Últimos acontecimentos" question="Eventos detectados automaticamente a partir das falas e do volume social" nature="analysis" actions={<Link href={`/debates/${debate.id}/analytics#eventos`} className="text-[12px] text-fg-3 hover:text-fg">Linha do tempo</Link>}>
-          {s.events.length ? <EventList events={s.events} startsAt={debate.startsAt} debateId={debate.id} limit={6} /> : <StateView state="empty" compact>Nenhum evento detectado ainda.</StateView>}
-        </Panel>
-        <div className="space-y-5">
-          <Panel title="Quem está falando" question="Tempo de fala e intervenções — sem avaliação de desempenho" nature="analysis" bodyClassName="p-0">
-            <table className="w-full font-[family-name:var(--font-data)] text-[12.5px]">
-              <thead>
-                <tr className="border-b border-border text-left text-fg-3">
-                  <th className="px-4 py-2 font-normal">Participante</th>
-                  <th className="px-2 py-2 text-right font-normal">Tempo</th>
-                  <th className="px-4 py-2 text-right font-normal">Falas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.participants.map((p) => {
-                  const a = s.activity.find((x) => x.candidateId === p.id)!;
-                  return (
-                    <tr key={p.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-2">
-                        <span className="flex items-center gap-2">
-                          <Avatar initials={p.initials} color={p.swatch} size={20} />
-                          <span className="text-fg">{p.name}</span>
-                          <span className="text-fg-3">{p.party?.acronym}</span>
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 text-right text-fg tnum">{fmtDuration(a.speakingSeconds)}</td>
-                      <td className="px-4 py-2 text-right text-fg-2 tnum">{a.interventions}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </Panel>
-          <Panel title="Como ler os dados" question="Toda informação é identificada pela sua natureza">
-            <NatureLegend />
-            <p className="mt-3 text-[11.5px] text-fg-3">
-              Nenhuma métrica desta plataforma indica quem “venceu” ou é “melhor”. <Link className="text-fg-2 underline decoration-border-strong underline-offset-2 hover:text-fg" href="/methodology">Metodologia</Link>
-            </p>
-          </Panel>
-        </div>
-      </div>
-      <p className="flex items-center gap-2 pb-2 text-[11px] text-fg-3">
-        <NatureBadge nature="analysis" compact /> Snapshot gerado às {wallClock(debate.startsAt, s.offset)} (horário de Brasília). Atualiza automaticamente a cada 30 s.
+      <p className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-fg-3">
+        <NatureBadge nature="official" compact /> <NatureBadge nature="collected" compact /> <NatureBadge nature="ai" compact /> <NatureBadge nature="analysis" compact />
+        Cada bloco indica a natureza do dado. <Link href="/methodology#natureza" className="underline decoration-border-strong underline-offset-2 hover:text-fg-2">Como ler</Link>
       </p>
     </div>
   );

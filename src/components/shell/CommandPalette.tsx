@@ -38,7 +38,7 @@ export function SearchTrigger({ compact, hotkey }: { compact?: boolean; hotkey?:
         <Search size={14} aria-hidden />
         {!compact && (
           <>
-            <span className="flex-1 text-left">Buscar candidatos, temas, falas, fontes…</span>
+            <span className="flex-1 text-left">Buscar…</span>
             <kbd className="rounded border border-border px-1 font-mono text-2xs">⌘K</kbd>
           </>
         )}

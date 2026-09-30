@@ -84,3 +84,44 @@ describe("event engine · janelas incompletas", () => {
     expect(lastChain.metrics).toEqual([]);
   });
 });
+
+import { topicMomentum } from "./momentum";
+import { platformSeries, volumeChange } from "./social";
+
+describe("momentum de temas", () => {
+  const at = 3600;
+  const m = topicMomentum(ds.metrics, ds.segments, ds.classifications, at);
+  it("ordena por volume recente e nunca usa dados futuros", () => {
+    for (let i = 1; i < m.length; i++) expect(m[i - 1].recent).toBeGreaterThanOrEqual(m[i].recent);
+    expect(m.every((x) => x.lastSpokenAt === null || x.lastSpokenAt <= at)).toBe(true);
+    expect(m.find((x) => x.topic === ("outros" as never))).toBeUndefined();
+  });
+  it("direção coerente com a variação", () => {
+    for (const x of m) {
+      if (x.change === null) continue;
+      if (x.direction === "up") expect(x.change).toBeGreaterThan(0);
+      if (x.direction === "down") expect(x.change).toBeLessThan(0);
+    }
+  });
+  it("sparklines por plataforma e variação total", () => {
+    const s = platformSeries(ds.metrics, 300, at);
+    expect(Object.keys(s).length).toBeGreaterThan(3);
+    expect(s.x.length).toBe(12);
+    expect(volumeChange(ds.metrics, at)).not.toBeNull();
+    expect(volumeChange(ds.metrics, 100)).toBeNull();
+  });
+});
+
+import { describeSegment } from "./narrative";
+
+describe("narrativa descritiva", () => {
+  const name = (id: string) => DEMO_CANDIDATES.find((c) => c.id === id)?.name ?? "Moderação";
+  it("descreve toda fala sem juízo político", () => {
+    for (const s of ds.segments) {
+      const c = ds.classifications.find((x) => x.segmentId === s.id)!;
+      const txt = describeSegment(s, c, name);
+      expect(txt.endsWith(".")).toBe(true);
+      expect(violatesEditorialPolicy(txt)).toBeNull();
+    }
+  });
+});

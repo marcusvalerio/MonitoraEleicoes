@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Pular para o conteúdo
         </a>
         <div className="flex min-h-dvh">
-          <Sidebar currentDebateId={debate?.status === "live" ? debate.id : null} mode={mode} />
+          <Sidebar currentDebateId={debate?.status === "live" ? debate.id : null} />
           <div className="flex min-w-0 flex-1 flex-col">
             <OfflineBanner />
             <Topbar debate={debate} mode={mode} />
