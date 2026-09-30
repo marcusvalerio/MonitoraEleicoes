@@ -16,6 +16,7 @@ import { FX_CANDIDACIES, candCsv } from "@/elections/tse/fixtures";
 import { listMonitors, listSocialSources, setSocialSourceEnabled, syncSocialSources, upsertMonitor } from "@/control/social";
 import { socialTick, type SocialWorkerDeps } from "./social-worker";
 import { byUf, candidateTable, coverage, feed, funnel, globalSearch, kpis, series } from "@/analytics/social-listening";
+import { debateSocial, TEMPORAL_NOTE } from "@/analytics/debate-social";
 import { DEFAULT_FILTER, type FilterSpec } from "@/domain/filters";
 
 loadLocalEnv();
@@ -142,5 +143,20 @@ describe.skipIf(!DB)("social listening (fixture YouTube → Neon → analytics)"
     expect(w).toEqual({ status: "rate_limited", items: null });
     expect(((await sql`select access_status, last_error from social_source where id = 'youtube'`) as Record<string, string>[])[0].access_status).toBe("error");
     expect(await n(sql, "select count(*)::int n from social_record")).toBe(6);
+  });
+
+  it("debate × social: antes/durante/depois; janela sem coleta ⇒ null; só associação temporal", async () => {
+    const [ds] = (await sql`select id from dataset limit 1`) as { id: string }[];
+    await sql`insert into debate (id, dataset_id, title, broadcaster, office_label, election_year, round, starts_at, ends_at, status)
+      values ('deb-fx', ${ds.id}, 'Debate fictício', 'TV Fictícia', 'Presidente', 2026, 1, '2026-10-02T00:00:00Z', '2026-10-02T01:00:00Z', 'ended')`;
+    const r = (await debateSocial(sql, "deb-fx", NOW + 7_200_000))!;
+    expect(r.statement).toBe(TEMPORAL_NOTE);
+    expect(r.phases.map((p) => p.phase)).toEqual(["antes", "durante", "depois"]);
+    expect(r.phases[0]).toMatchObject({ collected: false, count: null });
+    expect(r.phases[1].collected).toBe(true);
+    expect(r.phases[1].count).toBe(6);
+    expect(r.phases[1].byCandidacy.map((c) => c.candidacyId)).toContain(rafael);
+    expect(JSON.stringify(r)).not.toMatch(/causou|provocou|por causa/);
+    expect(await debateSocial(sql, "nao-existe")).toBeNull();
   });
 });

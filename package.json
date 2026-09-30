@@ -23,7 +23,8 @@
     "ingest": "node scripts/ingest.mjs",
     "ingest:g1": "node scripts/ingest-g1.mjs",
     "import:tse": "node scripts/import-tse.mjs",
-    "e2e:g1": "node e2e/g1-editorial.mjs"
+    "e2e:g1": "node e2e/g1-editorial.mjs",
+    "e2e:intel": "node e2e/intelligence.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
