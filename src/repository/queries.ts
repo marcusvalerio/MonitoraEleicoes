@@ -9,6 +9,7 @@ import { paginate, type PageRequest } from "@/providers/contracts";
 import { cached } from "@/infrastructure/cache";
 import type { ClockSpec } from "@/lib/clock";
 import type { SourceWithIngestion } from "./types";
+import { computeLatency, connectionStatus, type LiveState } from "@/domain/live";
 
 export interface QueryContext {
   profileId: string;
@@ -185,7 +186,28 @@ export class StoreQueries {
       ingestedAt: this.store.ingestedAt,
     };
   }
-    moderatorId() {
+  /** Estado ao vivo a partir do store (perfis em memória: sem controle de debate ⇒ conexão "unknown"). */
+  getLiveState(debateId: string, afterSeq = 0, limit = 200): LiveState | null {
+    const debate = this.getDebate(debateId);
+    if (!debate) return null;
+    const all = [...(this.store.segments.get(debateId) ?? [])].sort((a, b) => a.seq - b.seq);
+    const segments = afterSeq < 0 ? all.slice(-limit) : all.filter((s) => s.seq > afterSeq).slice(0, limit);
+    const recent = all.slice(-20);
+    return {
+      debateId,
+      title: debate.title,
+      sourceMode: all.find((s) => s.capture)?.capture?.sourceMode ?? null,
+      control: null,
+      connection: connectionStatus(null, Date.now()),
+      totals: { segments: all.length, analyzed: all.filter((s) => this.store.classifications.has(s.id)).length },
+      latency: computeLatency(recent.map((s) => ({ sourceMode: s.capture?.sourceMode ?? null, sourceEnd: null, collectedAt: s.capture?.collectedAt ?? null, ingestedAt: s.capture?.ingestedAt ?? null, processedAt: null }))),
+      segments,
+      classifications: segments.map((s) => this.store.classifications.get(s.id)).filter((c) => !!c),
+      lastSeq: segments.at(-1)?.seq ?? Math.max(0, afterSeq),
+      serverTime: new Date().toISOString(),
+    };
+  }
+  moderatorId() {
     return MODERATOR_SPEAKER_ID;
   }
 }

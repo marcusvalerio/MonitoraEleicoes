@@ -214,7 +214,7 @@ async function classifyAll(store: DataStore, classifier: SpeechClassifier, sourc
         const triggersReply = !!next && !!seg.addressedToId && next.speakerId === seg.addressedToId;
         const rel = computeSegmentRelevance(seg, out.speech_type, out.mentions, { triggersReply, socialLift });
         const classifiedAt = isTimed(seg) && src.mode === "demo" ? new Date(Date.parse(debate.startsAt) + (seg.endOffset + 5) * 1000).toISOString() : store.ingestedAt;
-        const c = toSpeechClassification(seg, { ...out, relevance: rel.band }, classifier.model, {
+        const c = toSpeechClassification(seg, { ...out, relevance: rel.band }, out.produced_by ?? classifier.model, {
           classifiedAt,
           factCheck: out.fact_check_status ?? (out.fact_check_required ? "verificar" : "nao_necessario"),
           relevanceScore: rel.score,
@@ -225,7 +225,10 @@ async function classifyAll(store: DataStore, classifier: SpeechClassifier, sourc
         report.normalized++;
       } catch (e) {
         report.rejected++;
-        if (report.issues.length < 25) report.issues.push({ externalId: seg.id, code: "classification_error", message: (e as Error).message, field: null });
+        const issue = { externalId: seg.id, code: "classification_error", message: (e as Error).message, field: (e as { field?: string }).field ?? null };
+        if (report.issues.length < 25) report.issues.push(issue);
+        // Análise inválida nunca vai ao banco como análise; vira ingestion_error ligado ao RAW do segmento.
+        store.rejections.push({ reportIndex: store.reports.length, recordId: seg.provenance.record?.recordId ?? null, ...issue });
       }
     }
   }

@@ -98,6 +98,8 @@ export interface Debate {
   participantIds: string[];
   sourceIds: string[];
   mode: DataMode;
+  /** Modo da fonte da transcrição. "replay" nunca é apresentado como "ao vivo". Ausente = não informado. */
+  sourceMode?: SourceMode;
 }
 
 export interface DebateParticipant {
@@ -167,8 +169,12 @@ export const isTimed = (s: TranscriptSegment): s is TimedSegment => typeof s.sta
  *  block       — só se sabe o bloco do debate
  *  sequence    — só se sabe a ordem
  *  unknown     — nada se sabe sobre o tempo
+ *  synthetic   — horário GERADO para replay (nunca fato histórico)
  */
-export type TimingPrecision = "exact" | "approximate" | "block" | "sequence" | "unknown";
+export type TimingPrecision = "exact" | "approximate" | "block" | "sequence" | "unknown" | "synthetic";
+
+/** Modo da fonte: contínua de verdade (live), reprodução (replay) ou arquivo importado. */
+export type SourceMode = "live" | "replay" | "file";
 
 /** Orador não identificado com segurança. */
 export const UNKNOWN_SPEAKER_ID = "orador-desconhecido";
@@ -185,7 +191,7 @@ export interface TranscriptSegment {
   /** Confiança na identificação do orador. */
   speakerConfidence?: ConfidenceLevel;
   /** Como o orador foi resolvido. */
-  speakerResolution?: "source_label" | "manual_map" | "press_attribution" | "unresolved";
+  speakerResolution?: "source_label" | "manual_map" | "press_attribution" | "unresolved" | "provider_label" | "diarization";
   /** Segundos desde o início do debate; null quando a fonte não informa. */
   startOffset: number | null;
   endOffset: number | null;
@@ -195,6 +201,27 @@ export interface TranscriptSegment {
   /** Candidato a quem a fala é endereçada no formato do debate (pergunta/resposta). */
   addressedToId: string | null;
   provenance: Provenance;
+  /** Metadados de captura (ingestão ao vivo/replay). Ausente = desconhecido, nunca 0. */
+  capture?: SegmentCapture;
+}
+
+export interface SegmentCapture {
+  sourceMode: SourceMode;
+  /** Quando a fala ocorreu segundo a fonte (ISO); null se a fonte não informa. */
+  sourceTime: string | null;
+  /** Quando o provider obteve o segmento. */
+  collectedAt: string | null;
+  /** Quando entrou no banco. */
+  ingestedAt?: string | null;
+  /** Confiança da transcrição (ASR), se a fonte fornecer. */
+  asrConfidence: number | null;
+}
+
+/** Estado de identificação do orador — derivado, nunca adivinhado. */
+export type SpeakerStatus = "identified" | "uncertain" | "unknown";
+export function speakerStatus(s: Pick<TranscriptSegment, "speakerId" | "speakerConfidence">): SpeakerStatus {
+  if (s.speakerId === UNKNOWN_SPEAKER_ID || !s.speakerConfidence || s.speakerConfidence === "unknown") return "unknown";
+  return s.speakerConfidence === "high" ? "identified" : "uncertain";
 }
 
 export interface ModelInfo {

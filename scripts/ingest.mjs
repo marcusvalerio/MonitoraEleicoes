@@ -4,7 +4,9 @@
  *   node scripts/ingest.mjs --env development|test|production [--profile live] [--dataset ID] [--kind validation] [--full]
  *   node scripts/ingest.mjs --env development --enqueue            # só enfileira (requisição)
  *   node scripts/ingest.mjs --env development --drain              # executa jobs da fila
- *   node scripts/ingest.mjs --env development --watch 30           # polling a cada 30 s (ao vivo)
+ *   node scripts/ingest.mjs --env development --watch 30           # polling a cada 30 s (perfil inteiro)
+ *   node scripts/ingest.mjs --env development --live [--interval 2] # worker contínuo dos debates em connecting/live
+ *                                                                     (debate_control); SIGINT/SIGTERM = parada graciosa
  * Conexão exclusivamente por variável de ambiente (DATABASE_URL / _TEST / _PRODUCTION).
  */
 import path from "node:path";
@@ -46,7 +48,29 @@ async function execute(p, dsId, kind, requestId) {
   );
 }
 
-if (args.includes("--enqueue")) {
+if (args.includes("--live")) {
+  const { runLiveWorker } = await jiti.import("@/ingestion/live-worker");
+  const { buildControlProviders } = await jiti.import("@/providers/registry");
+  const { LIVE_SOURCES } = await jiti.import("@/providers/files/sources");
+  let stop = false;
+  for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => {
+    if (stop) process.exit(130);
+    stop = true;
+    console.log(JSON.stringify({ msg: "live_worker.stopping", signal: sig, note: "termina após o ciclo atual" }));
+  });
+  const intervalMs = Number(arg("--interval", 2)) * 1000;
+  await runLiveWorker(
+    sql,
+    {
+      // relógio congelado por ciclo: status do evento e progresso usam o mesmo instante
+      providersFor: (c) => { const t = Date.now(); return buildControlProviders(c, () => t); },
+      sources: LIVE_SOURCES,
+      spoolDir: path.join(root, ".monitora", "spool"),
+    },
+    { intervalMs, shouldStop: () => stop, sleep: (ms) => new Promise((r) => { const t = setTimeout(r, ms); const iv = setInterval(() => { if (stop) { clearTimeout(t); clearInterval(iv); r(); } }, 200); setTimeout(() => clearInterval(iv), ms + 10); }) },
+  );
+  process.exit(0);
+} else if (args.includes("--enqueue")) {
   const id = await worker.enqueueJob(sql, { profile: profileId, datasetId, datasetKind });
   console.log(JSON.stringify({ msg: "job.enqueued", job_id: id }));
 } else if (args.includes("--drain")) {

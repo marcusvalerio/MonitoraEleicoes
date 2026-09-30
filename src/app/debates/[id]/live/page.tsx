@@ -24,7 +24,7 @@ export default async function LivePage({ params, searchParams }: { params: Promi
   }
   return (
     <LiveDebate
-      debate={{ id: s.debate.id, title: s.debate.title, startsAt: s.debate.startsAt, broadcaster: s.debate.broadcaster }}
+      debate={{ id: s.debate.id, title: s.debate.title, startsAt: s.debate.startsAt, broadcaster: s.debate.broadcaster, sourceMode: s.debate.sourceMode }}
       clock={s.clock}
       participants={s.participants}
       blocks={s.blocks}

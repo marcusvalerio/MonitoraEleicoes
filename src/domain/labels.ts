@@ -105,4 +105,5 @@ export const TIMING_LABEL: Record<import("./types").TimingPrecision, string> = {
   block: "apenas o bloco do debate",
   sequence: "apenas a ordem",
   unknown: "desconhecida",
+  synthetic: "sintética (gerada para replay — não é horário real)",
 };

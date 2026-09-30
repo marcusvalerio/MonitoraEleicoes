@@ -29,6 +29,8 @@ worker ─► poll providers ─► RawRecord ─► normalização ─► domí
 
 Reexecutar a mesma ingestão **não duplica nada** (coberto por `npm run test:db`).
 
+Ordem de gravação (segura contra queda): lê os hashes existentes → grava só o domínio cujo RAW é novo/alterado → grava execuções, RAW e erros **por último** → avança checkpoints. Em polling (`--live`), execuções sem nada novo não são guardadas (`skipIdleRuns`) e rejeições de um mesmo conteúdo não se repetem a cada ciclo.
+
 ## Incremental
 
 - Providers paginados expõem `resumeCursor`; o pipeline guarda o cursor de cada fluxo (`providerId|stream`) e o worker salva em `ingestion_checkpoint`.
@@ -45,7 +47,8 @@ Reexecutar a mesma ingestão **não duplica nada** (coberto por `npm run test:db
 ```bash
 npm run ingest -- --env development                 # executa agora (perfil live, dataset validation-rj-2026-09-29)
 npm run ingest -- --env development --full          # reanálise completa
-npm run ingest -- --env development --watch 30      # polling a cada 30 s (ao vivo)
+npm run ingest -- --env development --watch 30      # polling do perfil inteiro a cada 30 s
+npm run ingest -- --env development --live --interval 1   # worker contínuo dos debates em connecting/live (docs/LIVE-DATA.md)
 npm run ingest -- --env development --enqueue       # só enfileira
 npm run ingest -- --env development --drain         # worker: consome a fila (SKIP LOCKED — vários workers seguros)
 curl -X POST -H "Authorization: Bearer $INGEST_TOKEN" https://…/api/ingest   # enfileira via API

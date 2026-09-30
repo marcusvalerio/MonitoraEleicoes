@@ -7,6 +7,7 @@ import type { TranscriptQuality } from "@/analytics/timeline";
 import type { IngestionReport } from "@/ingestion/store";
 import type { Page, PageRequest } from "@/providers/contracts";
 import type { ClockSpec } from "@/lib/clock";
+import type { LiveState } from "@/domain/live";
 
 export type SourceWithIngestion = Source & { ingestion: { fetched: number; normalized: number; rejected: number; status: string } | null };
 
@@ -65,4 +66,7 @@ export interface Repository {
   getReports(): Promise<IngestionReport[]>;
   getSourceRecord(id: string): Promise<SourceRecord | null>;
   getDataStatus(): Promise<DataStatus>;
+
+  /** Estado ao vivo INCREMENTAL: só segmentos com seq > afterSeq (consulta indexada). afterSeq < 0 = os `limit` mais recentes. */
+  getLiveState(debateId: string, afterSeq?: number, limit?: number): Promise<LiveState | null>;
 }

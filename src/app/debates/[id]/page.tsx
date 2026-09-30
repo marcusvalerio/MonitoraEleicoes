@@ -23,7 +23,7 @@ export default async function DebatePage({ params }: { params: Promise<{ id: str
         eyebrow={
           <>
             <Link href="/debates" className="hover:text-fg-2">Debates</Link> <span>/</span>
-            {s.isLive && <LiveDot />}
+            {s.isLive && <LiveDot label={debate.sourceMode === "replay" ? "REPLAY" : "AO VIVO"} />}
           </>
         }
         title={debate.title}

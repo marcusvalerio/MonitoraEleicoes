@@ -23,7 +23,7 @@ interface InProgress {
 }
 
 export interface LiveDebateProps {
-  debate: { id: string; title: string; startsAt: string; broadcaster: string };
+  debate: { id: string; title: string; startsAt: string; broadcaster: string; sourceMode?: "live" | "replay" | "file" };
   /** Relógio do perfil de dados (replay ou tempo real) — a UI não sabe se é demo. */
   clock: ClockSpec;
   participants: Participant[];
@@ -38,6 +38,7 @@ const POLL_MS = 2500;
 
 export function LiveDebate({ debate, clock, participants, blocks, initial, focusSegmentId, moderatorId }: LiveDebateProps) {
   const online = useOnline();
+  const sourceMode = debate.sourceMode;
   const [offset, setOffset] = useState(initial.offset);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
@@ -334,7 +335,7 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            {ended ? <span className="text-2xs font-semibold tracking-wider text-fg-3">ENCERRADO</span> : <LiveDot label={clock.kind === "replay" ? "AO VIVO · REPLAY" : "AO VIVO"} />}
+            {ended ? <span className="text-2xs font-semibold tracking-wider text-fg-3">ENCERRADO</span> : <LiveDot label={sourceMode === "replay" ? "REPLAY" : clock.kind === "replay" ? "AO VIVO · REPLAY" : "AO VIVO"} />}
             <NatureBadge nature="collected" compact />
           </div>
           <h1 className="mt-1 font-display text-[22px] leading-tight font-bold tracking-tight uppercase md:text-[26px]">{debate.title}</h1>

@@ -96,6 +96,28 @@ export interface TranscriptProvider extends BaseProvider<TranscriptCapabilities>
   fetchSegments(eventExternalId: string, page?: PageRequest): Promise<Page<RawRecord>>;
 }
 
+/**
+ * TRANSCRIÇÃO AO VIVO (ou replay): entrega segmentos PROGRESSIVAMENTE no esquema genérico
+ * `live.segment/v1` (ver normalization/schemas/live.ts). Mesmo contrato paginado por cursor:
+ * `fetchSegments` devolve só o que a fonte já liberou; o worker retoma do checkpoint.
+ * Implementações futuras: legendas oficiais, STT externo/streaming, replay de arquivo, fixture.
+ * Nada específico de uma fonte entra no domínio.
+ */
+export interface LiveTranscriptCapabilities extends TranscriptCapabilities {
+  /** Fonte contínua (ou replay que se comporta como tal). */
+  live: true;
+  /** A fonte fornece horários. `false` ⇒ offsets nulos. */
+  timed: boolean;
+  /** A fonte identifica o orador (rótulo). `false` ⇒ "Orador não identificado". */
+  speakerIdentification: boolean;
+  /** "live" só para fonte realmente contínua; "replay" para reprodução. */
+  sourceMode: "live" | "replay";
+}
+export interface LiveTranscriptProvider extends TranscriptProvider {
+  readonly info: ProviderInfo<LiveTranscriptCapabilities>;
+}
+export const isLiveTranscriptProvider = (p: TranscriptProvider): p is LiveTranscriptProvider => (p.info.capabilities as Partial<LiveTranscriptCapabilities>).live === true;
+
 // ───────── Redes sociais ─────────
 
 export interface SocialCapabilities {

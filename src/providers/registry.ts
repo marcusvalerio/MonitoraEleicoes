@@ -10,6 +10,7 @@ import { FixtureElectionProvider, FixtureMediaProvider, FixtureSocialProvider, F
 import { SvgGeoProvider } from "./geo/svg";
 import { FilePressProvider, FileRegistryElectionProvider, FileTranscriptProvider, UnconfiguredSocialProvider } from "./files";
 import { LIVE_SOURCES } from "./files/sources";
+import { ReplayLiveTranscriptProvider, type ReplaySpeed } from "./replay";
 import { DEMO_SOURCES } from "@/data/demo/sources";
 import { FIXTURE_SOURCES } from "./fixture/sources";
 
@@ -110,4 +111,19 @@ export function getProfile(): ProviderProfile {
 /** Compat: modo de dados (demo|live) para rótulos. */
 export function getDataMode(): DataMode {
   return getProfile().mode;
+}
+
+/**
+ * Providers de um debate cadastrado (debate_control). Também é seleção de provider — por isso fica aqui.
+ * Hoje: "replay-transcript" (replay temporizado de transcrição importada). Fontes realmente ao vivo
+ * (legenda oficial, STT) entram como novos `provider_id` implementando LiveTranscriptProvider.
+ */
+export function buildControlProviders(c: { id: string; title: string; providerId: string; sourceMode: string; replayOf: string | null; replaySpeed: number | null; startedAt: string | null }, now: () => number = Date.now) {
+  const base = buildProfile("live");
+  if (c.providerId === "replay-transcript") {
+    if (c.sourceMode !== "replay" || !c.replayOf || !c.replaySpeed || !c.startedAt) throw new Error(`debate ${c.id}: replay exige origem, velocidade e início`);
+    const transcript = new ReplayLiveTranscriptProvider(new FileTranscriptProvider(), { id: c.id, title: c.title, replayOf: c.replayOf, speed: c.replaySpeed as ReplaySpeed, startedAt: c.startedAt }, now);
+    return { ...base, transcript };
+  }
+  throw new Error(`provider não suportado para debate ao vivo: ${c.providerId}`);
 }

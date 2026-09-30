@@ -28,6 +28,7 @@ Perfis de dados (`DATA_MODE`, resolvido em tempo de execução; o indicador glob
 npm run e2e                                                    # perfil demo
 BASE_URL=http://localhost:3002 DEBATE_ID=fx-show-0001 npm run e2e  # perfil fixture
 BASE_URL=http://localhost:3004 npm run e2e:real:pg             # perfil live (debate real lido do PostgreSQL)
+BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:live   # ingestão contínua: admin → worker → Neon → /ao-vivo
 ```
 
 Documentação: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/PROVIDERS.md`](docs/PROVIDERS.md) · [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · [`docs/GEO.md`](docs/GEO.md) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) · [`docs/VALIDATION-RJ-2026-09-29.md`](docs/VALIDATION-RJ-2026-09-29.md) · [`docs/DATABASE.md`](docs/DATABASE.md) · [`docs/INGESTION.md`](docs/INGESTION.md) · [`docs/LIVE-DATA.md`](docs/LIVE-DATA.md)
@@ -58,7 +59,7 @@ scripts/       db-migrate.mjs, ingest.mjs (worker)
 
 ## Rotas
 
-`/` · `/overview` · `/debates` · `/debates/[id]` · `/debates/[id]/live` · `/debates/[id]/analytics` · `/social` (prévia P1) · `/social/events/[id]` · `/elections/[...]` (P1, sem números até importação TSE) · `/analyses` (P2) · `/sources` · `/methodology`
+`/ao-vivo` · `/ao-vivo/[id]` (ingestão contínua, lida do banco) · `/admin/debates` (ADMIN_TOKEN) · `/` · `/overview` · `/debates` · `/debates/[id]` · `/debates/[id]/live` · `/debates/[id]/analytics` · `/social` (prévia P1) · `/social/events/[id]` · `/elections/[...]` (P1, sem números até importação TSE) · `/analyses` (P2) · `/sources` · `/methodology`
 
 ## Roadmap
 

@@ -33,7 +33,7 @@ export default async function DebatesPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    {d.status === "live" && <LiveDot />}
+                    {d.status === "live" && <LiveDot label={d.sourceMode === "replay" ? "REPLAY" : "AO VIVO"} />}
                     {d.status === "ended" && <Tag>Encerrado</Tag>}
                     {d.status === "ended" && d.segments > 0 && <Tag tone="strong">Replay</Tag>}
                     {d.status === "scheduled" && <Tag tone="info">Agendado</Tag>}

@@ -10,6 +10,7 @@ import { log } from "@/infrastructure/log";
 import type { PageRequest } from "@/providers/contracts";
 import { StoreQueries, type QueryContext } from "./queries";
 import type { Repository } from "./types";
+import { computeLatency, connectionStatus, type LiveControlInfo, type LiveState } from "@/domain/live";
 
 type Row = Record<string, unknown>;
 const iso = (v: unknown) => (v === null || v === undefined ? null : new Date(v as string).toISOString());
@@ -23,6 +24,53 @@ const RUN_TO_REPORT: Record<string, IngestionReport["status"]> = { completed: "o
  * consultas de domínio (StoreQueries) do repositório em memória — services não sabem a diferença.
  * O recorte é recarregado a cada TTL (padrão 10 s) para acompanhar a ingestão ao vivo.
  */
+/** Linha de transcript_segment (+ speaker) → domínio. Orador só é candidato se o banco diz que é. */
+export function segmentFromRow(r: Row, dataMode: DataMode, record: TranscriptSegment["provenance"]["record"]): TranscriptSegment {
+  const kind = r.speaker_kind as string;
+  const speakerId = kind === "moderator" ? MODERATOR_SPEAKER_ID : kind === "candidate" && r.speaker_candidate_id ? (r.speaker_candidate_id as string) : UNKNOWN_SPEAKER_ID;
+  const sourceMode = (r.source_mode as NonNullable<TranscriptSegment["capture"]>["sourceMode"]) ?? "file";
+  return {
+    id: r.id as string,
+    debateId: r.debate_id as string,
+    seq: r.seq as number,
+    speakerId,
+    speakerName: (r.speaker_label as string) ?? null,
+    speakerConfidence: r.resolution_confidence as TranscriptSegment["speakerConfidence"],
+    speakerResolution: r.resolution_source === "demo" ? undefined : (r.resolution_source as TranscriptSegment["speakerResolution"]),
+    startOffset: num(r.start_s),
+    endOffset: num(r.end_s),
+    timing: { precision: r.timestamp_precision as NonNullable<TranscriptSegment["timing"]>["precision"] },
+    text: r.text as string,
+    blockId: r.block_id as string,
+    addressedToId: (r.addressed_to_candidate_id as string) ?? null,
+    provenance: { nature: "collected", sourceId: (r.rec_source_id as string) ?? "", mode: dataMode, record },
+    capture: sourceMode === "file" ? undefined : { sourceMode, sourceTime: iso(r.source_time), collectedAt: iso(r.collected_at), ingestedAt: iso(r.ingested_at), asrConfidence: num(r.asr_confidence) },
+  };
+}
+
+export function analysisFromRow(r: Row, aiSource: string, dataMode: DataMode): SpeechClassification {
+  return {
+    segmentId: r.segment_id as string,
+    topic: r.topic as SpeechClassification["topic"],
+    subtopic: (r.subtopic as string) ?? null,
+    speechType: r.speech_type as SpeechClassification["speechType"],
+    tone: r.tone as SpeechClassification["tone"],
+    targetId: (r.target_candidate_id as string) ?? null,
+    mentions: (r.mentions as string[]) ?? [],
+    relevance: r.relevance_level as SpeechClassification["relevance"],
+    relevanceScore: Number(r.relevance_f),
+    relevanceMethod: { method: r.relevance_method as string, version: r.relevance_method_version as string },
+    relevanceFeatures: r.relevance_features as SpeechClassification["relevanceFeatures"],
+    factCheck: r.fact_check as SpeechClassification["factCheck"],
+    confidence: Number(r.confidence_f),
+    confidenceLevel: r.confidence_level as SpeechClassification["confidenceLevel"],
+    model: { model: r.model as string, version: r.model_version as string, promptVersion: r.prompt_version as string },
+    classifiedAt: iso(r.created_at)!,
+    humanReviewed: r.method === "human",
+    provenance: { nature: "ai", sourceId: aiSource, mode: dataMode },
+  };
+}
+
 export class PostgresRepository implements Repository {
   private snapshot: { at: number; q: Promise<StoreQueries> } | null = null;
   constructor(
@@ -63,7 +111,8 @@ export class PostgresRepository implements Repository {
       sql`select * from party`,
       sql`select * from party_visual_identity`,
       sql`select * from candidate`,
-      sql`select * from debate`,
+      sql`select d.*, coalesce(dc.source_mode, (select ts.source_mode from transcript_segment ts where ts.debate_id = d.id and ts.source_mode <> 'file' limit 1)) as source_mode
+          from debate d left join debate_control dc on dc.id = d.id`,
       sql`select * from debate_block order by debate_id, ord`,
       sql`select * from debate_participant order by debate_id, podium`,
       sql`select ts.*, ts.start_offset_s::float8 as start_s, ts.end_offset_s::float8 as end_s, sp.kind as speaker_kind, sp.candidate_id as speaker_candidate_id,
@@ -137,6 +186,7 @@ export class PostgresRepository implements Repository {
         participantIds: (participants as Row[]).filter((p) => p.debate_id === r.id).map((p) => p.candidate_id as string),
         sourceIds: [...(debateSources.get(r.id as string) ?? [])],
         mode: mode(r.dataset_id),
+        sourceMode: (r.source_mode as Debate["sourceMode"]) ?? undefined,
       };
       store.debates.set(d.id, d);
       store.blocks.set(d.id, []);
@@ -144,50 +194,14 @@ export class PostgresRepository implements Repository {
     for (const r of blocks as Row[]) store.blocks.get(r.debate_id as string)?.push({ id: r.id as string, label: r.label as string, startOffset: num(r.start_offset_s), endOffset: num(r.end_offset_s) } satisfies DebateBlock);
 
     for (const r of segments as Row[]) {
-      const kind = r.speaker_kind as string;
-      const speakerId = kind === "moderator" ? MODERATOR_SPEAKER_ID : kind === "candidate" && r.speaker_candidate_id ? (r.speaker_candidate_id as string) : UNKNOWN_SPEAKER_ID;
-      const seg: TranscriptSegment = {
-        id: r.id as string,
-        debateId: r.debate_id as string,
-        seq: r.seq as number,
-        speakerId,
-        speakerName: (r.speaker_label as string) ?? null,
-        speakerConfidence: r.resolution_confidence as TranscriptSegment["speakerConfidence"],
-        speakerResolution: r.resolution_source === "demo" ? undefined : (r.resolution_source as TranscriptSegment["speakerResolution"]),
-        startOffset: num(r.start_s),
-        endOffset: num(r.end_s),
-        timing: { precision: r.timestamp_precision as NonNullable<TranscriptSegment["timing"]>["precision"] },
-        text: r.text as string,
-        blockId: r.block_id as string,
-        addressedToId: (r.addressed_to_candidate_id as string) ?? null,
-        provenance: { nature: "collected", sourceId: (r.rec_source_id as string) ?? "", mode: mode(r.dataset_id), record: ref(r) },
-      };
+      const seg = segmentFromRow(r, mode(r.dataset_id), ref(r));
       store.push(store.segments, seg.debateId, seg);
     }
 
     const segMode = new Map([...store.segments.values()].flat().map((s) => [s.id, s.provenance.mode]));
     const aiSource = (sources as Row[]).find((s) => s.provider_kind === "ai")?.id as string | undefined;
     for (const r of analyses as Row[]) {
-      const c: SpeechClassification = {
-        segmentId: r.segment_id as string,
-        topic: r.topic as SpeechClassification["topic"],
-        subtopic: (r.subtopic as string) ?? null,
-        speechType: r.speech_type as SpeechClassification["speechType"],
-        tone: r.tone as SpeechClassification["tone"],
-        targetId: (r.target_candidate_id as string) ?? null,
-        mentions: (r.mentions as string[]) ?? [],
-        relevance: r.relevance_level as SpeechClassification["relevance"],
-        relevanceScore: Number(r.relevance_f),
-        relevanceMethod: { method: r.relevance_method as string, version: r.relevance_method_version as string },
-        relevanceFeatures: r.relevance_features as SpeechClassification["relevanceFeatures"],
-        factCheck: r.fact_check as SpeechClassification["factCheck"],
-        confidence: Number(r.confidence_f),
-        confidenceLevel: r.confidence_level as SpeechClassification["confidenceLevel"],
-        model: { model: r.model as string, version: r.model_version as string, promptVersion: r.prompt_version as string },
-        classifiedAt: iso(r.created_at)!,
-        humanReviewed: r.method === "human",
-        provenance: { nature: "ai", sourceId: aiSource ?? "", mode: segMode.get(r.segment_id as string) ?? "live" },
-      };
+      const c = analysisFromRow(r, aiSource ?? "", segMode.get(r.segment_id as string) ?? "live");
       store.classifications.set(c.segmentId, c);
     }
 
@@ -273,4 +287,70 @@ export class PostgresRepository implements Repository {
   getReports = async () => (await this.queries()).getReports();
   getSourceRecord = async (id: string) => (await this.queries()).getSourceRecord(id);
   getDataStatus = async () => (await this.queries()).getDataStatus();
+
+  /**
+   * Ao vivo: consulta INCREMENTAL direta (não usa o recorte com TTL). Índices: (debate_id, seq),
+   * analysis(segment_id, created_at desc), (debate_id, ingested_at). Nunca recarrega o debate inteiro.
+   */
+  getLiveState = async (debateId: string, afterSeq = 0, limit = 200): Promise<LiveState | null> => {
+    const sql = this.sql;
+    const lim = Math.max(1, Math.min(500, Math.floor(limit)));
+    const [deb, rows, totals, recent, ctl, ai] = await Promise.all([
+      sql`select d.id, d.title, ds.kind from debate d join dataset ds on ds.id = d.dataset_id where d.id = ${debateId}`,
+      sql`select ts.*, ts.start_offset_s::float8 as start_s, ts.end_offset_s::float8 as end_s, ts.asr_confidence::float8 as asr_confidence,
+                 sp.kind as speaker_kind, sp.candidate_id as speaker_candidate_id, sp.resolution_source, sp.resolution_confidence,
+                 sr.source_id as rec_source_id, sr.provider_id as rec_provider_id, sr.external_id as rec_external_id,
+                 a.segment_id as a_segment_id, a.topic, a.subtopic, a.speech_type, a.tone, a.target_candidate_id, a.mentions, a.fact_check,
+                 a.confidence::float8 as confidence_f, a.confidence_level, a.relevance_score::float8 as relevance_f, a.relevance_level,
+                 a.relevance_method, a.relevance_method_version, a.relevance_features, a.model, a.model_version, a.prompt_version, a.method, a.created_at as a_created_at
+          from transcript_segment ts
+          join speaker sp on sp.id = ts.speaker_id
+          left join source_record sr on sr.id = ts.source_record_id
+          left join lateral (select * from analysis x where x.segment_id = ts.id order by x.created_at desc, x.id desc limit 1) a on true
+          where ts.debate_id = ${debateId}
+            and ts.seq > (case when ${afterSeq}::int >= 0 then ${afterSeq}::int else coalesce((select t2.seq from transcript_segment t2 where t2.debate_id = ${debateId} order by t2.seq desc offset ${lim} limit 1), 0) end)
+          order by ts.seq limit ${lim}`,
+      sql`select count(*)::int as segments, count(*) filter (where exists (select 1 from analysis a where a.segment_id = ts.id))::int as analyzed
+          from transcript_segment ts where ts.debate_id = ${debateId}`,
+      sql`select ts.source_mode, ts.source_time, ts.collected_at, ts.ingested_at, ts.start_offset_s::float8 as st, ts.end_offset_s::float8 as en,
+                 (select min(a.processed_at) from analysis a where a.segment_id = ts.id) as processed_at
+          from transcript_segment ts where ts.debate_id = ${debateId} order by ts.seq desc limit 20`,
+      sql`select * from debate_control where id = ${debateId}`,
+      sql`select id from source where provider_kind = 'ai' order by id limit 1`,
+    ]);
+    const d = (deb as Row[])[0];
+    if (!d) return null;
+    const dataMode: DataMode = d.kind === "demo" || d.kind === "fixture" ? "demo" : "live";
+    const segs = (rows as Row[]).map((r) => segmentFromRow(r, dataMode, r.source_record_id ? { recordId: r.source_record_id as string, externalId: r.rec_external_id as string, providerId: r.rec_provider_id as string } : undefined));
+    const aiSource = ((ai as Row[])[0]?.id as string) ?? "";
+    const cls = (rows as Row[]).filter((r) => r.a_segment_id).map((r) => analysisFromRow({ ...r, segment_id: r.a_segment_id, created_at: r.a_created_at }, aiSource, dataMode));
+    const c = (ctl as Row[])[0];
+    const control: LiveControlInfo | null = c
+      ? { status: c.status as LiveControlInfo["status"], sourceMode: c.source_mode as LiveControlInfo["sourceMode"], speed: c.replay_speed === null ? null : Number(c.replay_speed), startedAt: iso(c.started_at), lastHeartbeatAt: iso(c.last_heartbeat_at), lastErrorAt: iso(c.last_error_at), lastError: (c.last_error as string) ?? null }
+      : null;
+    const rec = recent as Row[];
+    const t = (totals as Row[])[0];
+    return {
+      debateId,
+      title: d.title as string,
+      sourceMode: (rec[0]?.source_mode as LiveState["sourceMode"]) ?? control?.sourceMode ?? null,
+      control,
+      connection: connectionStatus(control, Date.now()),
+      totals: { segments: t.segments as number, analyzed: t.analyzed as number },
+      latency: computeLatency(
+        rec.map((r) => ({
+          sourceMode: r.source_mode as LiveState["sourceMode"],
+          // fim da fala na fonte = início informado + duração (só quando ambos existem)
+          sourceEnd: r.source_time && r.st !== null && r.en !== null ? new Date(Date.parse(iso(r.source_time)!) + (Number(r.en) - Number(r.st)) * 1000).toISOString() : null,
+          collectedAt: iso(r.collected_at),
+          ingestedAt: iso(r.ingested_at),
+          processedAt: iso(r.processed_at),
+        })),
+      ),
+      segments: segs,
+      classifications: cls,
+      lastSeq: segs.at(-1)?.seq ?? Math.max(0, afterSeq),
+      serverTime: new Date().toISOString(),
+    };
+  };
 }

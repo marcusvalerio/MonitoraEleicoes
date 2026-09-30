@@ -6,3 +6,6 @@ next-env.d.ts
 .env*.local
 .env
 coverage
+
+# spool local do worker (pode conter RAW)
+/.monitora/

@@ -426,4 +426,51 @@ const fileArticle: Fn = (r, ctx, sourceId) => {
   return { type: "article", value: { id: r.externalId, outlet, title: rest.join(" — ") || outlet, url: r.sourceUrl, publishedAt: isoOk(r, p.published_at, "published_at"), debateId: p.event_id, topics: [], provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) } } };
 };
 
-Object.assign(NORMALIZERS, { "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });
+// ───────── AO VIVO / REPLAY (esquema genérico) ─────────
+import type * as LV from "./schemas/live";
+
+const liveEvent: Fn = (r, ctx, sourceId) => {
+  const n = fileManifest(r, ctx, sourceId);
+  if (n.type === "debate") n.value.sourceMode = (r.payload as LV.LiveEventV1).source_mode;
+  return n;
+};
+
+const liveSegment: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as LV.LiveSegmentV1;
+  if (p.start_offset_s !== null && p.end_offset_s !== null) checkSegmentTimes(r, p.start_offset_s * 1000, p.end_offset_s * 1000);
+  if ((p.start_offset_s === null) !== (p.timing_precision === "unknown" || p.timing_precision === "sequence" || p.timing_precision === "block")) fail(r, "precisão temporal incoerente com offsets", "timing_precision");
+  if (p.asr_confidence !== null && !(p.asr_confidence >= 0 && p.asr_confidence <= 1)) fail(r, "asr_confidence fora de [0,1]", "asr_confidence");
+  const ev = ctx.events.get(p.event_id) ?? fail(r, `evento desconhecido: ${p.event_id}`, "event_id");
+  // Orador: somente o que a fonte declara; nunca adivinhado.
+  const speakerRef = p.speaker.name ?? p.speaker.label;
+  const speakerId = speakerRef ? ctx.speakerByRef(speakerRef) : null;
+  const resolution: TranscriptSegment["speakerResolution"] = !speakerId || p.speaker.source === "none" ? "unresolved" : p.speaker.source;
+  const speakerConfidence: ConfidenceLevel = speakerId ? p.speaker.confidence : "unknown";
+  let blockId = "sem-bloco";
+  if (p.block_label) {
+    blockId = ev.blocks.get(p.block_label) ?? `b${ev.blocks.size + 1}`;
+    ev.blocks.set(p.block_label, blockId);
+  }
+  return {
+    type: "segment",
+    value: {
+      id: `${p.event_id}:${String(p.seq).padStart(5, "0")}`,
+      debateId: p.event_id,
+      seq: p.seq,
+      speakerId: speakerId ?? UNKNOWN_SPEAKER_ID,
+      speakerName: p.speaker.label,
+      speakerConfidence,
+      speakerResolution: resolution,
+      startOffset: p.start_offset_s,
+      endOffset: p.end_offset_s,
+      timing: { precision: p.timing_precision },
+      text: str(r, p.text, "text"),
+      blockId,
+      addressedToId: null,
+      provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) },
+      capture: { sourceMode: p.source_mode, sourceTime: p.source_time, collectedAt: r.collectedAt, asrConfidence: p.asr_confidence },
+    },
+  };
+};
+
+Object.assign(NORMALIZERS, { "live.event/v1": liveEvent, "live.segment/v1": liveSegment, "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });

@@ -22,6 +22,7 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
         { href: "/overview", label: "Overview", icon: LayoutDashboard, match: (p) => p === "/" || p.startsWith("/overview") },
         { href: "/debates", label: "Debates", icon: Mic2, match: (p) => p.startsWith("/debates") && !p.endsWith("/live") },
         { href: live, label: "Ao Vivo", icon: Radio, match: (p) => p.endsWith("/live") },
+        { href: "/ao-vivo", label: "Ingestão", icon: Radio, match: (p) => p.startsWith("/ao-vivo") },
         { href: "/social", label: "Repercussão", icon: MessagesSquare, match: (p) => p.startsWith("/social") },
       ],
     },

@@ -39,4 +39,5 @@ export class MemoryRepository implements Repository {
   getReports = async () => this.q.getReports();
   getSourceRecord = async (id: string) => this.q.getSourceRecord(id);
   getDataStatus = async () => this.q.getDataStatus();
+  getLiveState = async (id: string, after?: number, limit?: number) => this.q.getLiveState(id, after, limit);
 }

@@ -14,6 +14,8 @@
     "e2e": "node e2e/smoke.mjs",
     "e2e:real": "node e2e/real-debate.mjs",
     "e2e:real:pg": "EXPECT_PERSISTENCE=postgres node e2e/real-debate.mjs",
+    "e2e:live": "node e2e/live-ingest.mjs",
+    "debate": "node scripts/debate-control.mjs",
     "db:migrate": "node scripts/db-migrate.mjs --env development",
     "db:migrate:test": "node scripts/db-migrate.mjs --env test",
     "db:migrate:prod": "node scripts/db-migrate.mjs --env production --confirm-production",

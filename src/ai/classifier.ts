@@ -8,6 +8,7 @@ import type {
   TopicId,
   TranscriptSegment,
 } from "@/domain/types";
+import { FACT_CHECK, SPEECH_TYPES, TONES, TOPICS } from "@/domain/types";
 import { confidenceLevel } from "@/domain/quality";
 import { RELEVANCE_METHOD, hasVerifiableClaim, isConcreteProposalType, relevanceBand, relevanceScore } from "@/domain/relevance";
 
@@ -28,6 +29,8 @@ export interface ClassifierOutput {
   /** Status de checagem quando fornecido por um FactCheckProvider acoplado. */
   fact_check_status?: import("@/domain/types").FactCheckStatus;
   confidence: number;
+  /** Modelo que efetivamente produziu a saída (ex.: fallback). Ausente = o do classificador. */
+  produced_by?: ModelInfo;
 }
 
 export interface ClassificationContext {
@@ -68,21 +71,28 @@ export function detectMentions(text: string, candidates: Candidate[], exclude?: 
     .map((c) => c.id);
 }
 
-/** Validação estrutural da saída de IA — nunca confiar cegamente no modelo. */
+/** Validação estrutural da saída de IA — nunca confiar cegamente no modelo (enums fechados, faixas, tipos). */
 export function validateClassifierOutput(o: unknown): o is ClassifierOutput {
-  if (!o || typeof o !== "object") return false;
+  return classifierOutputErrors(o).length === 0;
+}
+
+export function classifierOutputErrors(o: unknown): string[] {
+  if (!o || typeof o !== "object" || Array.isArray(o)) return ["saída não é um objeto"];
   const x = o as Record<string, unknown>;
-  return (
-    typeof x.speaker === "string" &&
-    typeof x.topic === "string" &&
-    typeof x.speech_type === "string" &&
-    typeof x.tone === "string" &&
-    Array.isArray(x.mentions) &&
-    typeof x.fact_check_required === "boolean" &&
-    typeof x.confidence === "number" &&
-    x.confidence >= 0 &&
-    x.confidence <= 1
-  );
+  const e: string[] = [];
+  const isStr = (v: unknown) => typeof v === "string";
+  if (!isStr(x.speaker)) e.push("speaker");
+  if (!isStr(x.topic) || !(TOPICS as readonly string[]).includes(x.topic as string)) e.push("topic");
+  if (x.subtopic !== null && !(isStr(x.subtopic) && (x.subtopic as string).length <= 80)) e.push("subtopic");
+  if (!isStr(x.speech_type) || !(SPEECH_TYPES as readonly string[]).includes(x.speech_type as string)) e.push("speech_type");
+  if (!isStr(x.tone) || !(TONES as readonly string[]).includes(x.tone as string)) e.push("tone");
+  if (x.target !== null && !isStr(x.target)) e.push("target");
+  if (!Array.isArray(x.mentions) || !x.mentions.every(isStr)) e.push("mentions");
+  if (!["baixa", "media", "alta"].includes(x.relevance as string)) e.push("relevance");
+  if (typeof x.fact_check_required !== "boolean") e.push("fact_check_required");
+  if (x.fact_check_status !== undefined && !(FACT_CHECK as readonly string[]).includes(x.fact_check_status as string)) e.push("fact_check_status");
+  if (typeof x.confidence !== "number" || !Number.isFinite(x.confidence) || x.confidence < 0 || x.confidence > 1) e.push("confidence");
+  return e;
 }
 
 /** Converte a saída validada do modelo em entidade de domínio (AI ANALYSIS separada do RAW). */

@@ -20,7 +20,7 @@ export function Topbar({ debate, status }: { debate: Debate | null; status: Data
             {live && (
               <span className="flex items-center gap-1.5 text-[10.5px] font-semibold tracking-[0.1em] text-neg">
                 <span className="size-1.5 translate-y-[-1px] animate-pulse-dot rounded-full bg-neg" aria-hidden />
-                <span className="hidden sm:inline">AO VIVO</span>
+                <span className="hidden sm:inline">{debate.sourceMode === "replay" ? "REPLAY" : "AO VIVO"}</span>
               </span>
             )}
           </Link>
