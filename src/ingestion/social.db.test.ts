@@ -9,6 +9,7 @@ import { FileRegistryElectionProvider, FilePressProvider, FileTranscriptProvider
 import { LIVE_SOURCES } from "@/providers/files/sources";
 import { RuleBasedSpeechClassifier } from "@/ai/classifiers";
 import { YouTubeProvider } from "@/providers/youtube";
+import { XProvider } from "@/providers/x";
 import { FX_YT_VIDEOS, fakeYouTube } from "@/providers/youtube/fixtures";
 import { PLATFORM_MATRIX, UnavailableSocialProvider } from "@/providers/social/catalog";
 import { importCandidacies } from "@/elections/tse/importer";
@@ -158,5 +159,27 @@ describe.skipIf(!DB)("social listening (fixture YouTube → Neon → analytics)"
     expect(r.phases[1].byCandidacy.map((c) => c.candidacyId)).toContain(rafael);
     expect(JSON.stringify(r)).not.toMatch(/causou|provocou|por causa/);
     expect(await debateSocial(sql, "nao-existe")).toBeNull();
+  });
+
+  it("X (API v2 simulada): mesmo pipeline — RAW, menções, janela coletada; filtro de plataforma", async () => {
+    const xf = (async () => new Response(JSON.stringify({ data: [
+      { id: "900001", text: "Não voto no Rafael Monteiro de jeito nenhum", author_id: "a1", created_at: "2026-10-02T00:20:00.000Z", lang: "pt", conversation_id: "900001", public_metrics: { like_count: 2, reply_count: 0, retweet_count: 1 } },
+      { id: "900002", text: "Debate presidencial começou", author_id: "a2", created_at: "2026-10-02T00:25:00.000Z", lang: "pt", conversation_id: "900002" },
+    ], meta: {} }), { status: 200 })) as unknown as typeof fetch;
+    const d = deps(fakeYouTube([]).fetch, NOW + 10_800_000);
+    d.providers = [new XProvider({ bearerToken: "tok", hashKey: "k" }, xf, () => NOW + 10_800_000), ...d.providers.filter((p) => p.info.platform !== "x")];
+    await syncSocialSources(sql, d.providers); // token configurado ⇒ fonte passa a "configured"
+    await setSocialSourceEnabled(sql, "x", true);
+    await upsertMonitor(sql, { id: "mon-x", name: "X", electionYear: 2026, officeIds: [1], candidacyIds: [rafael], parties: [], ufs: [], terms: ["Rafael Monteiro", "debate presidencial"], platforms: ["x"], intervalS: 3600, status: "active", debateId: null });
+    const m = (await listMonitors(sql, "active")).find((x) => x.id === "mon-x")!;
+    await socialTick(sql, m, d);
+    expect(await n(sql, "select count(*)::int n from social_record where platform = 'x'")).toBe(2);
+    expect(await n(sql, "select count(*)::int n from social_record where platform = 'x' and author_display_name is not null")).toBe(0);
+    const [w] = (await sql`select status, items from social_collection_window where source_id = 'x' and monitor_id = 'mon-x'`) as Record<string, unknown>[];
+    expect(w).toEqual({ status: "collected", items: 2 });
+    const [e] = (await sql`select e.mention_type from social_record_entity e where e.record_id = 'x:post:900001' and e.entity_id = ${String(rafael)}`) as { mention_type: string }[];
+    expect(e.mention_type).toBe("critica_explicita");
+    const [mt] = (await sql`select metrics from social_record where id = 'x:post:900001'`) as { metrics: Record<string, number> }[];
+    expect(mt.metrics).toEqual({ likes: 2, replies: 0, shares: 1 });
   });
 });

@@ -12,6 +12,7 @@ import { FilePressProvider, FileRegistryElectionProvider, FileTranscriptProvider
 import { LIVE_SOURCES } from "./files/sources";
 import { ReplayLiveTranscriptProvider, type ReplaySpeed } from "./replay";
 import { G1LiveEditorialProvider, G1_PROVIDER_ID } from "./g1";
+import { XProvider } from "./x";
 import { YouTubeProvider } from "./youtube";
 import { PLATFORM_MATRIX, UnavailableSocialProvider } from "./social/catalog";
 import type { SocialListeningProvider } from "./contracts";
@@ -165,5 +166,6 @@ export function buildControlProviders(
  */
 export function buildSocialProviders(env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch, now: () => number = Date.now): SocialListeningProvider[] {
   const yt = new YouTubeProvider({ apiKey: env.YOUTUBE_API_KEY, hashKey: env.IDENTITY_HASH_KEY, budget: Number(env.YOUTUBE_QUOTA_PER_RUN ?? 1500) }, fetchImpl, now);
-  return [yt, ...PLATFORM_MATRIX.filter((e) => e.platform !== "youtube").map((e) => new UnavailableSocialProvider(e))];
+  const x = new XProvider({ bearerToken: env.X_API_BEARER_TOKEN, hashKey: env.IDENTITY_HASH_KEY, maxPosts: Number(env.X_MAX_POSTS_PER_RUN ?? 500) }, fetchImpl, now);
+  return [x, yt, ...PLATFORM_MATRIX.filter((e) => e.platform !== "youtube" && e.platform !== "x").map((e) => new UnavailableSocialProvider(e))];
 }
