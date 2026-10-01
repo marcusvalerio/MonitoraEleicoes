@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { BookOpen, CornerDownLeft, Database, FileText, Hash, Mic2, Search, User, Zap, MapPin } from "lucide-react";
+import { BookOpen, Flag, Landmark, CornerDownLeft, Database, FileText, Hash, Mic2, Search, User, Zap, MapPin } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { SearchHit, SearchKind } from "@/services/search";
 
-const ICON: Record<SearchKind, typeof Search> = { pagina: BookOpen, candidato: User, debate: Mic2, tema: Hash, evento: Zap, fala: FileText, fonte: Database, localidade: MapPin };
-const KIND_LABEL: Record<SearchKind, string> = { pagina: "Páginas", candidato: "Candidatos", debate: "Debates", tema: "Temas", evento: "Eventos", fala: "Falas", fonte: "Fontes", localidade: "Localidades" };
+const ICON: Record<SearchKind, typeof Search> = { pagina: BookOpen, candidato: User, partido: Flag, eleicao: Landmark, debate: Mic2, tema: Hash, evento: Zap, fala: FileText, fonte: Database, localidade: MapPin };
+const KIND_LABEL: Record<SearchKind, string> = { pagina: "Páginas", candidato: "Candidatos", partido: "Partidos", eleicao: "Eleições", debate: "Debates", tema: "Temas", evento: "Eventos", fala: "Falas", fonte: "Fontes", localidade: "Localidades" };
 
 /** `hotkey`: apenas uma instância deve registrar ⌘K. */
 export function SearchTrigger({ compact, hotkey }: { compact?: boolean; hotkey?: boolean }) {
@@ -118,7 +118,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Buscar candidatos, debates, temas, eventos, falas, fontes, localidades…"
+            placeholder="Buscar candidato, partido, eleição, estado, município, debate…"
             className="h-11 flex-1 bg-transparent text-[13.5px] text-fg outline-none placeholder:text-fg-3"
             aria-label="Termo de busca"
           />
