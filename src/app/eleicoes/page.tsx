@@ -42,7 +42,7 @@ function entitiesFor(rows: { id: string; name: string; party: string | null; vot
 
 /** ELEIÇÕES — histórico oficial (TSE 2014/2018/2022), candidaturas 2026 e apuração 2026 quando publicada. */
 export default async function Eleicoes({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const sql = intelSql();
+  const sql = await intelSql();
   if (!sql) return <ElectionsExplorer path={[]} />;
   const sp = await searchParams;
   const { filter, errors } = filtersFrom(sp, { year: 2022, offices: [1] });
@@ -84,7 +84,7 @@ export default async function Eleicoes({ searchParams }: { searchParams: Promise
   );
 }
 
-type Sql = NonNullable<ReturnType<typeof intelSql>>;
+type Sql = NonNullable<Awaited<ReturnType<typeof intelSql>>>;
 type F = ReturnType<typeof filtersFrom>["filter"];
 type B = Awaited<ReturnType<typeof getBoundaries>>;
 

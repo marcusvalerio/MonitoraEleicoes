@@ -22,11 +22,15 @@ import { FIXTURE_SOURCES } from "./fixture/sources";
 /**
  * ÚNICO ponto de seleção de providers. Nenhuma outra camada testa "é demo?".
  *
- *   DATA_MODE=demo     → providers DEMO (padrão)
- *   DATA_MODE=fixture  → providers alternativos (formatos diferentes; prova de desacoplamento)
- *   DATA_MODE=live     → dados reais (arquivos importados em data/real; redes sociais não configuradas)
+ *   DATA_MODE=live     → dados reais (PADRÃO — única opção da aplicação real)
+ *   DATA_MODE=demo     → providers DEMO (dados fictícios) — SOMENTE testes automatizados
+ *   DATA_MODE=fixture  → providers alternativos (prova de desacoplamento) — SOMENTE testes automatizados
+ *
+ * Perfis sintéticos exigem MONITORA_ALLOW_SYNTHETIC=1 (ou NODE_ENV=test) e são SEMPRE recusados em produção
+ * (VERCEL_ENV=production ou MONITORA_ENV=production): nesses casos o perfil efetivo é "live".
  */
-export type ProfileId = "demo" | "fixture" | "live";
+export type { ProfileId } from "./profile-guard";
+import type { ProfileId } from "./profile-guard";
 
 export type { ClockSpec } from "@/lib/clock";
 import type { ClockSpec } from "@/lib/clock";
@@ -49,10 +53,8 @@ export interface ProviderProfile {
   persistence: "memory" | "postgres";
 }
 
-export function getProfileId(): ProfileId {
-  const v = process.env.DATA_MODE;
-  return v === "live" || v === "fixture" ? v : "demo";
-}
+export { getProfileId, syntheticAllowed } from "./profile-guard";
+import { getProfileId } from "./profile-guard";
 
 export function buildProfile(id: ProfileId): ProviderProfile {
   if (id === "fixture") {

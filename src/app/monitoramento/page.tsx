@@ -37,7 +37,7 @@ const topicLabel = (t: string) => (t === "unknown" ? "Não identificado" : (TOPI
  */
 export default async function Monitoramento({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const sql = intelSql();
+  const sql = await intelSql();
   const { filter, errors } = filtersFrom(sp);
   const dim = (["platform", "candidate", "party", "topic", "total"].includes(String(sp.serie)) ? sp.serie : "platform") as SeriesDim;
   const bucket: Bucket = filter.period.preset === "30d" ? "day" : filter.period.preset === "7d" ? "day" : "hour";

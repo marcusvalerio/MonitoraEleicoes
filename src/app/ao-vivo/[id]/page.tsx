@@ -17,7 +17,7 @@ export default async function AoVivoDebatePage({ params }: { params: Promise<{ i
   const repo = await getRepository();
   const state = await repo.getLiveState(id, -1, 200);
   if (!state) notFound();
-  const sql = intelSql();
+  const sql = await intelSql();
   const [candidates, parties, social] = await Promise.all([repo.getCandidates(), repo.getParties(), sql ? debateSocial(sql, id) : null]);
   const speakers: Record<string, SpeakerInfo> = Object.fromEntries(
     candidates.map((c) => [c.id, { name: `${c.name}${parties.find((p) => p.id === c.partyId) ? ` (${parties.find((p) => p.id === c.partyId)!.acronym})` : ""}`, color: c.swatch }]),

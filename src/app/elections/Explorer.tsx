@@ -18,7 +18,7 @@ export function ElectionsExplorer({ path }: { path: string[] }) {
   const crumbs = ["Brasil", ...path.map(decodeURIComponent)];
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 md:px-6">
-      <PageHeader eyebrow={<>Eleições <Tag tone="info">P1</Tag></>} title="Explorador eleitoral" description="Resultados oficiais navegáveis do nível nacional até a seção eleitoral. Fonte única: TSE." />
+      <PageHeader eyebrow="Eleições · fonte TSE" title="Eleições" description="Resultados oficiais do TSE (2014, 2018, 2022), candidaturas e apuração de 2026." />
       <nav aria-label="Localidade" className="flex flex-wrap items-center gap-1 text-[12.5px]">
         {crumbs.map((c, i) => (
           <span key={i} className="flex items-center gap-1">
@@ -28,8 +28,8 @@ export function ElectionsExplorer({ path }: { path: string[] }) {
         ))}
       </nav>
       <Panel>
-        <StateView state="provider_unavailable" title="Dados oficiais ainda não importados">
-          O TSE é a única fonte de resultados desta plataforma. A importação dos arquivos oficiais está prevista para a fase P1. Até lá, nenhum número eleitoral é exibido — nem mesmo fictício.
+        <StateView state="provider_unavailable" title="Fonte indisponível neste ambiente">
+          A base eleitoral oficial (TSE) não está disponível aqui: banco não configurado, inacessível ou ainda não provisionado com os dados do TSE. Nenhum número eleitoral é exibido — nem mesmo estimado.
         </StateView>
       </Panel>
       <div className="grid gap-5 md:grid-cols-2">

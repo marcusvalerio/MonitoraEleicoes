@@ -6,7 +6,7 @@ import { SERIES } from "@/components/intel/palette";
 import { fmtInt } from "@/lib/format";
 
 /** Comparação SOCIAL (fontes conectadas) de até 4 candidaturas 2026. Sem vencedor nem pontuação geral. */
-export async function SocialCompare({ sql, sp }: { sql: NonNullable<ReturnType<typeof intelSql>>; sp: Record<string, string | string[] | undefined> }) {
+export async function SocialCompare({ sql, sp }: { sql: NonNullable<Awaited<ReturnType<typeof intelSql>>>; sp: Record<string, string | string[] | undefined> }) {
   const ids = String(sp.c ?? "").split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 4);
   const { filter } = filtersFrom(sp, { period: { preset: "30d" } });
   const cands = ids.length ? ((await sql.query("select c.id, c.year, c.ballot_name, c.party_acronym, o.name as office, t.name as territory, l.person_id from candidacy c join office o on o.id = c.office_id join territory t on t.id = c.territory_id left join identity_link l on l.candidacy_id = c.id and l.status in ('resolved','manual') where c.id = any($1::int[])", [ids])) as Record<string, unknown>[]) : [];

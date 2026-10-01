@@ -25,7 +25,7 @@ const ids = (v: unknown, max = 4) => String(v ?? "").split(",").map(Number).filt
  */
 export default async function Compare({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const sql = intelSql();
+  const sql = await intelSql();
   const social = sp.modo === "social" || (sp.c !== undefined && sp.modo !== "historico");
   const header = (
     <PageHeader

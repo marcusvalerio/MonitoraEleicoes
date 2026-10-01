@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Candidato" };
 /** Perfil: trajetória SOMENTE por vínculo de identidade resolvido (título/CPF em HMAC) ou manual — nunca por nome. */
 export default async function Candidate({ params, searchParams }: { params: Promise<{ personId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { personId } = await params;
-  const sql = intelSql();
+  const sql = await intelSql();
   if (!sql)
     return (
       <div className="mx-auto max-w-[1100px] px-4 py-6 md:px-6">
