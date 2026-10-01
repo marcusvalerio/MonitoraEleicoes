@@ -6,7 +6,7 @@
  *   node scripts/ingest.mjs --env development --drain              # executa jobs da fila
  *   node scripts/ingest.mjs --env development --watch 30           # polling a cada 30 s (perfil inteiro)
  *   node scripts/ingest.mjs --env development --apuracao [--year 2026] [--round 1] [--interval 60] [--once]
- *        [--offices 1,3,5,6,7,8] [--ufs SP,RJ] [--municipios] [--proporcionais-a-cada 5]   # apuração oficial do TSE (incremental, idempotente)
+ *        [--offices 1,3,5,6,7,8] [--ufs SP,RJ] [--municipios] [--proporcionais-a-cada 5] [--concorrencia 8]   # apuração oficial do TSE (incremental, idempotente)
  *   node scripts/ingest.mjs --env development --live [--interval 2] # worker contínuo dos debates em connecting/live
  *                                                                     (debate_control); SIGINT/SIGTERM = parada graciosa
  * Conexão exclusivamente por variável de ambiente (DATABASE_URL / _TEST / _PRODUCTION).
@@ -60,7 +60,7 @@ if (args.includes("--apuracao")) {
   const { TseCountProvider } = await jiti.import("@/elections/apuracao/provider");
   const { beat } = await jiti.import("@/infrastructure/heartbeat");
   const list = (k) => (arg(k) ? arg(k).split(",").map((x) => x.trim()).filter(Boolean) : undefined);
-  const o = { year: Number(arg("--year", "2026")), round: Number(arg("--round", "1")), offices: list("--offices")?.map(Number), ufs: list("--ufs")?.map((u) => u.toUpperCase()), municipalities: args.includes("--municipios"), datasetKind: datasetKind === "fixture" ? "fixture" : "production" };
+  const o = { year: Number(arg("--year", "2026")), round: Number(arg("--round", "1")), offices: list("--offices")?.map(Number), ufs: list("--ufs")?.map((u) => u.toUpperCase()), municipalities: args.includes("--municipios"), concurrency: Number(arg("--concorrencia", "8")), datasetKind: datasetKind === "fixture" ? "fixture" : "production" };
   const interval = Math.max(30, Number(arg("--interval", "60"))) * 1000;
   const provider = new TseCountProvider();
   let stop = false;

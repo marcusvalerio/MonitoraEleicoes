@@ -29,6 +29,8 @@ export interface CountTickOptions {
   ufs?: string[];
   /** Coleta municipal (majoritários): ~5 570 arquivos por cargo — desligada por padrão. */
   municipalities?: boolean;
+  /** Arquivos baixados em paralelo (padrão 8). */
+  concurrency?: number;
   datasetKind?: "production" | "fixture";
   now?: () => number;
 }
@@ -154,7 +156,8 @@ export async function countTick(sql: Sql, provider: TseCountProvider, o: CountTi
     if (!elections.length) message = `configuração oficial sem eleição geral ${o.year} (${o.round}º turno)`;
     const targets = await planTargets(sql, elections, o);
     r.targets = targets.length;
-    for (const t of targets) {
+    // Concorrência limitada (alvos independentes; BR primeiro na fila): reduz a latência da passada sem martelar o TSE.
+    const one = async (t: CountTarget) => {
       const stream = streamOf({ ...t, year: o.year, round: o.round });
       const url = countFileUrl(t.election, t.officeId, { uf: t.uf, municipalityTseCode: t.municipality?.tseCode });
       try {
@@ -162,7 +165,7 @@ export async function countTick(sql: Sql, provider: TseCountProvider, o: CountTi
         if (f.status === "not_published") {
           r.notPublished++;
           await setCheckpoint(sql, `${stream}:status`, "not_published", new Date(now()).toISOString());
-          continue;
+          return;
         }
         const n = normalizeCountFile(f.json);
         const res = await persistCount(sql, t, n, f, { datasetId, runId, collectedAt: new Date(now()).toISOString() });
@@ -175,7 +178,11 @@ export async function countTick(sql: Sql, provider: TseCountProvider, o: CountTi
         await sql`insert into ingestion_error (ingestion_run_id, external_id, code, message) values (${runId}, ${stream}, 'count_file', ${msg.slice(0, 500)})`;
         await setCheckpoint(sql, `${stream}:status`, `error:${msg.slice(0, 200)}`, new Date(now()).toISOString());
       }
-    }
+    };
+    const queue = [...targets];
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(o.concurrency ?? 8, queue.length)) }, async () => {
+      for (let t = queue.shift(); t; t = queue.shift()) await one(t);
+    }));
   } catch (e) {
     r.errors++;
     message = e instanceof Error ? e.message : String(e);
