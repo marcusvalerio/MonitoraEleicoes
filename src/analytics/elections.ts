@@ -217,3 +217,96 @@ export async function resultsByTerritory(sql: Sql, f: FilterSpec, candidacyId: n
     [f.year, round, candidacyId, office, level],
   )) as Row[];
 }
+
+/**
+ * Candidatura mais votada por UF (camada eleitoral do mapa): soma dos agregados oficiais da UF
+ * (majoritários são guardados por município, proporcionais por UF — ambos têm `territory.uf`).
+ * Percentual = votos ÷ soma dos votos nominais do cargo na UF. UF sem linhas ⇒ ausente (nunca 0).
+ */
+export async function leadersByUf(sql: Sql, f: FilterSpec) {
+  const office = f.offices[0] ?? 1;
+  const round = f.round ?? 1;
+  return (await sql.query(
+    `with agg as (
+       select t.uf, r.candidacy_id, sum(r.votes)::bigint as votes
+       from result_candidacy r join territory t on t.id = r.territory_id and t.uf is not null and t.uf <> 'ZZ'
+       where r.year = $1 and r.round = $2 and r.office_id = $3 and r.votes_status = 'value'
+       group by t.uf, r.candidacy_id),
+     per as (select agg.*, sum(votes) over (partition by uf) as total, row_number() over (partition by uf order by votes desc) as rk from agg)
+     select per.uf, per.candidacy_id, c.ballot_name, c.party_acronym, per.votes::bigint as votes, per.total::bigint as total,
+            per.votes::float / nullif(per.total, 0) as share
+     from per join candidacy c on c.id = per.candidacy_id where per.rk = 1 order by per.uf`,
+    [f.year, round, office],
+  )) as { uf: string; candidacy_id: number; ballot_name: string; party_acronym: string | null; votes: string; total: string; share: number | null }[];
+}
+
+/** Municípios de uma UF (filtro global). */
+export async function municipalitiesOf(sql: Sql, uf: string) {
+  return (await sql`select id, name from territory where level = 'municipio' and uf = ${uf} order by name`) as { id: number; name: string }[];
+}
+
+/** Candidaturas de um ciclo no recorte (ex.: 2026, antes de haver resultados). Ordem alfabética — não é ranking. */
+export async function listCandidacies(sql: Sql, f: FilterSpec, limit = 100) {
+  const office = f.offices[0] ?? 1;
+  const ufs = effectiveUfs(f, REGIONS);
+  const q = f.candidateQuery ? `%${normalizeName(f.candidateQuery)}%` : null;
+  const rows = (await sql.query(
+    `select c.id, c.ballot_name, c.name, c.ballot_number, c.party_acronym, c.situation, t.uf, l.person_id, count(*) over () as total
+     from candidacy c join territory t on t.id = c.territory_id left join identity_link l on l.candidacy_id = c.id and l.status in ('resolved', 'manual')
+     where c.year = $1 and c.office_id = $2 and ($3::text[] = '{}' or t.uf = any($3::text[]) or c.territory_id = 0)
+       and ($4::text[] = '{}' or c.party_acronym = any($4::text[])) and ($5::text is null or c.normalized_name like $5 or upper(c.ballot_name) like $5)
+     order by t.uf nulls first, c.ballot_name limit $6`,
+    [f.year, office, ufs, f.parties, q, limit],
+  )) as Row[];
+  return { total: rows[0] ? Number(rows[0].total) : 0, rows: rows.map((r) => ({ candidacyId: r.id as number, ballotName: r.ballot_name as string, name: r.name as string, number: (r.ballot_number as number) ?? null, party: (r.party_acronym as string) ?? null, situation: (r.situation as string) ?? null, uf: (r.uf as string) ?? null, personId: (r.person_id as number) ?? null })) };
+}
+
+/**
+ * Comparação factual entre ciclos no mesmo recorte (cargo × UF/município): nº de candidaturas, votos nominais
+ * apurados e partidos com votos. Ciclo sem resultados ⇒ votos null com status (nunca 0).
+ */
+export async function compareCycles(sql: Sql, f: FilterSpec) {
+  const office = f.offices[0] ?? 1;
+  const ufs = effectiveUfs(f, REGIONS);
+  const muni = f.municipality ?? null;
+  const [cands, votes, elections] = await Promise.all([
+    sql.query(
+      `select c.year, count(*)::int as n from candidacy c join territory t on t.id = c.territory_id
+       where c.office_id = $1 and ($2::text[] = '{}' or t.uf = any($2::text[]) or c.territory_id = 0) group by 1`,
+      [office, ufs],
+    ) as unknown as Promise<{ year: number; n: number }[]>,
+    sql.query(
+      `select r.year, sum(r.votes)::bigint as votes, count(distinct c.party_acronym)::int as parties
+       from result_candidacy r join territory t on t.id = r.territory_id join candidacy c on c.id = r.candidacy_id
+       where r.round = 1 and r.office_id = $1 and r.votes_status = 'value' and ($2::text[] = '{}' or t.uf = any($2::text[])) and ($3::int is null or t.id = $3)
+       group by 1`,
+      [office, ufs, muni],
+    ) as unknown as Promise<{ year: number; votes: string; parties: number }[]>,
+    electionsSummary(sql),
+  ]);
+  return elections.map((e) => {
+    const v = votes.find((x) => x.year === e.year);
+    return {
+      year: e.year,
+      status: e.status,
+      candidacies: muni ? null : (cands.find((x) => x.year === e.year)?.n ?? 0),
+      nominalVotes: v ? Number(v.votes) : null,
+      votesStatus: v ? "value" : e.status === "results_official" ? "not_available" : "not_collected",
+      partiesWithVotes: v ? v.parties : null,
+    };
+  });
+}
+
+/** Busca de PESSOAS (vínculo resolvido/manual) por nome em todos os ciclos — para o comparador de trajetórias. */
+export async function searchPeople(sql: Sql, q: string, limit = 12) {
+  const like = `%${normalizeName(q)}%`;
+  const rows = (await sql.query(
+    `select l.person_id, (array_agg(c.ballot_name order by c.year desc))[1] as ballot_name, (array_agg(c.party_acronym order by c.year desc))[1] as party,
+            array_agg(distinct c.year order by c.year) as years
+     from candidacy c join identity_link l on l.candidacy_id = c.id and l.status in ('resolved', 'manual')
+     where c.normalized_name like $1 or upper(c.ballot_name) like $1
+     group by l.person_id order by max(c.year) desc, count(*) desc limit $2`,
+    [like, limit],
+  )) as Row[];
+  return rows.map((r) => ({ personId: Number(r.person_id), ballotName: r.ballot_name as string, party: (r.party as string) ?? null, years: (r.years as number[]) ?? [] }));
+}

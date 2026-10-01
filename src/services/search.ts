@@ -18,7 +18,7 @@ const PAGES: SearchHit[] = [
   { kind: "pagina", id: "overview", title: "Overview", href: "/overview" },
   { kind: "pagina", id: "debates", title: "Debates", href: "/debates" },
   { kind: "pagina", id: "social", title: "Repercussão", href: "/social" },
-  { kind: "pagina", id: "elections", title: "Eleições", subtitle: "Explorador eleitoral (P1)", href: "/elections" },
+  { kind: "pagina", id: "eleicoes", title: "Eleições", subtitle: "Histórico oficial (TSE) e apuração 2026", href: "/eleicoes" },
   { kind: "pagina", id: "sources", title: "Fontes", href: "/sources" },
   { kind: "pagina", id: "methodology", title: "Metodologia", href: "/methodology" },
 ];

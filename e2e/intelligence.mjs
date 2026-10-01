@@ -48,8 +48,10 @@ r = await admin({ action: "monitor_upsert", monitor: { id: "bad", name: "x", ele
 ok(r.status === 400, "admin: monitor inválido recusado");
 ok((await admin({ action: "monitor_status", id: "e2e-presidente", status: "active" })).status === 200, "admin: monitor ativado");
 
-// 3) worker
+// 3) workers (social + apuração com arquivos oficiais do TSE)
 await seed.runWorker(URL_TEST);
+const count = await seed.runCount(URL_TEST);
+ok(count.newSnapshots === 2 && count.notPublished === 1 && count.errors === 0, "apuração: 2 arquivos oficiais coletados, 1 não publicado");
 
 // 4) dashboards
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -79,10 +81,25 @@ ok(/1/.test(await p.getByTestId("funnel").innerText()), "filtro tipo=resposta");
 t = await main(`/monitoramento?periodo=custom&de=2026-09-01T00:00:00.000Z&ate=2026-09-02T00:00:00.000Z`);
 ok(/Não coletado/.test(t.body), "período sem coleta ⇒ 'Não coletado'");
 
-t = await main("/elections?ano=2022&cargo=3&uf=RJ");
+t = await main("/eleicoes?ano=2022&cargo=3&uf=RJ");
 ok(/HELENA/.test(await p.getByTestId("results-table").innerText()), "eleições: resultado fixture 2022 Governador RJ");
-t = await main("/elections?ano=2026");
+t = await main("/eleicoes?ano=2026");
 ok(/não publicados/.test(t.body), "eleições 2026: resultados não publicados (sem números)");
+t = await main("/eleicoes?ano=2026");
+ok((await p.getByTestId("count-view").getByTestId("count-state").getAttribute("data-state")) === "nao_iniciada", "apuração 2026: 'Não iniciada' (arquivo oficial publicado, totalização não começou)");
+ok(/Não coletado/.test(await p.getByTestId("count-table").innerText()) && !/\b0 votos\b/.test(t.body), "apuração 2026: votos 'Não coletado', nunca '0 votos'");
+t = await main("/eleicoes?ano=2026&cargo=1&uf=SP");
+ok((await p.getByTestId("count-view").getByTestId("count-state").getAttribute("data-state")) === "nao_coletada", "apuração 2026 (SP): 'Não coletada'");
+t = await main("/eleicoes?ano=2026&cargo=1&uf=AC");
+ok((await p.getByTestId("count-view").getByTestId("count-state").getAttribute("data-state")) === "indisponivel", "apuração 2026 (AC, arquivo 404): 'Dado indisponível'");
+t = await main("/eleicoes?ano=2022&cargo=3&uf=RJ");
+ok((await p.getByTestId("election-map").count()) === 1, "eleições: camada eleitoral no MapCanvas");
+t = await main("/comparar?cargo=3&uf=RJ&partido=PFA,PFB");
+ok(/2\.500/.test(await p.getByTestId("compare-cycles").innerText()) && /não publicado/.test(await p.getByTestId("compare-cycles").innerText()), "comparar: ciclos no mesmo recorte; 2026 'não publicado'");
+t = await main(`/comparar?pessoa=${helena.personId}`);
+ok(/Deputado Federal/.test(await p.getByTestId("compare-people").innerText()), "comparar: trajetória por identidade");
+const r307 = await fetch(B + "/elections?ano=2018", { redirect: "manual" });
+ok(r307.status === 307 && /\/eleicoes\?ano=2018$/.test(r307.headers.get("location") ?? ""), "rota antiga /elections redireciona preservando filtros");
 t = await main(`/candidatos/${helena.personId}`);
 const hist = await p.getByTestId("person-history").innerText();
 ok(["2014", "2018", "2022", "2026"].every((y) => hist.includes(y)), "perfil: trajetória em 4 ciclos por vínculo de identidade");

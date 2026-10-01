@@ -65,7 +65,7 @@ export default async function Candidate({ params, searchParams }: { params: Prom
           {social ? (
             <p className="text-[12.5px] text-fg-2" data-testid="person-social">
               <span className="tnum text-fg">{fmtInt(social.mentions)}</span> conteúdos mencionam · apoio explícito <span className="tnum text-fg">{fmtInt(social.explicitSupport)}</span> · crítica explícita <span className="tnum text-fg">{fmtInt(social.explicitCritique)}</span>.{" "}
-              <Link className="text-fg hover:underline" href={`/comparar?c=${current.candidacyId}`}>Comparar</Link>
+              <Link className="text-fg hover:underline" href={`/comparar?modo=social&c=${current.candidacyId}`}>Comparar</Link>
             </p>
           ) : (
             <p className="text-[12.5px] text-fg-3">Nenhuma menção coletada no período (ou período não coletado — ver cobertura em Monitoramento).</p>

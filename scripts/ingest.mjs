@@ -5,6 +5,8 @@
  *   node scripts/ingest.mjs --env development --enqueue            # só enfileira (requisição)
  *   node scripts/ingest.mjs --env development --drain              # executa jobs da fila
  *   node scripts/ingest.mjs --env development --watch 30           # polling a cada 30 s (perfil inteiro)
+ *   node scripts/ingest.mjs --env development --apuracao [--year 2026] [--round 1] [--interval 60] [--once]
+ *        [--offices 1,3,5,6,7,8] [--ufs SP,RJ] [--municipios] [--proporcionais-a-cada 5]   # apuração oficial do TSE (incremental, idempotente)
  *   node scripts/ingest.mjs --env development --live [--interval 2] # worker contínuo dos debates em connecting/live
  *                                                                     (debate_control); SIGINT/SIGTERM = parada graciosa
  * Conexão exclusivamente por variável de ambiente (DATABASE_URL / _TEST / _PRODUCTION).
@@ -46,6 +48,34 @@ async function execute(p, dsId, kind, requestId) {
     { mode: prof.mode, election: prof.election, transcript: prof.transcript, social: prof.social, media: prof.media, classifier: prof.classifier, aiSourceId: prof.aiSourceId },
     { datasetId: dsId, datasetKind: kind, description: `${prof.label} (${p})`, sources: prof.sources, requestId, full: args.includes("--full") },
   );
+}
+
+if (args.includes("--apuracao")) {
+  // Worker da APURAÇÃO OFICIAL: configuração do TSE → arquivos -u.json → RAW → retratos. SIGINT/SIGTERM = parada graciosa.
+  if (env === "production" && !args.includes("--confirm-production")) {
+    console.error("recusado: apuração em produção exige --confirm-production (e a migration 0008 aplicada com confirmação)");
+    process.exit(3);
+  }
+  const { countTick } = await jiti.import("@/elections/apuracao/worker");
+  const { TseCountProvider } = await jiti.import("@/elections/apuracao/provider");
+  const list = (k) => (arg(k) ? arg(k).split(",").map((x) => x.trim()).filter(Boolean) : undefined);
+  const o = { year: Number(arg("--year", "2026")), round: Number(arg("--round", "1")), offices: list("--offices")?.map(Number), ufs: list("--ufs")?.map((u) => u.toUpperCase()), municipalities: args.includes("--municipios"), datasetKind: datasetKind === "fixture" ? "fixture" : "production" };
+  const interval = Math.max(30, Number(arg("--interval", "60"))) * 1000;
+  const provider = new TseCountProvider();
+  let stop = false;
+  for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => (stop = true));
+  // Proporcionais (arquivos grandes) a cada N passadas; majoritários em todas.
+  const propEvery = Math.max(1, Number(arg("--proporcionais-a-cada", "5")));
+  const all = o.offices ?? [1, 3, 5, 6, 7, 8];
+  let pass = 0;
+  do {
+    const offices = pass++ % propEvery === 0 ? all : all.filter((x) => [1, 3, 5].includes(x));
+    const r = offices.length ? await countTick(sql, provider, { ...o, offices }).catch((e) => (console.error(e), null)) : null;
+    if (r) console.log(JSON.stringify({ msg: "apuracao.tick", ...r }));
+    if (args.includes("--once")) break;
+    for (let t = 0; t < interval && !stop; t += 1000) await new Promise((r) => setTimeout(r, 1000));
+  } while (!stop);
+  process.exit(0);
 }
 
 if (args.includes("--social")) {

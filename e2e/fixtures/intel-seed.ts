@@ -14,6 +14,9 @@ import { FX_YT_VIDEOS, fakeYouTube } from "@/providers/youtube/fixtures";
 import { PLATFORM_MATRIX, UnavailableSocialProvider } from "@/providers/social/catalog";
 import { listMonitors } from "@/control/social";
 import { socialTick } from "@/ingestion/social-worker";
+import { readFileSync } from "node:fs";
+import { TseCountProvider } from "@/elections/apuracao/provider";
+import { countTick } from "@/elections/apuracao/worker";
 
 export const NOW = Date.parse("2026-10-02T01:00:00Z");
 const RAFAEL = { year: 2026, uf: "BR", office: 1, sq: "280000000003", number: 93, name: "RAFAEL MONTEIRO", ballot: "RAFAEL MONTEIRO", party: [92, "PFB", "PARTIDO FICTÍCIO B"] as [number, string, string], title: "000000000494", cpf: "-4", status: "#NULO" };
@@ -45,4 +48,21 @@ export async function runWorker(url: string) {
       now: () => NOW,
       datasetKind: "fixture",
     });
+}
+
+/** Apuração com arquivos OFICIAIS do TSE (fixtures, pré-eleição): servidor simulado, resto 404. */
+export async function runCount(url: string) {
+  const sql = createSql(url, "DATABASE_URL_TEST");
+  await assertTestDatabase(sql);
+  const dir = path.join(process.cwd(), "src/elections/apuracao/fixtures");
+  const files: Record<string, string> = {
+    "/comum/config/ele-c.json": "ele-c.json",
+    "/ele2026/6257/dados/br/br-c0001-e006257-u.json": "br-c0001-e006257-u.json",
+    "/ele2026/6259/dados/ac/ac-c0003-e006259-u.json": "ac-c0003-e006259-u.json",
+  };
+  const f = (async (u: string) => {
+    const k = files[u.replace("https://resultados.tse.jus.br/oficial", "")];
+    return k ? new Response(readFileSync(path.join(dir, k), "utf-8"), { status: 200 }) : new Response("", { status: 404 });
+  }) as unknown as typeof fetch;
+  return countTick(sql, new TseCountProvider(f, { retries: 0 }), { year: 2026, round: 1, offices: [1, 3], ufs: ["AC"], datasetKind: "fixture" });
 }

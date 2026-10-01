@@ -349,7 +349,7 @@ export function MapExplorer(p: MapExplorerProps) {
           </div>
           <div className="space-y-2 border-t border-border pt-4 text-[11.5px] leading-snug text-fg-3">
             <p>Níveis disponíveis para repercussão: Brasil → Região → Estado → Município. Zona, local e seção existem somente nos dados oficiais.</p>
-            <Link href="/elections" className="inline-flex items-center gap-1 text-fg-2 hover:text-fg">
+            <Link href="/eleicoes" className="inline-flex items-center gap-1 text-fg-2 hover:text-fg">
               Resultados oficiais no Explorador eleitoral <ArrowUpRight size={12} aria-hidden />
             </Link>
           </div>

@@ -170,7 +170,7 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
               {cands.map((c) => (
                 <tr key={c.candidacyId} className="border-b border-border/60">
                   <td className="py-2 pr-3">
-                    <Link href={`/comparar?c=${c.candidacyId}`} className="text-fg hover:underline">
+                    <Link href={`/comparar?modo=social&c=${c.candidacyId}`} className="text-fg hover:underline">
                       {c.name}
                     </Link>{" "}
                     <span className="text-fg-3">{c.party ?? ""}</span>

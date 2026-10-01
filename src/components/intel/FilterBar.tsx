@@ -14,12 +14,12 @@ const PLATFORM_LABEL: Record<string, string> = { youtube: "YouTube", instagram: 
 const TYPE_LABEL: Record<string, string> = { post: "Post", comment: "Comentário", reply: "Resposta", news: "Notícia", video: "Vídeo", live: "Live" };
 const SENT_LABEL: Record<string, string> = { positivo: "Positivo", negativo: "Negativo", neutro: "Neutro", misto: "Misto", incerto: "Incerto" };
 
-export type FilterField = "year" | "round" | "office" | "region" | "uf" | "party" | "q" | "period" | "platform" | "type" | "sentiment" | "topic";
+export type FilterField = "year" | "round" | "office" | "region" | "uf" | "municipality" | "party" | "q" | "period" | "platform" | "type" | "sentiment" | "topic";
 
 const control = "h-8 rounded-[var(--radius-sm)] border border-border bg-bg px-2 text-[12.5px] text-fg";
 
 /** Barra de filtros global: estado na URL (compartilhável), combinável, aplicada no servidor. */
-export function FilterBar({ filter, fields }: { filter: FilterSpec; fields: FilterField[] }) {
+export function FilterBar({ filter, fields, municipalities }: { filter: FilterSpec; fields: FilterField[]; /** Municípios da UF selecionada (servidor). */ municipalities?: { id: number; name: string }[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const [f, setF] = useState(filter);
@@ -28,7 +28,7 @@ export function FilterBar({ filter, fields }: { filter: FilterSpec; fields: Filt
     router.push(`${pathname}?${toSearchParams(next).toString()}`);
   };
   const has = (x: FilterField) => fields.includes(x);
-  const active = [f.offices.length, f.regions.length, f.ufs.length, f.parties.length, f.platforms.length, f.contentTypes.length, f.sentiments.length, f.topics.length, f.candidateQuery ? 1 : 0].reduce((a, b) => a + b, 0);
+  const active = [f.offices.length, f.regions.length, f.ufs.length, f.municipality ? 1 : 0, f.parties.length, f.platforms.length, f.contentTypes.length, f.sentiments.length, f.topics.length, f.candidateQuery ? 1 : 0].reduce((a, b) => a + b, 0);
   return (
     <form
       role="search"
@@ -65,8 +65,18 @@ export function FilterBar({ filter, fields }: { filter: FilterSpec; fields: Filt
           ))}
         </select>
       )}
-      {has("region") && <Multi label="Região" values={f.regions.map(String)} options={Object.entries(REGION_LABEL).map(([v, l]) => ({ v, l }))} onChange={(v) => apply({ ...f, regions: v.map(Number) })} />}
-      {has("uf") && <Multi label="Estado" values={f.ufs} options={UFS.map((u) => ({ v: u, l: u }))} onChange={(v) => apply({ ...f, ufs: v })} />}
+      {has("region") && <Multi label="Região" values={f.regions.map(String)} options={Object.entries(REGION_LABEL).map(([v, l]) => ({ v, l }))} onChange={(v) => apply({ ...f, regions: v.map(Number), municipality: undefined })} />}
+      {has("uf") && <Multi label="Estado" values={f.ufs} options={UFS.map((u) => ({ v: u, l: u }))} onChange={(v) => apply({ ...f, ufs: v, municipality: undefined })} />}
+      {has("municipality") && municipalities && municipalities.length > 0 && (
+        <select aria-label="Município" className={`${control} max-w-48`} value={f.municipality ?? ""} onChange={(e) => apply({ ...f, municipality: e.target.value ? Number(e.target.value) : undefined })}>
+          <option value="">Todos os municípios</option>
+          {municipalities.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      )}
       {has("period") && (
         <select aria-label="Período" className={control} value={f.period.preset} onChange={(e) => e.target.value !== "custom" && apply({ ...f, period: { preset: e.target.value as FilterSpec["period"]["preset"] } })}>
           {PERIODS.filter((p) => p !== "custom" || f.period.preset === "custom").map((p) => (
@@ -88,7 +98,7 @@ export function FilterBar({ filter, fields }: { filter: FilterSpec; fields: Filt
         </label>
       )}
       {active > 0 && (
-        <button type="button" className="ml-auto inline-flex h-8 items-center gap-1 text-[12px] text-fg-3 hover:text-fg" onClick={() => apply({ ...f, offices: [], regions: [], ufs: [], parties: [], platforms: [], contentTypes: [], sentiments: [], topics: [], candidacyIds: [], candidateQuery: undefined })} data-testid="filter-clear">
+        <button type="button" className="ml-auto inline-flex h-8 items-center gap-1 text-[12px] text-fg-3 hover:text-fg" onClick={() => apply({ ...f, municipality: undefined, offices: [], regions: [], ufs: [], parties: [], platforms: [], contentTypes: [], sentiments: [], topics: [], candidacyIds: [], candidateQuery: undefined })} data-testid="filter-clear">
           <X size={12} aria-hidden /> Limpar ({active})
         </button>
       )}

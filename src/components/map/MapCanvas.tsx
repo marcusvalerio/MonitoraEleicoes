@@ -24,13 +24,15 @@ export interface MapCanvasProps {
   onHover: (key: string | null, pos?: { x: number; y: number }) => void;
   onActivate: (key: string, pointer: "mouse" | "touch" | "keyboard") => void;
   height?: number;
+  /** Rótulo acessível de cada território (padrão: publicações). Camadas eleitorais descrevem votos. */
+  describe?: (row: GeoAggregate | undefined, key: string) => string;
 }
 
 /**
  * Coroplético SVG. Com contornos → mapa; sem contornos (municípios) → grade de blocos.
  * A cor de entidade identifica o predominante; a intensidade representa a métrica selecionada.
  */
-export function MapCanvas({ boundaries, rows, layer, entities, selectedKey, onHover, onActivate, height = 460 }: MapCanvasProps) {
+export function MapCanvas({ boundaries, rows, layer, entities, selectedKey, onHover, onActivate, height = 460, describe }: MapCanvasProps) {
   const byKey = useMemo(() => new Map(rows.map((r) => [r.key, r])), [rows]);
   const max = useMemo(() => Math.max(1, ...rows.map((r) => r.topicPosts)), [rows]);
   const color = (r: GeoAggregate) => entities.find((e) => e.id === r.predominantCandidateId)?.color ?? null;
@@ -65,7 +67,7 @@ export function MapCanvas({ boundaries, rows, layer, entities, selectedKey, onHo
     },
   });
 
-  const label = (r?: GeoAggregate, name?: string) => (r ? `${r.name}: ${fmtInt(r.topicPosts)} publicações` : `${name ?? ""}: sem dados`);
+  const label = (r?: GeoAggregate, name?: string) => (describe ? describe(r, r?.key ?? name ?? "") : r ? `${r.name}: ${fmtInt(r.topicPosts)} publicações` : `${name ?? ""}: sem dados`);
 
   if (!boundaries) {
     // Grade (municípios sem geometria no MVP)

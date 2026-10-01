@@ -4,7 +4,7 @@ import { assertTestDatabase, createSql, type Sql } from "@/persistence/db";
 import { resetTestDatabase } from "@/persistence/testing";
 import { importCandidacies, importResults, resolveIdentities, setManualIdentity } from "./tse/importer";
 import { FX_CANDIDACIES, FX_VOTES, candCsv, voteCsv } from "./tse/fixtures";
-import { electionsSummary, partyHistory, personHistory, resultsTable, searchCandidacies } from "@/analytics/elections";
+import { compareCycles, electionsSummary, leadersByUf, listCandidacies, municipalitiesOf, partyHistory, personHistory, resultsTable, searchCandidacies } from "@/analytics/elections";
 import { DEFAULT_FILTER, type FilterSpec } from "@/domain/filters";
 
 loadLocalEnv();
@@ -122,5 +122,31 @@ describe.skipIf(!DB)("histórico eleitoral TSE (fixture no formato oficial)", ()
     const [p] = (await sql`select l.person_id from identity_link l join candidacy c on c.id = l.candidacy_id where c.sq_candidato = 280000000001`) as { person_id: number }[];
     const hist = await personHistory(sql, p.person_id);
     expect(hist.map((h) => [h.year, h.office, h.votesRound1])).toEqual([[2026, "Presidente", null], [2022, "Governador", 1700], [2018, "Governador", null], [2014, "Deputado Federal", 420]]);
+  });
+
+  it("mapa: mais votado por UF soma municípios da UF (majoritário); UF sem dados fica ausente (nunca 0)", async () => {
+    const l = await leadersByUf(sql, F({ year: 2022, offices: [3] }));
+    expect(l.map((x) => x.uf)).toEqual(["RJ"]);
+    expect(l[0]).toMatchObject({ ballot_name: "HELENA", votes: "1700" });
+    expect(l[0].share).toBeCloseTo(1700 / 2500, 6);
+  });
+
+  it("comparação entre ciclos no mesmo recorte: votos null com status quando não há resultado", async () => {
+    const c = await compareCycles(sql, F({ offices: [3], ufs: ["RJ"] }));
+    const y = Object.fromEntries(c.map((x) => [x.year, x]));
+    expect(y[2022]).toMatchObject({ nominalVotes: 2500, votesStatus: "value", partiesWithVotes: 2 });
+    expect(y[2018]).toMatchObject({ nominalVotes: null });
+    expect(y[2026]).toMatchObject({ nominalVotes: null, votesStatus: "not_collected" });
+    const m = await municipalitiesOf(sql, "RJ");
+    expect(m.map((x) => x.name)).toEqual(["NITERÓI", "RIO DE JANEIRO"]);
+    const mun = await compareCycles(sql, F({ offices: [3], ufs: ["RJ"], municipality: m[0].id }));
+    expect(mun.find((x) => x.year === 2022)).toMatchObject({ nominalVotes: 200, candidacies: null });
+  });
+
+  it("candidaturas 2026 no recorte (ordem alfabética, sem ranking) com filtro de partido/nome", async () => {
+    const r = await listCandidacies(sql, F({ year: 2026, offices: [1] }));
+    expect(r.total).toBe(2);
+    expect((await listCandidacies(sql, F({ year: 2026, offices: [1], parties: ["PFB"] }))).rows.map((x) => x.ballotName)).toEqual(["ZE SILVA"]);
+    expect((await listCandidacies(sql, F({ year: 2026, offices: [1], candidateQuery: "helena" }))).total).toBe(1);
   });
 });

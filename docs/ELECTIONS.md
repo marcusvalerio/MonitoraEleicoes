@@ -34,7 +34,15 @@ npm run import:tse -- --env development --identity-only
 ```
 Produção exige `--confirm-production`. Arquivos baixados ficam em `.monitora/tse` (gitignored).
 
+## Interface
+
+- `/eleicoes` — ciclos, resultados oficiais por cargo/recorte, mapa (candidatura mais votada por UF, camada sobre o `MapCanvas`),
+  votos por partido e ciclo; com `ano=2026`: candidaturas 2026 e apuração oficial (ver APURACAO.md). `/elections` redireciona.
+- `/comparar` — comparação factual entre ciclos no mesmo recorte (candidaturas, votos nominais, partidos com votos), partidos
+  (votos e participação no cargo/recorte) e pessoas (trajetória por identidade). `?modo=social` compara menções 2026.
+- Majoritários têm recorte municipal; proporcionais só por UF (a UI informa).
+
 ## Filtros globais
 
-`src/domain/filters.ts` — estado na URL: `ano, turno, cargo, candidatura, q, partido, regiao, uf, municipio, periodo (today|24h|7d|30d|custom), de, ate, plataforma, tipo, sentimento, tema`.
+`src/domain/filters.ts` + `components/intel/FilterBar` — estado na URL: `ano, turno, cargo, candidatura, q, partido, regiao, uf, municipio, periodo (today|24h|7d|30d|custom), de, ate, plataforma, tipo, sentimento, tema`.
 Combináveis; aplicados no SQL (`src/analytics/*`), nunca no navegador.
