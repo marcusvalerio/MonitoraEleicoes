@@ -15,6 +15,7 @@ import { LiveRefresh } from "@/components/intel/LiveRefresh";
 import { OTHER, SERIES } from "@/components/intel/palette";
 import { fmtDateTime, fmtInt, fmtPct } from "@/lib/format";
 import { ElectionsExplorer } from "../elections/Explorer";
+import { EvidenceBadge } from "@/components/intel/EvidenceSection";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Eleições" };
@@ -59,7 +60,7 @@ export default async function Eleicoes({ searchParams }: { searchParams: Promise
   return (
     <div className="mx-auto max-w-[1280px] space-y-6 px-4 py-6 md:px-6">
       <PageHeader
-        eyebrow="Eleições · fonte TSE"
+        eyebrow={<EvidenceBadge kind="oficial" source="TSE" />}
         title="Eleições"
         description="Resultados oficiais de 2014, 2018 e 2022, candidaturas de 2026 e a apuração de 2026 quando o TSE publicar. Ausência de dado nunca é exibida como zero."
       />

@@ -6,6 +6,7 @@ import { PageHeader, Panel } from "@/components/ui/primitives";
 import { StateView } from "@/components/ui/states";
 import { FilterBar } from "@/components/intel/FilterBar";
 import { fmtInt } from "@/lib/format";
+import { EvidenceBadge } from "@/components/intel/EvidenceSection";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Partidos" };
@@ -13,7 +14,7 @@ export const metadata: Metadata = { title: "Partidos" };
 /** PARTIDOS — registro oficial do ciclo com candidaturas, eleitos e votos (TSE). Ordem por nº de candidaturas, não por desempenho. */
 export default async function Partidos({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sql = await intelSql();
-  const header = <PageHeader eyebrow="Partidos · fonte TSE" title="Partidos" description="Partidos registrados em cada eleição, com candidaturas, eleitos (situação oficial) e votos nominais do 1º turno." />;
+  const header = <PageHeader eyebrow={<EvidenceBadge kind="oficial" source="TSE" />} title="Partidos" description="Partidos registrados em cada eleição, com candidaturas, eleitos (situação oficial) e votos nominais do 1º turno." />;
   if (!sql)
     return (
       <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 md:px-6">

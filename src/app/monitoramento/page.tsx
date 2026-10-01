@@ -13,6 +13,7 @@ import { SeriesChart } from "@/components/intel/SeriesChart";
 import { PLATFORM_COLOR } from "@/components/intel/palette";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { fmtTime } from "@/lib/live-format";
+import { EvidenceBadge } from "@/components/intel/EvidenceSection";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Monitoramento" };
@@ -41,7 +42,7 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
   const { filter, errors } = filtersFrom(sp);
   const dim = (["platform", "candidate", "party", "topic", "total"].includes(String(sp.serie)) ? sp.serie : "platform") as SeriesDim;
   const bucket: Bucket = filter.period.preset === "30d" ? "day" : filter.period.preset === "7d" ? "day" : "hour";
-  const header = <PageHeader eyebrow="Social listening" title="Monitoramento" description="O que aparece nas fontes conectadas sobre as eleições. Métricas observadas — não indicam apoio, preferência ou intenção de voto." />;
+  const header = <PageHeader eyebrow={<EvidenceBadge kind="conversacao" source="redes conectadas" />} title="Monitoramento" description="O que aparece nas fontes conectadas sobre as eleições. Métricas observadas — não indicam apoio, preferência ou intenção de voto." />;
   if (!sql)
     return (
       <div className="mx-auto max-w-[1280px] space-y-5 px-4 py-6 md:px-6">

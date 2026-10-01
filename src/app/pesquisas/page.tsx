@@ -8,6 +8,7 @@ import { StateView } from "@/components/ui/states";
 import { FilterBar } from "@/components/intel/FilterBar";
 import { WeeklyBars } from "@/components/intel/WeeklyBars";
 import { fmtDateTime, fmtInt } from "@/lib/format";
+import { EvidenceBadge } from "@/components/intel/EvidenceSection";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Pesquisas" };
@@ -24,7 +25,7 @@ export default async function Pesquisas({ searchParams }: { searchParams: Promis
   const sql = await intelSql();
   const header = (
     <PageHeader
-      eyebrow="Pesquisas · registro TSE"
+      eyebrow={<EvidenceBadge kind="registro" source="PesqEle / TSE" />}
       title="Pesquisas eleitorais"
       description="Pesquisas registradas no TSE (PesqEle): instituto, contratante, período de campo, amostra, custo e metodologia. Percentuais por candidato não constam desta fonte."
     />

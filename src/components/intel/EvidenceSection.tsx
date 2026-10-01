@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Landmark, MessagesSquare, Mic2, Newspaper } from "lucide-react";
+import { ClipboardList, Landmark, MessagesSquare, Mic2, Newspaper } from "lucide-react";
 
 /**
  * Seção rotulada pelo TIPO DE EVIDÊNCIA — dado oficial (TSE), cobertura editorial (g1), transcrição e conversação (redes)
@@ -10,7 +10,18 @@ const META = {
   cobertura: { label: "Cobertura editorial", Icon: Newspaper, color: "var(--color-info)" },
   transcricao: { label: "Transcrição", Icon: Mic2, color: "var(--color-fg-3)" },
   conversacao: { label: "Conversação pública", Icon: MessagesSquare, color: "var(--color-warn)" },
+  registro: { label: "Registro oficial", Icon: ClipboardList, color: "var(--color-fg-2)" },
 } as const;
+
+/** Selo compacto do tipo de evidência (para cabeçalhos de página). */
+export function EvidenceBadge({ kind, source }: { kind: keyof typeof META; source: string }) {
+  const m = META[kind];
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-[4px] border px-1.5 py-0.5 text-[10.5px] font-medium tracking-[0.08em] uppercase" style={{ color: m.color, borderColor: "currentColor" }} data-testid={`evidence-badge-${kind}`}>
+      <m.Icon size={11} aria-hidden /> {m.label} · {source}
+    </span>
+  );
+}
 
 export function EvidenceSection({ kind, source, title, aside, children, id }: { kind: keyof typeof META; source: string; title: string; aside?: ReactNode; children: ReactNode; id?: string }) {
   const m = META[kind];

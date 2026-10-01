@@ -22,7 +22,7 @@ const YEAR = 2026 as const;
 const KIND: Record<Highlight["kind"], { label: string; group: string; tone: "info" | "neutral" | "warn" | "pos" }> = {
   tse: { label: "TSE", group: "Dado oficial", tone: "pos" },
   g1: { label: "g1", group: "Cobertura", tone: "info" },
-  pesquisa: { label: "TSE · Pesquisas", group: "Registro oficial", tone: "neutral" },
+  pesquisa: { label: "PesqEle", group: "Registro oficial de pesquisa", tone: "neutral" },
   redes: { label: "Redes", group: "Conversação", tone: "warn" },
 };
 const PLATFORM: Record<string, string> = { youtube: "YouTube", x: "X", facebook: "Facebook", instagram: "Instagram" };

@@ -7,6 +7,7 @@ import { PageHeader, Panel } from "@/components/ui/primitives";
 import { StateView } from "@/components/ui/states";
 import { FilterBar } from "@/components/intel/FilterBar";
 import { fmtInt } from "@/lib/format";
+import { EvidenceBadge } from "@/components/intel/EvidenceSection";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Candidatos" };
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Candidatos" };
 /** CANDIDATOS — candidaturas registradas no TSE (ordem alfabética; não é ranking). Perfil por pessoa quando há vínculo oficial. */
 export default async function Candidatos({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sql = await intelSql();
-  const header = <PageHeader eyebrow="Candidatos · fonte TSE" title="Candidatos" description="Candidaturas registradas no TSE por eleição, cargo, estado e partido. Ordem alfabética — nenhuma ordenação por desempenho." />;
+  const header = <PageHeader eyebrow={<EvidenceBadge kind="oficial" source="TSE" />} title="Candidatos" description="Candidaturas registradas no TSE por eleição, cargo, estado e partido. Ordem alfabética — nenhuma ordenação por desempenho." />;
   if (!sql)
     return (
       <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 md:px-6">
