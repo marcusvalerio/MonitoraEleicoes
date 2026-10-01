@@ -37,7 +37,7 @@ export function Panel({
 }) {
   const card = variant === "card";
   return (
-    <section id={id} className={cn("scroll-mt-20", card ? "rounded-[var(--radius-lg)] border border-border bg-surface" : "border-t border-border pt-4", className)}>
+    <section id={id} className={cn("scroll-mt-20 motion-safe:animate-[enter_320ms_cubic-bezier(.2,.7,.2,1)_both]", card ? "rounded-[var(--radius-lg)] border border-border bg-surface" : "border-t border-border pt-4", className)}>
       {(title || actions) && (
         <header className={cn("flex items-start justify-between gap-3", card ? "border-b border-border px-4 py-3" : "mb-4")}>
           <div className="min-w-0">

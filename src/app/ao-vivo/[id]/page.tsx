@@ -8,6 +8,7 @@ import { intelSql } from "@/services/intelligence";
 import { debateSocial } from "@/analytics/debate-social";
 import { COUNT_STATE_LABEL, countByUf, countView } from "@/analytics/apuracao";
 import { getBoundaries } from "@/services/geo";
+import { LiveRefresh } from "@/components/intel/LiveRefresh";
 import { EvidenceSection } from "@/components/intel/EvidenceSection";
 import { CountSummary } from "@/components/intel/CountSummary";
 import { ElectionMap } from "@/components/intel/ElectionMap";
@@ -37,6 +38,7 @@ export default async function AoVivoDebatePage({ params }: { params: Promise<{ i
   return (
     <div className="mx-auto max-w-[1200px] space-y-8 px-4 py-6 md:px-6">
       <PageHeader eyebrow={<Link href="/ao-vivo">Ao vivo</Link>} title={state.title} description="Centro operacional: dado oficial, cobertura editorial, transcrição e conversação pública — sempre separados, com fonte e horário. Tudo é lido do banco; atualizar a página não perde nada." />
+      <LiveRefresh intervalS={20} />
 
       <EvidenceSection kind="oficial" source="TSE" title="Apuração · Presidente · Brasil" aside={<Link className="hover:text-fg" href="/eleicoes?ano=2026">apuração completa →</Link>}>
         {count ? <CountSummary view={count} limit={4} /> : <p className="text-[12.5px] text-fg-3">Fonte indisponível neste ambiente.</p>}

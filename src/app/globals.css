@@ -42,6 +42,14 @@
   --text-2xs--line-height: 14px;
 
   --animate-pulse-dot: pulse-dot 1.8s ease-in-out infinite;
+  @keyframes enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes fresh {
+    from { background-color: color-mix(in srgb, var(--color-info) 18%, transparent); }
+    to { background-color: transparent; }
+  }
   @keyframes sheet-in {
     from { transform: translateY(16px); opacity: 0; }
     to { transform: none; opacity: 1; }

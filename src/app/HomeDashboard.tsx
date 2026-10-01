@@ -11,6 +11,7 @@ import { DEFAULT_FILTER } from "@/domain/filters";
 import { Panel, Tag } from "@/components/ui/primitives";
 import { StateView } from "@/components/ui/states";
 import { CountSummary } from "@/components/intel/CountSummary";
+import { LiveRefresh } from "@/components/intel/LiveRefresh";
 import { ElectionMap } from "@/components/intel/ElectionMap";
 import { SeriesChart } from "@/components/intel/SeriesChart";
 import { OpsBoard } from "@/components/intel/OpsBoard";
@@ -154,7 +155,10 @@ function Hero() {
         <p className="text-[11px] font-medium tracking-[0.12em] text-fg-3 uppercase">Brasil · Eleições {YEAR}</p>
         <h1 className="mt-1 font-display text-[30px] leading-tight font-semibold tracking-tight text-fg md:text-[36px]">O que está acontecendo, onde e com qual fonte.</h1>
       </div>
-      <p className="max-w-sm text-[12.5px] text-fg-3">Dados oficiais do TSE, cobertura editorial e conversação pública — sempre separados, com horário e origem.</p>
+      <div className="max-w-sm space-y-1 text-right">
+        <p className="text-[12.5px] text-fg-3">Dados oficiais do TSE, cobertura editorial e conversação pública — sempre separados, com horário e origem.</p>
+        <LiveRefresh intervalS={30} />
+      </div>
     </header>
   );
 }

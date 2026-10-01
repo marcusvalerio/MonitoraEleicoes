@@ -11,6 +11,7 @@ import { PageHeader, Panel, Tag } from "@/components/ui/primitives";
 import { FilterBar } from "@/components/intel/FilterBar";
 import { ElectionMap, type ElectionMapRow } from "@/components/intel/ElectionMap";
 import { CountStateTag } from "@/components/intel/CountStateTag";
+import { LiveRefresh } from "@/components/intel/LiveRefresh";
 import { OTHER, SERIES } from "@/components/intel/palette";
 import { fmtDateTime, fmtInt, fmtPct } from "@/lib/format";
 import { ElectionsExplorer } from "../elections/Explorer";
@@ -185,6 +186,7 @@ async function Counting({ sql, filter, office, round, singleUf, boundaries }: { 
   const mapRows: ElectionMapRow[] = byUf.map((u) => ({ uf: u.uf, leader: u.leader ? { id: String(u.leader.candidacyId ?? u.leader.name), name: u.leader.name, party: null, votes: u.leader.votes, share: u.leader.pct === null ? null : u.leader.pct / 100 } : null, note: COUNT_STATE_LABEL[u.state] }));
   return (
     <>
+      <LiveRefresh intervalS={30} />
       <Panel title={`Apuração 2026 · ${round}º turno`} question="Fonte: sistema oficial de divulgação de resultados do TSE (resultados.tse.jus.br)">
         {overview.length === 0 ? (
           <p className="text-[12.5px] text-fg-3" data-testid="count-empty">
