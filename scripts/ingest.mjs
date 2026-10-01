@@ -58,6 +58,7 @@ if (args.includes("--apuracao")) {
   }
   const { countTick } = await jiti.import("@/elections/apuracao/worker");
   const { TseCountProvider } = await jiti.import("@/elections/apuracao/provider");
+  const { beat } = await jiti.import("@/infrastructure/heartbeat");
   const list = (k) => (arg(k) ? arg(k).split(",").map((x) => x.trim()).filter(Boolean) : undefined);
   const o = { year: Number(arg("--year", "2026")), round: Number(arg("--round", "1")), offices: list("--offices")?.map(Number), ufs: list("--ufs")?.map((u) => u.toUpperCase()), municipalities: args.includes("--municipios"), datasetKind: datasetKind === "fixture" ? "fixture" : "production" };
   const interval = Math.max(30, Number(arg("--interval", "60"))) * 1000;
@@ -70,7 +71,11 @@ if (args.includes("--apuracao")) {
   let pass = 0;
   do {
     const offices = pass++ % propEvery === 0 ? all : all.filter((x) => [1, 3, 5].includes(x));
-    const r = offices.length ? await countTick(sql, provider, { ...o, offices }).catch((e) => (console.error(e), null)) : null;
+    const t0 = Date.now();
+    let err = null;
+    const r = offices.length ? await countTick(sql, provider, { ...o, offices }).catch((e) => ((err = e.message), console.error(e), null)) : null;
+    const failed = err ?? (r && r.errors && !r.newSnapshots && !r.unchanged ? `${r.errors} falhas, nenhum arquivo lido` : null);
+    await beat(sql, "apuracao", { ok: !failed, error: failed ?? (r?.errors ? `${r.errors} arquivo(s) com falha` : null), durationMs: Date.now() - t0, collected: r ? r.newSnapshots + r.unchanged : 0, changed: r?.newSnapshots ?? 0, rejected: r?.errors ?? 0, intervalS: interval / 1000 }).catch(() => {});
     if (r) console.log(JSON.stringify({ msg: "apuracao.tick", ...r }));
     if (args.includes("--once")) break;
     for (let t = 0; t < interval && !stop; t += 1000) await new Promise((r) => setTimeout(r, 1000));

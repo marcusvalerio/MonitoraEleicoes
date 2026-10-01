@@ -1,3 +1,4 @@
+import { beat } from "@/infrastructure/heartbeat";
 import type { Sql } from "@/persistence/db";
 import type { Source } from "@/domain/types";
 import type { SocialMonitor } from "@/domain/social";
@@ -70,14 +71,21 @@ export async function socialTick(sql: Sql, m: SocialMonitor, deps: SocialWorkerD
 export async function runSocialWorker(sql: Sql, deps: SocialWorkerDeps, o: { intervalMs: number; shouldStop: () => boolean; sleep?: (ms: number) => Promise<void> }) {
   const sleep = o.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   while (!o.shouldStop()) {
+    const t0 = Date.now();
+    let error: string | null = null;
     try {
       for (const m of await listMonitors(sql, "active")) {
         if (o.shouldStop()) break;
-        await socialTick(sql, m, deps).catch((e) => log("error", "social.tick_failed", { monitor_id: m.id, error: (e as Error).message }));
+        await socialTick(sql, m, deps).catch((e) => {
+          error = `${m.id}: ${(e as Error).message}`;
+          log("error", "social.tick_failed", { monitor_id: m.id, error: (e as Error).message });
+        });
       }
     } catch (e) {
-      log("error", "social.db_unavailable", { error: (e as Error).message });
+      error = (e as Error).message;
+      log("error", "social.db_unavailable", { error: error });
     }
+    await beat(sql, "social", { ok: !error, error, durationMs: Date.now() - t0, intervalS: Math.round(o.intervalMs / 1000) }).catch(() => {});
     if (!o.shouldStop()) await sleep(o.intervalMs);
   }
 }

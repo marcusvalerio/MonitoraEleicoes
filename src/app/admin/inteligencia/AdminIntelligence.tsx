@@ -3,10 +3,12 @@
 import { useCallback, useState } from "react";
 import { Tag, buttonCls } from "@/components/ui/primitives";
 import { fmtDateTime, fmtInt } from "@/lib/format";
+import { OpsBoard } from "@/components/intel/OpsBoard";
 
 const input = "w-full rounded-[var(--radius-sm)] border border-border bg-bg px-2 py-1.5 text-[13px] text-fg";
 type R = Record<string, unknown>;
 interface State {
+  ops: import("@/analytics/operations").OpsRow[];
   sources: R[];
   monitors: R[];
   elections: R[];
@@ -58,6 +60,10 @@ export function AdminIntelligence() {
       </div>
       {data && (
         <>
+          <section>
+            <h2 className="mb-2 text-[14px] text-fg">Operação</h2>
+            <OpsBoard rows={data.ops} />
+          </section>
           <section>
             <h2 className="mb-2 text-[14px] text-fg">Fontes sociais</h2>
             <table className="w-full text-[12.5px]" data-testid="admin-sources">

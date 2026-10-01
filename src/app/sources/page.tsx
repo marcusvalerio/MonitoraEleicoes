@@ -9,6 +9,9 @@ import { CONFIDENCE_LABEL } from "@/domain/quality";
 import { TIMING_LABEL } from "@/domain/labels";
 import { DemoBadge, PageHeader, Panel, Tag } from "@/components/ui/primitives";
 import { Notice } from "@/components/ui/states";
+import { intelSql } from "@/services/intelligence";
+import { operationsStatus } from "@/analytics/operations";
+import { OpsBoard } from "@/components/intel/OpsBoard";
 
 export const metadata: Metadata = { title: "Fontes" };
 
@@ -30,10 +33,19 @@ export default async function SourcesPage() {
   const p = { mode: repo.mode };
   const status = await repo.getDataStatus();
   const editorialSources = await repo.getEditorialSources();
+  const isql = await intelSql();
+  const ops = isql ? await operationsStatus(isql).catch(() => null) : null;
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 px-4 py-6 md:px-6">
       <PageHeader eyebrow="Fontes" title="De onde vem cada dado" description="Toda informação exibida aponta para uma fonte registrada, com tipo, provider, data de referência, data de coleta e status." />
+      {ops ? (
+        <Panel title="Estado operacional" question="Cada fonte e worker, a partir do que foi registrado — nada é presumido">
+          <OpsBoard rows={ops} showErrors={false} />
+        </Panel>
+      ) : (
+        p.mode !== "demo" && <Notice state="partial">Estado operacional indisponível: base de dados não configurada ou não provisionada neste ambiente.</Notice>
+      )}
       {p.mode === "demo" && (
         <Notice state="partial">
           Modo demonstração: fontes marcadas <DemoBadge /> produzem dados fictícios. Fontes oficiais (TSE) aparecem como não configuradas — nenhum número eleitoral é exibido até a importação oficial.
