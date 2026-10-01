@@ -182,7 +182,7 @@ export default async function SourcesPage() {
       )}
       <Panel title="Ingestão" question="Cada provider: registros recebidos, normalizados e rejeitados. Rejeições nunca são corrigidas silenciosamente." bodyClassName="overflow-x-auto">
         <p className="mb-3 text-[12px] text-fg-3" data-testid="storage">
-          Armazenamento: {status.persistence === "postgres" ? "PostgreSQL (Neon) — última execução por provider" : "memória do processo (perfil de demonstração/teste)"} · ingerido em {fmtDateTime(status.ingestedAt)}
+          Armazenamento: {status.persistence === "postgres" ? "PostgreSQL (Neon) — última execução por provider" : p.mode === "live" ? "memória do processo — arquivos reais (data/real); base de dados indisponível neste ambiente" : "memória do processo (perfil de teste automatizado)"} · ingerido em {fmtDateTime(status.ingestedAt)}
         </p>
         <table className="w-full min-w-[720px] font-[family-name:var(--font-data)] text-[12px]">
           <thead>
