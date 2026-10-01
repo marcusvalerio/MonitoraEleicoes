@@ -21,6 +21,7 @@ const PAGES: SearchHit[] = [
   { kind: "pagina", id: "overview", title: "Overview", href: "/overview" },
   { kind: "pagina", id: "debates", title: "Debates", href: "/debates" },
   { kind: "pagina", id: "social", title: "Repercussão", href: "/social" },
+  { kind: "pagina", id: "apuracao", title: "Apuração 2026", subtitle: "Resultado oficial (TSE) em tempo real", href: "/apuracao" },
   { kind: "pagina", id: "eleicoes", title: "Eleições", subtitle: "Histórico oficial (TSE) e apuração 2026", href: "/eleicoes" },
   { kind: "pagina", id: "pesquisas", title: "Pesquisas", subtitle: "Pesquisas registradas no TSE", href: "/pesquisas" },
   { kind: "pagina", id: "comparar", title: "Comparar", subtitle: "Ciclos, partidos e trajetórias", href: "/comparar" },

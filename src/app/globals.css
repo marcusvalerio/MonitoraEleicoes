@@ -29,9 +29,10 @@
   --color-grp-4: #c98500;
   --color-grp-5: #9085e9;
 
-  --font-display: var(--font-familjen), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
-  --font-data: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-general), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-data: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-num: var(--font-clash), var(--font-geist-sans), ui-sans-serif, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
   --radius-sm: 4px;
@@ -42,6 +43,19 @@
   --text-2xs--line-height: 14px;
 
   --animate-pulse-dot: pulse-dot 1.8s ease-in-out infinite;
+  @keyframes map-in {
+    from { opacity: 0; transform: scale(0.96); filter: blur(2px); }
+    to { opacity: 1; transform: none; filter: none; }
+  }
+  @keyframes sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+  @keyframes live-in {
+    0% { opacity: 0; letter-spacing: 0.4em; }
+    30% { opacity: 1; }
+    100% { opacity: 1; letter-spacing: 0.14em; }
+  }
   @keyframes enter {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: none; }

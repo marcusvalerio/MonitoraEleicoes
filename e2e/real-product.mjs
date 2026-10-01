@@ -4,7 +4,7 @@
 import { chromium } from "playwright";
 
 const B = process.env.BASE_URL || "http://localhost:3000";
-const ROUTES = ["/", "/ao-vivo", "/eleicoes", "/eleicoes?ano=2026", "/eleicoes?ano=2022&cargo=3&uf=SP", "/candidatos", "/partidos", "/partido/PT", "/pesquisas", "/comparar?partido=PT,PL", "/monitoramento", "/fontes", "/metodologia", "/debates"];
+const ROUTES = ["/", "/apuracao", "/ao-vivo", "/eleicoes", "/eleicoes?ano=2026", "/eleicoes?ano=2022&cargo=3&uf=SP", "/candidatos", "/partidos", "/partido/PT", "/pesquisas", "/comparar?partido=PT,PL", "/monitoramento", "/fontes", "/metodologia", "/debates"];
 const FORBIDDEN = /fictíci|simulad|\(E2E\)|Demonstração|\b0 votos\b|vencedor|ganhou a eleição|melhor candidat/i;
 let fail = 0;
 const ok = (c, m) => {
@@ -38,6 +38,19 @@ await p.getByLabel("Termo de busca").fill("São Paulo");
 const found = await p.getByRole("dialog").getByText(/Estado · SP|Município/).first().waitFor({ timeout: 8000 }).then(() => true, () => false);
 ok(found, "busca global: estados/municípios reais");
 await p.keyboard.press("Escape");
+// apuração: estado explícito; estrela acompanha sem reordenar a classificação oficial
+await p.goto(B + "/apuracao", { waitUntil: "networkidle" });
+ok(/não iniciada|ao vivo|encerrada|indisponível/i.test(await p.getByTestId("live-status").innerText()), "apuração: estado explícito");
+const order = () => p.$$eval("[data-testid=board-row]", (r) => r.map((x) => x.dataset.sq).join());
+const before = await order();
+if (before) {
+  await p.getByTestId("follow-toggle").last().click();
+  await p.waitForTimeout(600);
+  ok((await order()) === before, "apuração: acompanhar não altera a ordem oficial");
+  ok((await p.getByTestId("followed-panel").locator("li").count()) >= 1, "apuração: SEU ACOMPANHAMENTO mostra a candidatura");
+  ok((await p.getByTestId("elected-badge").count()) === 0 || /Totalizada|encerrada/i.test(await p.textContent("body")), "apuração: ELEITO só com totalização oficial");
+  await p.getByTestId("follow-toggle").last().click();
+}
 await m.goto(B + "/", { waitUntil: "networkidle" });
 await m.getByTestId("mobile-menu").click();
 ok((await m.getByRole("dialog", { name: "Menu" }).getByRole("link").count()) >= 12, "mobile: gaveta com navegação completa");
