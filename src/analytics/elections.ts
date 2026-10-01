@@ -387,3 +387,16 @@ export async function candidacyByUf(sql: Sql, candidacyId: number) {
     [candidacyId],
   )) as { uf: string; votes: string; total: string; share: number | null }[];
 }
+
+/** Partidos de um ciclo (registro oficial): candidaturas, eleitos (situação oficial) e votos nominais no 1º turno. */
+export async function partiesOverview(sql: Sql, year: number) {
+  return (await sql.query(
+    `with c as (select c.id, c.party_acronym as acronym, ${ELECTED} as elected from candidacy c where c.year = $1),
+          v as (select c.acronym, sum(r.votes)::bigint as votes from c join result_candidacy r on r.candidacy_id = c.id and r.round = 1 and r.votes_status = 'value' group by 1),
+          k as (select acronym, count(*)::int as candidacies, count(*) filter (where elected)::int as elected from c group by 1)
+     select p.acronym, p.number, p.name, p.federation, coalesce(k.candidacies, 0) as candidacies, k.elected, v.votes
+     from party_registration p left join k on k.acronym = p.acronym left join v on v.acronym = p.acronym
+     where p.year = $1 order by coalesce(k.candidacies, 0) desc, p.acronym`,
+    [year],
+  )) as { acronym: string; number: number; name: string; federation: string | null; candidacies: number; elected: number | null; votes: string | null }[];
+}

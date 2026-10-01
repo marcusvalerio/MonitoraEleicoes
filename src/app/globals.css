@@ -42,6 +42,10 @@
   --text-2xs--line-height: 14px;
 
   --animate-pulse-dot: pulse-dot 1.8s ease-in-out infinite;
+  @keyframes sheet-in {
+    from { transform: translateY(16px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
   @keyframes pulse-dot {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.35; transform: scale(0.85); }

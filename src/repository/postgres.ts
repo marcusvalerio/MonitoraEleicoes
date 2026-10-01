@@ -175,7 +175,9 @@ export class PostgresRepository implements Repository {
     for (const r of segments as Row[]) addSrc(r.debate_id as string, r.rec_source_id as string);
     for (const r of media as Row[]) if (r.debate_id) addSrc(r.debate_id as string, store.sourceRecords.get(r.source_record_id as string)?.sourceId);
     // Dados sintéticos (datasets demo/fixture deixados por testes) nunca aparecem na aplicação real.
-    const hidden = syntheticAllowed() ? new Set<string>() : new Set((debates as Row[]).filter((r) => mode(r.dataset_id) === "demo").map((r) => r.id as string));
+    // Também eventos criados por testes E2E (ids "e2e-…"/"live-e2e-…"), mesmo quando reaproveitam transcrição real.
+    const isTest = (id: string) => /^(live-)?e2e-/.test(id);
+    const hidden = syntheticAllowed() ? new Set<string>() : new Set((debates as Row[]).filter((r) => mode(r.dataset_id) === "demo" || isTest(r.id as string)).map((r) => r.id as string));
     for (const r of debates as Row[]) {
       if (hidden.has(r.id as string)) continue;
       const d: Debate = {
@@ -398,7 +400,7 @@ export class PostgresRepository implements Repository {
           from candidate c left join party p on p.id = c.party_id`,
     ]);
     const d = (deb as Row[])[0];
-    if (d && (d.kind === "demo" || d.kind === "fixture") && !syntheticAllowed()) return null;
+    if (d && (d.kind === "demo" || d.kind === "fixture" || /^(live-)?e2e-/.test(d.id as string)) && !syntheticAllowed()) return null;
     if (!d) return null;
     const dataMode: DataMode = d.kind === "demo" || d.kind === "fixture" ? "demo" : "live";
     const segs = (rows as Row[]).map((r) => segmentFromRow(r, dataMode, r.source_record_id ? { recordId: r.source_record_id as string, externalId: r.rec_external_id as string, providerId: r.rec_provider_id as string } : undefined));

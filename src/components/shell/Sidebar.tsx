@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { navGroups, navItems } from "./nav";
+import { MOBILE_PRIMARY, navGroups, navItems } from "./nav";
 import { LogoMark } from "./Logo";
 
 export function Sidebar({ currentDebateId }: { currentDebateId: string | null }) {
@@ -59,22 +61,53 @@ export function Sidebar({ currentDebateId }: { currentDebateId: string | null })
 
 export function MobileNav({ currentDebateId }: { currentDebateId: string | null }) {
   const path = usePathname();
-  const items = navItems(currentDebateId).filter((i) => ["Overview", "Ao Vivo", "Repercussão", "Mapa", "Fontes"].includes(i.label));
+  const [open, setOpen] = useState(false);
+  const items = navItems(currentDebateId).filter((i) => MOBILE_PRIMARY.includes(i.label));
   return (
-    <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-      <ul className="grid grid-cols-5">
-        {items.map((it) => {
-          const active = it.match(path);
-          return (
-            <li key={it.label}>
-              <Link href={it.href} aria-current={active ? "page" : undefined} className={cn("flex h-14 flex-col items-center justify-center gap-1 text-[10.5px]", active ? "text-fg" : "text-fg-3")}>
-                <it.icon size={17} strokeWidth={active ? 2 : 1.6} aria-hidden />
-                {it.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <>
+      {open && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <button type="button" aria-label="Fechar menu" className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+          <nav className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-[var(--radius-lg,12px)] border-t border-border bg-surface p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] motion-safe:animate-[sheet-in_220ms_ease-out]" aria-label="Navegação completa">
+            {navGroups(currentDebateId).map((g) => (
+              <div key={g.label} className="mb-3">
+                <p className="mb-1 px-2 text-[10.5px] font-medium tracking-[0.08em] text-fg-3 uppercase">{g.label}</p>
+                <ul>
+                  {g.items.map((it) => (
+                    <li key={it.href}>
+                      <Link href={it.href} onClick={() => setOpen(false)} aria-current={it.match(path) ? "page" : undefined} className={cn("flex h-10 items-center gap-2.5 rounded-[var(--radius-sm)] px-2 text-[14px]", it.match(path) ? "bg-elevated text-fg" : "text-fg-2")}>
+                        <it.icon size={16} aria-hidden />
+                        {it.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
+        </div>
+      )}
+      <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+        <ul className="grid grid-cols-5">
+          {items.map((it) => {
+            const active = it.match(path);
+            return (
+              <li key={it.label}>
+                <Link href={it.href} aria-current={active ? "page" : undefined} className={cn("flex h-14 flex-col items-center justify-center gap-1 text-[10.5px]", active ? "text-fg" : "text-fg-3")}>
+                  <it.icon size={17} strokeWidth={active ? 2 : 1.6} aria-hidden />
+                  {it.label}
+                </Link>
+              </li>
+            );
+          })}
+          <li>
+            <button type="button" onClick={() => setOpen(true)} aria-expanded={open} className="flex h-14 w-full flex-col items-center justify-center gap-1 text-[10.5px] text-fg-3" data-testid="mobile-menu">
+              <Menu size={17} strokeWidth={1.6} aria-hidden />
+              Menu
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </>
   );
 }
