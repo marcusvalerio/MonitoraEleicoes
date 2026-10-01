@@ -46,3 +46,11 @@ Produção exige `--confirm-production`. Arquivos baixados ficam em `.monitora/t
 
 `src/domain/filters.ts` + `components/intel/FilterBar` — estado na URL: `ano, turno, cargo, candidatura, q, partido, regiao, uf, municipio, periodo (today|24h|7d|30d|custom), de, ate, plataforma, tipo, sentimento, tema`.
 Combináveis; aplicados no SQL (`src/analytics/*`), nunca no navegador.
+
+## Pesquisas eleitorais (`/pesquisas`)
+
+Fonte: TSE · Dados Abertos, pacote `pesquisas-eleitorais-<ano>` (PesqEle): registro, contratantes e metodologia.
+`npm run import:tse -- --env development --year 2026 --kind polls [--refresh]` (diário; heartbeat `pesquisas`).
+Tabelas `poll` e `poll_contractor` (migration 0009). **A fonte não publica percentuais por candidato**:
+`results_status = not_available` e a UI exibe "Percentual não disponível nesta fonte". CPF de contratante pessoa física é
+descartado na leitura. Importado no dev: 2026 (3.467 registros) e 2022 (2.971).

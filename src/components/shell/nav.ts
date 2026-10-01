@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Columns2, BookOpen, Database, LayoutDashboard, Landmark, Map, MessagesSquare, Mic2, Radio } from "lucide-react";
+import { Activity, BarChart3, ClipboardList, Columns2, BookOpen, Database, LayoutDashboard, Landmark, Map, MessagesSquare, Mic2, Radio } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -31,6 +31,7 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
       label: "Explorar",
       items: [
         { href: "/eleicoes", label: "Eleições", icon: Landmark, match: (p) => p.startsWith("/eleicoes") || p.startsWith("/candidatos") },
+        { href: "/pesquisas", label: "Pesquisas", icon: ClipboardList, match: (p) => p.startsWith("/pesquisas") },
         { href: "/comparar", label: "Comparar", icon: Columns2, match: (p) => p.startsWith("/comparar") },
         { href: "/map", label: "Mapa", icon: Map, match: (p) => p.startsWith("/map") },
         { href: "/analyses", label: "Análises", icon: BarChart3, match: (p) => p.startsWith("/analyses"), phase: "P2" },

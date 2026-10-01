@@ -2,6 +2,7 @@
 /**
  * Importação do histórico eleitoral OFICIAL (TSE · Dados Abertos). Uso:
  *   npm run import:tse -- --env development --year 2022 [--kind candidacies|results|all] [--identity]
+ *   npm run import:tse -- --env development --year 2026 --kind polls [--refresh]   # pesquisas registradas (PesqEle)
  *   npm run import:tse -- --env development --identity-only
  * Baixa o ZIP oficial para .monitora/tse (gitignored), calcula SHA-256 e lê em streaming (unzip -p).
  * Lê SOMENTE o arquivo *_BRASIL.csv (os arquivos por UF duplicam o conteúdo).
@@ -38,7 +39,7 @@ const cacheDir = path.join(root, ".monitora", "tse");
 mkdirSync(cacheDir, { recursive: true });
 function download(url) {
   const file = path.join(cacheDir, path.basename(url));
-  if (!existsSync(file)) {
+  if (!existsSync(file) || args.includes("--refresh")) {
     console.error(JSON.stringify({ msg: "tse.download", url }));
     const r = spawnSync("curl", ["-sSf", "-o", file, url], { stdio: "inherit" });
     if (r.status !== 0) throw new Error(`download falhou: ${url}`);
@@ -59,6 +60,24 @@ function member(file) {
 
 const year = Number(arg("--year"));
 const kind = arg("--kind", "all");
+if (kind === "polls") {
+  // Pesquisas registradas no TSE: registro, não percentuais. Heartbeat do "worker" de pesquisas.
+  const polls = await jiti.import("@/elections/polls/importer");
+  const { beat } = await jiti.import("@/infrastructure/heartbeat");
+  const t0 = Date.now();
+  try {
+    const url = polls.pollsUrl(year);
+    const file = download(url);
+    const cfile = download(polls.pollsUrl(year, "pesquisa_contratante"));
+    const r = await polls.importPolls(sql, year, member(file), member(cfile), { url, sha256: await sha256(file) });
+    await beat(sql, "pesquisas", { ok: true, durationMs: Date.now() - t0, collected: r.read, changed: r.written, rejected: r.rejected, intervalS: 86_400 });
+    console.log(JSON.stringify({ msg: "tse.polls", year, ...r }));
+  } catch (e) {
+    await beat(sql, "pesquisas", { ok: false, error: e.message, durationMs: Date.now() - t0, intervalS: 86_400 }).catch(() => {});
+    throw e;
+  }
+  process.exit(0);
+}
 if (!args.includes("--identity-only")) {
   if (![2014, 2018, 2022, 2026].includes(year)) {
     console.error("--year deve ser 2014, 2018, 2022 ou 2026");
