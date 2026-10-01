@@ -31,8 +31,8 @@ MONITORA_ALLOW_SYNTHETIC=1 DATA_MODE=demo npm start   # servidor de TESTE (dados
 npm run e2e                                                    # perfil demo (teste)
 BASE_URL=http://localhost:3002 DEBATE_ID=fx-show-0001 npm run e2e  # perfil fixture
 BASE_URL=http://localhost:3004 npm run e2e:real:pg             # perfil live (debate real lido do PostgreSQL)
-BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:live   # ingestão contínua: admin → worker → Neon → /ao-vivo
-BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:g1     # g1 editorial (fixture local; servidor com G1_ALLOWED_HOSTS=127.0.0.1:4599)
+BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:live   # servidor de teste com MONITORA_ALLOW_SYNTHETIC=1;# ingestão contínua: admin → worker → Neon → /ao-vivo
+BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:g1     # idem;# g1 editorial (fixture local; servidor com G1_ALLOWED_HOSTS=127.0.0.1:4599)
 npm run ingest:g1 -- --dry-run --url <URL>                       # teste REAL do g1 sem gravar (docs/G1-PROVIDER.md)
 ```
 
