@@ -7,7 +7,7 @@ sintético recusado em produção). Banco `main` do Neon: migrations 0001–0002
 1. **Snapshot** do branch `main` no Neon (ponto de retorno).
 2. **Migrations** 0003–0010: `node scripts/db-migrate.mjs --env production` (exige `DATABASE_URL_PRODUCTION`).
 3. **Importação TSE** (produção, `--confirm-production`): candidaturas+resultados 2014/2018/2022, candidaturas 2026,
-   `--identity`; pesquisas 2026 (`--kind polls`). Requer `IDENTITY_HASH_KEY` (o mesmo valor guardado com segurança).
+   `--identity`; pesquisas 2026 (`--kind polls`); fotos oficiais 2026 dos cargos majoritários (`--kind photos`). Requer `IDENTITY_HASH_KEY` (o mesmo valor guardado com segurança).
 4. **Variáveis na Vercel** (Production): `DATABASE_URL` (Neon main), `DATA_MODE=live`, `IDENTITY_HASH_KEY`, `ADMIN_TOKEN`;
    opcionais `X_API_BEARER_TOKEN`, `YOUTUBE_API_KEY`. Nunca `MONITORA_ALLOW_SYNTHETIC`.
 5. **Merge** de `feat/p0-mvp` em `main` (PR) → deploy.
