@@ -31,7 +31,7 @@ export default async function Compare({ searchParams }: { searchParams: Promise<
     <PageHeader
       eyebrow="Comparar"
       title="Comparar eleições"
-      description="Ciclos, partidos e trajetórias lado a lado, com dados oficiais do TSE. Sem ranking, vencedor ou indicador que os dados não sustentem."
+      description="Ciclos, partidos e trajetórias lado a lado, com dados oficiais do TSE. Sem ranking nem indicador que os dados não sustentem."
     />
   );
   const tabs = (

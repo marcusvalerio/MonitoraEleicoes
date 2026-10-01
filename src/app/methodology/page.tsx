@@ -142,7 +142,7 @@ export default async function MethodologyPage() {
             <p className="flex flex-wrap items-center gap-2">
               Modo atual: {mode === "demo" ? <DemoBadge /> : <Tag tone="pos">LIVE</Tag>}
             </p>
-            <p>A aplicação usa somente dados reais. Dados fictícios existem apenas nos testes automatizados (perfis de teste, recusados em produção). Classificador em uso: <span className="font-mono text-[12px]">{ai?.providerId.replace("ai:", "") ?? "—"}</span>. Dados de teste e reais nunca são misturados.</p>
+            <p>A aplicação usa somente dados reais. Dados sintéticos existem apenas nos testes automatizados (perfis de teste, recusados em produção). Classificador em uso: <span className="font-mono text-[12px]">{ai?.providerId.replace("ai:", "") ?? "—"}</span>. Dados de teste e reais nunca são misturados.</p>
           </S>
         </article>
       </div>
