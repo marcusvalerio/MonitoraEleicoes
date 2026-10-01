@@ -1,16 +1,33 @@
 import { MAJORITARIAN, UF_IBGE } from "@/elections/reference";
+import { syntheticAllowed } from "@/providers/profile-guard";
 
 /**
  * DESCOBERTA OFICIAL da apuração: configuração do TSE → códigos da eleição → arquivos de resultado.
  * Nada de URL de eleição fixa no código: só o host e o caminho da configuração comum (documentados pelo TSE).
  * Hosts permitidos restritos ao domínio oficial (anti-SSRF): toda URL passa por assertAllowedUrl.
  */
-export const TSE_RESULTS_BASE = "https://resultados.tse.jus.br/oficial";
+export const OFFICIAL_BASE = "https://resultados.tse.jus.br/oficial";
 export const ALLOWED_HOSTS = new Set(["resultados.tse.jus.br"]);
-export const CONFIG_URL = `${TSE_RESULTS_BASE}/comum/config/ele-c.json`;
+
+/**
+ * Servidor de REPLAY local (somente demonstração/teste): MONITORA_TSE_BASE=http://127.0.0.1:<porta>/oficial.
+ * Aceito apenas quando dados sintéticos são permitidos (nunca em produção) e só em loopback.
+ */
+export function replayBase(env: Record<string, string | undefined> = process.env): string | null {
+  const b = env.MONITORA_TSE_BASE;
+  if (!b || !syntheticAllowed(env)) return null;
+  const u = new URL(b);
+  return u.protocol === "http:" && (u.hostname === "127.0.0.1" || u.hostname === "localhost") && u.pathname.replace(/\/$/, "") === "/oficial" ? b.replace(/\/$/, "") : null;
+}
+export const tseBase = () => replayBase() ?? OFFICIAL_BASE;
+/** Compat: base oficial (constante). */
+export const TSE_RESULTS_BASE = OFFICIAL_BASE;
+export const configUrl = () => `${tseBase()}/comum/config/ele-c.json`;
 
 export function assertAllowedUrl(raw: string): URL {
   const u = new URL(raw);
+  const rb = replayBase();
+  if (rb && raw.startsWith(`${rb}/`)) return u; // replay local de demonstração (bloqueado em produção)
   if (u.protocol !== "https:" || !ALLOWED_HOSTS.has(u.hostname) || u.username || u.password || (u.port && u.port !== "443"))
     throw new Error(`URL fora do domínio oficial do TSE: ${u.protocol}//${u.host}`);
   if (!u.pathname.startsWith("/oficial/")) throw new Error(`caminho não permitido: ${u.pathname}`);
@@ -78,7 +95,7 @@ export function countFileUrl(e: Pick<CountElection, "cycle" | "code">, office: n
   const uf = scope.uf.toLowerCase();
   if (!/^[a-z]{2}$/.test(uf)) throw new Error(`UF inválida: ${scope.uf}`);
   const abr = scope.municipalityTseCode ? `${uf}${String(scope.municipalityTseCode).padStart(5, "0")}` : uf;
-  const url = `${TSE_RESULTS_BASE}/${e.cycle}/${e.code}/dados/${uf}/${abr}-c${String(office).padStart(4, "0")}-e${String(e.code).padStart(6, "0")}-u.json`;
+  const url = `${tseBase()}/${e.cycle}/${e.code}/dados/${uf}/${abr}-c${String(office).padStart(4, "0")}-e${String(e.code).padStart(6, "0")}-u.json`;
   assertAllowedUrl(url);
   return url;
 }

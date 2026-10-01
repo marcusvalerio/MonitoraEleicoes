@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { assertAllowedUrl, countFileUrl, discoverElections } from "./config";
+import { assertAllowedUrl, countFileUrl, discoverElections, replayBase } from "./config";
 import { normalizeCountFile, tseDateTime } from "./normalize";
 import { TseCountProvider } from "./provider";
 
@@ -133,5 +133,19 @@ describe("provider", () => {
     expect(r.status === "ok" && r.sha256.length).toBe(64);
     await expect(p.get("https://example.com/oficial/x")).rejects.toThrow(/fora do domínio/);
     expect(calls).toBe(1);
+  });
+});
+
+describe("replay local de demonstração (MONITORA_TSE_BASE)", () => {
+  const base = "http://127.0.0.1:4600/oficial";
+  it("aceito só com dados sintéticos permitidos e em loopback", () => {
+    expect(replayBase({ MONITORA_TSE_BASE: base, MONITORA_ALLOW_SYNTHETIC: "1" })).toBe(base);
+    expect(replayBase({ MONITORA_TSE_BASE: base })).toBeNull();
+  });
+  it("recusado em produção mesmo com a flag; host externo ou outro caminho recusados", () => {
+    expect(replayBase({ MONITORA_TSE_BASE: base, MONITORA_ALLOW_SYNTHETIC: "1", VERCEL_ENV: "production" })).toBeNull();
+    expect(replayBase({ MONITORA_TSE_BASE: base, MONITORA_ALLOW_SYNTHETIC: "1", MONITORA_ENV: "production" })).toBeNull();
+    expect(replayBase({ MONITORA_TSE_BASE: "http://evil.com/oficial", MONITORA_ALLOW_SYNTHETIC: "1" })).toBeNull();
+    expect(replayBase({ MONITORA_TSE_BASE: "http://127.0.0.1:4600/x", MONITORA_ALLOW_SYNTHETIC: "1" })).toBeNull();
   });
 });

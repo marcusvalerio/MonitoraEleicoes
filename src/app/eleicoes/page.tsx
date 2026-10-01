@@ -3,7 +3,7 @@ import Link from "next/link";
 import { intelSql, filtersFrom } from "@/services/intelligence";
 import { getBoundaries } from "@/services/geo";
 import { electionsSummary, leadersByUf, listCandidacies, municipalitiesOf, partyHistory, resultsTable } from "@/analytics/elections";
-import { COUNT_STATE_LABEL, countByUf, countOverview, countView, type CountState, type CountView } from "@/analytics/apuracao";
+import { COUNT_STATE_LABEL, countByUf, countOverview, countView, hasCount, type CountState, type CountView } from "@/analytics/apuracao";
 import { MAJORITARIAN, OFFICES, UF_IBGE } from "@/elections/reference";
 import { effectiveUfs } from "@/domain/filters";
 import { REGIONS } from "@/elections/reference";
@@ -55,7 +55,7 @@ export default async function Eleicoes({ searchParams }: { searchParams: Promise
   const proportional = !MAJORITARIAN.has(office);
   const [summary, municipalities, boundaries] = await Promise.all([electionsSummary(sql), singleUf ? municipalitiesOf(sql, singleUf) : Promise.resolve([]), getBoundaries("uf")]);
   const cycle = summary.find((e) => e.year === filter.year);
-  const counting = filter.year === 2026;
+  const counting = filter.year === 2026 || (await hasCount(sql, filter.year));
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-6 px-4 py-6 md:px-6">
@@ -178,17 +178,22 @@ async function History({ sql, filter, office, proportional, boundaries, cycleSta
 async function Counting({ sql, filter, office, round, singleUf, boundaries }: { sql: Sql; filter: F; office: number; round: number; singleUf: string | null; boundaries: B }) {
   const territoryId = office === 1 && !singleUf ? 0 : singleUf ? UF_IBGE[singleUf] : null;
   const [overview, byUf, view, cands] = await Promise.all([
-    countOverview(sql, 2026, round),
-    countByUf(sql, { year: 2026, round, officeId: office }),
-    territoryId !== null && territoryId !== undefined ? countView(sql, { year: 2026, round, officeId: office, territoryId }) : Promise.resolve(null),
+    countOverview(sql, filter.year, round),
+    countByUf(sql, { year: filter.year, round, officeId: office }),
+    territoryId !== null && territoryId !== undefined ? countView(sql, { year: filter.year, round, officeId: office, territoryId }) : Promise.resolve(null),
     listCandidacies(sql, filter, 60),
   ]);
   const ents = entitiesFor(byUf.filter((u) => u.leader).map((u) => ({ id: String(u.leader!.candidacyId ?? u.leader!.name), name: u.leader!.name, party: null, votes: u.leader!.votes })));
   const mapRows: ElectionMapRow[] = byUf.map((u) => ({ uf: u.uf, leader: u.leader ? { id: String(u.leader.candidacyId ?? u.leader.name), name: u.leader.name, party: null, votes: u.leader.votes, share: u.leader.pct === null ? null : u.leader.pct / 100 } : null, note: COUNT_STATE_LABEL[u.state] }));
   return (
     <>
-      <LiveRefresh intervalS={30} />
-      <Panel title={`Apuração 2026 · ${round}º turno`} question="Fonte: sistema oficial de divulgação de resultados do TSE (resultados.tse.jus.br)">
+      {view?.snapshot?.datasetKind && view.snapshot.datasetKind !== "production" && (
+        <div role="note" className="rounded-[var(--radius)] border border-warn/40 bg-warn-bg px-4 py-3 text-[12.5px] text-warn" data-testid="demo-banner">
+          <strong className="font-semibold">DEMONSTRAÇÃO · ambiente de teste.</strong> Replay controlado da apuração com totais oficiais do TSE de {filter.year}; a ordem e o horário de chegada dos estados são da demonstração, não da apuração real.
+        </div>
+      )}
+      <LiveRefresh intervalS={15} />
+      <Panel title={`Apuração ${filter.year} · ${round}º turno`} question="Fonte: sistema oficial de divulgação de resultados do TSE (resultados.tse.jus.br)">
         {overview.length === 0 ? (
           <p className="text-[12.5px] text-fg-3" data-testid="count-empty">
             <CountStateTag state="nao_coletada" /> Nenhum arquivo de apuração coletado ainda. A coleta começa quando o worker <code>--apuracao</code> estiver ativo; até lá não há números.
@@ -197,7 +202,7 @@ async function Counting({ sql, filter, office, round, singleUf, boundaries }: { 
           <ul className="grid gap-px overflow-hidden rounded-[var(--radius-sm)] border border-border bg-border sm:grid-cols-3" data-testid="count-overview">
             {overview.map((o) => (
               <li key={o.officeId} className="bg-surface p-3">
-                <Link href={`/eleicoes?ano=2026&cargo=${o.officeId}`} className="flex items-center justify-between text-[13px] text-fg hover:underline">
+                <Link href={`/eleicoes?ano=${filter.year}&cargo=${o.officeId}`} className="flex items-center justify-between text-[13px] text-fg hover:underline">
                   {officeName(o.officeId)} {o.br && <CountStateTag state={o.br.state} />}
                 </Link>
                 <p className="mt-1 text-[11.5px] text-fg-3">
@@ -216,7 +221,7 @@ async function Counting({ sql, filter, office, round, singleUf, boundaries }: { 
           </Panel>
         )}
         <Panel title="Estado da apuração por UF" question={officeName(office)}>
-          <ElectionMap boundaries={boundaries} rows={mapRows} entities={ents} title={`Mapa da apuração 2026, ${officeName(office)}`} />
+          <ElectionMap boundaries={boundaries} rows={mapRows} entities={ents} title={`Mapa da apuração ${filter.year}, ${officeName(office)}`} />
           <dl className="mt-3 space-y-1.5 text-[12px]" data-testid="count-by-uf">
             {(Object.keys(COUNT_STATE_LABEL) as CountState[]).map((st) => {
               const list = byUf.filter((u) => u.state === st);
@@ -232,7 +237,7 @@ async function Counting({ sql, filter, office, round, singleUf, boundaries }: { 
         </Panel>
       </div>
 
-      <Panel title={`Candidaturas 2026 · ${officeName(office)}`} question={`${fmtInt(cands.total)} candidaturas registradas no recorte (TSE · Dados Abertos) — ordem alfabética`}>
+      <Panel title={`Candidaturas ${filter.year} · ${officeName(office)}`} question={`${fmtInt(cands.total)} candidaturas registradas no recorte (TSE · Dados Abertos) — ordem alfabética`}>
         <ul className="grid gap-x-6 text-[12.5px] sm:grid-cols-2 lg:grid-cols-3" data-testid="candidacies-2026">
           {cands.rows.map((c) => (
             <li key={c.candidacyId} className="flex items-baseline gap-2 border-t border-border/60 py-1.5">

@@ -62,6 +62,8 @@ export interface CountView {
     nullVotes: M;
     sourceUrl: string | null;
     rawHash: string | null;
+    /** "production" | "fixture" (demonstração/teste) — UI sinaliza demonstração. */
+    datasetKind: string | null;
   };
   candidates: CountCandidateRow[];
 }
@@ -88,7 +90,7 @@ export async function countView(sql: Sql, q: { year: number; round: number; offi
   const [t] = (await sql`select id, uf, tse_code from territory where id = ${q.territoryId}`) as { id: number; uf: string | null; tse_code: number | null }[];
   const stream = `apuracao:${q.year}:${q.round}:${q.officeId}:${abrOf(q.territoryId, t?.tse_code ?? null, t?.uf ?? null)}`;
   const [att] = (await sql`select cursor, updated_at from ingestion_checkpoint where provider_id = ${COUNT_PROVIDER_ID} and stream = ${`${stream}:status`}`) as { cursor: string; updated_at: string }[];
-  const [s] = (await sql`select s.*, sr.source_url, rr.hash as raw_hash from count_snapshot s left join source_record sr on sr.id = s.source_record_id left join raw_record rr on rr.id = s.raw_record_id
+  const [s] = (await sql`select s.*, sr.source_url, rr.hash as raw_hash, ds.kind as dataset_kind from count_snapshot s left join source_record sr on sr.id = s.source_record_id left join dataset ds on ds.id = sr.dataset_id left join raw_record rr on rr.id = s.raw_record_id
     where s.year = ${q.year} and s.round = ${q.round} and s.office_id = ${q.officeId} and s.territory_id = ${q.territoryId}
     order by s.source_generated_at desc, s.id desc limit 1`) as Row[];
   const lastAttempt = att ? { status: att.cursor, at: new Date(att.updated_at).toISOString() } : null;
@@ -116,6 +118,7 @@ export async function countView(sql: Sql, q: { year: number; round: number; offi
       nullVotes: meas(s.null_votes, s.null_votes_status),
       sourceUrl: (s.source_url as string) ?? null,
       rawHash: (s.raw_hash as string) ?? null,
+      datasetKind: (s.dataset_kind as string) ?? null,
     },
     candidates: cands.map((c) => ({
       sqCandidato: Number(c.sq_candidato),
@@ -170,4 +173,10 @@ export async function countOverview(sql: Sql, year: number, round: number, nowMs
     out.push({ officeId: o.office_id, br: o.office_id === 1 ? await countView(sql, { year, round, officeId: 1, territoryId: BR }, nowMs) : null, ufStates });
   }
   return out;
+}
+
+/** Há retratos de apuração para o ano (ex.: 2026 real; replay de demonstração só em teste)? */
+export async function hasCount(sql: Sql, year: number) {
+  const [r] = (await sql`select exists (select 1 from count_snapshot where year = ${year}) as e`) as { e: boolean }[];
+  return r.e;
 }

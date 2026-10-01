@@ -1,4 +1,4 @@
-import { CONFIG_URL, assertAllowedUrl } from "./config";
+import { assertAllowedUrl, configUrl } from "./config";
 import { sha256 } from "./normalize";
 
 /**
@@ -24,7 +24,7 @@ export class TseCountProvider {
   ) {}
 
   async fetchConfig(): Promise<unknown> {
-    const r = await this.get(CONFIG_URL);
+    const r = await this.get(configUrl());
     if (r.status !== "ok") throw new Error(`configuração oficial indisponível (HTTP ${r.httpStatus})`);
     return r.json;
   }
