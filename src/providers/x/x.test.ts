@@ -49,7 +49,7 @@ describe("X · API v2 (busca recente)", () => {
     expect(n).toMatchObject({ type: "social_record", value: { id: "x:post:2", platform: "x", contentType: "reply", parentId: "x:post:1", rootId: "x:post:1", authorDisplayName: null } });
     const m = normalize(r.records.find((x) => x.externalId === "metrics:1")!, { mode: "live" } as never, "src-social-x");
     expect(m).toMatchObject({ type: "social_metrics", value: { metrics: { likes: 3, replies: 1, shares: 0 } } });
-    expect((m.value as { metrics: Record<string, number> }).metrics).not.toHaveProperty("views"); // impressões ausentes ⇒ ausente
+    expect((m.value as unknown as { metrics: Record<string, number> }).metrics).not.toHaveProperty("views"); // impressões ausentes ⇒ ausente
   });
   it("orçamento de posts esgotado ⇒ janela parcial", async () => {
     const { f } = fakeX([{ data: Array.from({ length: 10 }, (_, i) => post(String(i), "TSE")), meta: { next_token: "1" } }, { data: [post("99", "TSE")], meta: {} }]);
