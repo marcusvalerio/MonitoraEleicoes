@@ -6,7 +6,7 @@ import { assertTestDatabase, createSql, type Sql } from "@/persistence/db";
 import { resetTestDatabase } from "@/persistence/testing";
 import { importCandidacies } from "@/elections/tse/importer";
 import { candCsv } from "@/elections/tse/fixtures";
-import { countByUf, countView } from "@/analytics/apuracao";
+import { countByUf, countView, followedStatus } from "@/analytics/apuracao";
 import { TseCountProvider } from "./provider";
 import { countTick } from "./worker";
 
@@ -118,6 +118,15 @@ describe.skipIf(!DB)("apuração oficial (fixtures TSE → worker → Neon test 
     await tick(sql, { [P_BR]: partial(PRE, "499248", ["700", "300", "0"], "s"), [G_AC]: GOV }, NOW + 180_000);
     expect(await n(sql, "select count(*)::int n from count_snapshot")).toBe(s);
     expect(await n(sql, "select count(*)::int n from count_candidate")).toBe(c);
+  });
+
+  it("acompanhados: posição oficial na própria disputa (candidatura do banco ou linha oficial); SQ desconhecido ignorado", async () => {
+    const r = await followedStatus(sql, 2026, 1, ["280002551544", "280002542548", "999999999999"]);
+    expect(r).toHaveLength(2);
+    const flavio = r.find((x) => x.sq === "280002551544")!;
+    expect(flavio).toMatchObject({ candidacyId: null, officeId: 1, uf: "BR", position: 1, of: 13, votes: { value: 700, status: "value" } });
+    const l = r.find((x) => x.sq === "280002542548")!;
+    expect(l).toMatchObject({ candidacyId: lula, position: 3, votes: { value: 0, status: "value" } });
   });
 
   it("proporcional (UF): só o retrato mais recente guarda votação por candidatura; RAW nos marcos (fase/30 min/final)", async () => {

@@ -180,3 +180,75 @@ export async function hasCount(sql: Sql, year: number) {
   const [r] = (await sql`select exists (select 1 from count_snapshot where year = ${year}) as e`) as { e: boolean }[];
   return r.e;
 }
+
+/**
+ * Situação OFICIAL de candidaturas acompanhadas pelo usuário (favoritos): posição e votos na PRÓPRIA disputa
+ * (Presidente ⇒ BR; demais ⇒ UF da candidatura), lidos do retrato mais recente. Não altera nenhum ranking.
+ */
+export async function followedStatus(sql: Sql, year: number, round: number, sqs: string[]) {
+  if (!sqs.length) return [];
+  const rows = (await sql.query(
+    `with c as (
+       select c.id, c.sq_candidato, c.office_id, o.name as office, c.ballot_name, c.name, c.party_acronym, c.ballot_number,
+              case when c.office_id = 1 then 0 else coalesce(tt.id, ut.id) end as race_territory, coalesce(t.uf, 'BR') as uf, l.person_id
+       from candidacy c join office o on o.id = c.office_id join territory t on t.id = c.territory_id
+       left join territory tt on tt.id = c.territory_id and tt.level = 'uf' left join territory ut on ut.level = 'uf' and ut.uf = t.uf
+       left join identity_link l on l.candidacy_id = c.id and l.status in ('resolved', 'manual')
+       where c.year = $1 and c.sq_candidato = any($2::bigint[])),
+     snap as (
+       select distinct on (s.office_id, s.territory_id) s.id, s.office_id, s.territory_id, s.phase, s.collected_at, s.source_generated_at
+       from count_snapshot s where s.year = $1 and s.round = $3 and (s.office_id, s.territory_id) in (select office_id, race_territory from c)
+       order by s.office_id, s.territory_id, s.source_generated_at desc, s.id desc),
+     ranked as (
+       select cc.snapshot_id, cc.sq_candidato, cc.votes, cc.votes_status, cc.pct, cc.pct_status, cc.elected, cc.situation,
+              case when cc.votes_status = 'value' then rank() over (partition by cc.snapshot_id order by cc.votes desc nulls last) end as pos,
+              count(*) over (partition by cc.snapshot_id) as n
+       from count_candidate cc where cc.snapshot_id in (select id from snap))
+     select c.*, snap.phase, snap.collected_at, r.votes, r.votes_status, r.pct, r.pct_status, r.elected, r.situation, r.pos, r.n
+     from c left join snap on snap.office_id = c.office_id and snap.territory_id = c.race_territory
+     left join ranked r on r.snapshot_id = snap.id and r.sq_candidato = c.sq_candidato`,
+    [year, sqs, round],
+  )) as Row[];
+  // Sem registro de candidatura no banco: usa a própria linha oficial da apuração (BR p/ Presidente, UF nos demais).
+  const missing = sqs.filter((q) => !rows.some((r) => String(r.sq_candidato) === q));
+  if (missing.length)
+    rows.push(
+      ...((await sql.query(
+        `with snap as (
+           select distinct on (s.office_id, s.territory_id) s.id, s.office_id, s.territory_id, s.phase, s.collected_at
+           from count_snapshot s where s.year = $1 and s.round = $3 and (s.office_id = 1) = (s.territory_id = 0)
+           order by s.office_id, s.territory_id, s.source_generated_at desc, s.id desc),
+         ranked as (
+           select cc.*, snap.office_id, snap.territory_id, snap.phase, snap.collected_at,
+                  case when cc.votes_status = 'value' then rank() over (partition by cc.snapshot_id order by cc.votes desc nulls last) end as pos,
+                  count(*) over (partition by cc.snapshot_id) as n
+           from count_candidate cc join snap on snap.id = cc.snapshot_id)
+         select distinct on (r.sq_candidato) r.sq_candidato, null::int as id, r.office_id, o.name as office, coalesce(t.uf, 'BR') as uf,
+                r.ballot_name, r.ballot_name as name, r.party_acronym, r.ballot_number, null::int as person_id, r.phase, r.collected_at,
+                r.votes, r.votes_status, r.pct, r.pct_status, r.elected, r.situation, r.pos, r.n
+         from ranked r join office o on o.id = r.office_id left join territory t on t.id = r.territory_id
+         where r.sq_candidato = any($2::bigint[]) order by r.sq_candidato, r.territory_id`,
+        [year, missing, round],
+      )) as Row[]),
+    );
+  return rows.map((r) => ({
+    sq: String(r.sq_candidato),
+    candidacyId: (r.id as number) ?? null,
+    personId: (r.person_id as number) ?? null,
+    officeId: r.office_id as number,
+    office: r.office as string,
+    uf: r.uf as string,
+    ballotName: r.ballot_name as string,
+    name: r.name as string,
+    party: (r.party_acronym as string) ?? null,
+    number: (r.ballot_number as number) ?? null,
+    phase: (r.phase as string) ?? null,
+    collectedAt: r.collected_at ? new Date(r.collected_at as string).toISOString() : null,
+    votes: meas(r.votes, r.votes_status ?? "not_collected"),
+    pct: meas(r.pct, r.pct_status ?? "not_collected"),
+    position: r.pos === null || r.pos === undefined ? null : Number(r.pos),
+    of: r.n === null || r.n === undefined ? null : Number(r.n),
+    elected: (r.elected as boolean) ?? null,
+    situation: (r.situation as string) ?? null,
+  }));
+}
