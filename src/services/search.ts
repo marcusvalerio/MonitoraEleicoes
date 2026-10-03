@@ -19,7 +19,6 @@ const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 
 const PAGES: SearchHit[] = [
   { kind: "pagina", id: "overview", title: "Overview", href: "/overview" },
-  { kind: "pagina", id: "debates", title: "Debates", href: "/debates" },
   { kind: "pagina", id: "social", title: "Repercussão", href: "/social" },
   { kind: "pagina", id: "apuracao", title: "Apuração 2026", subtitle: "Resultado oficial (TSE) em tempo real", href: "/apuracao" },
   { kind: "pagina", id: "eleicoes", title: "Eleições", subtitle: "Histórico oficial (TSE) e apuração 2026", href: "/eleicoes" },
@@ -58,7 +57,8 @@ async function electoral(term: string, raw: string): Promise<SearchHit[]> {
 export async function search(q: string, limit = 24): Promise<SearchHit[]> {
   const term = norm(q.trim());
   const repo = await getRepository();
-  const debates = await repo.listDebates();
+  // Debates fora do produto (ocultos): a busca não indexa debates, temas, eventos nem falas.
+  const debates: Awaited<ReturnType<typeof repo.listDebates>> = [];
   const cands = await repo.getCandidates();
   const sources = await repo.getSources();
   if (!term) return PAGES.slice(0, limit);

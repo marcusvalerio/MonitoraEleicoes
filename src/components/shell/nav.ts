@@ -1,4 +1,4 @@
-import { Activity, ClipboardList, Columns2, Flag, Users, BookOpen, Database, LayoutDashboard, Landmark, Vote, Map, MessagesSquare, Mic2, Radio } from "lucide-react";
+import { Activity, ClipboardList, Columns2, Flag, Users, BookOpen, Database, LayoutDashboard, Landmark, Radio } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -20,14 +20,12 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
       label: "Acompanhar",
       items: [
         { href: "/", label: "Visão geral", icon: LayoutDashboard, match: (p) => p === "/" || p.startsWith("/overview") },
-        { href: "/ao-vivo", label: "Ao vivo", icon: Radio, match: (p) => p.startsWith("/ao-vivo") || p.endsWith("/live") },
-        { href: "/debates", label: "Debates", icon: Mic2, match: (p) => p.startsWith("/debates") && !p.endsWith("/live") },
+        { href: "/apuracao", label: "Ao vivo", icon: Radio, match: (p) => p.startsWith("/apuracao") || p.startsWith("/ao-vivo") },
       ],
     },
     {
       label: "Eleições",
       items: [
-        { href: "/apuracao", label: "Apuração", icon: Vote, match: (p) => p.startsWith("/apuracao") },
         { href: "/eleicoes", label: "Eleições", icon: Landmark, match: (p) => p.startsWith("/eleicoes") },
         { href: "/candidatos", label: "Candidatos", icon: Users, match: (p) => p.startsWith("/candidato") },
         { href: "/partidos", label: "Partidos", icon: Flag, match: (p) => p.startsWith("/partido") },
@@ -39,8 +37,6 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
       label: "Conversação",
       items: [
         { href: "/monitoramento", label: "Redes", icon: Activity, match: (p) => p.startsWith("/monitoramento") },
-        { href: "/social", label: "Repercussão de debates", icon: MessagesSquare, match: (p) => p.startsWith("/social") },
-        { href: "/map", label: "Mapa da repercussão", icon: Map, match: (p) => p.startsWith("/map") },
       ],
     },
     {

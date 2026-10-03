@@ -118,7 +118,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Buscar candidato, partido, eleição, estado, município, debate…"
+            placeholder="Buscar candidato, partido, eleição, estado, município…"
             className="h-11 flex-1 bg-transparent text-[13.5px] text-fg outline-none placeholder:text-fg-3"
             aria-label="Termo de busca"
           />
