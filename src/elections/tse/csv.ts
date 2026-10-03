@@ -1,7 +1,7 @@
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 
-/** CSV do TSE: separador ";", campos entre aspas, codificação latin1. Streaming linha a linha. */
+/** CSV do TSE: separador ";", campos entre aspas (podem conter quebras de linha), codificação latin1. Streaming. */
 export function parseTseLine(line: string): string[] {
   const out: string[] = [];
   let cur = "";
@@ -32,7 +32,13 @@ export async function* tseRows(input: Readable): AsyncGenerator<Record<string, s
   input.setEncoding("latin1");
   const rl = createInterface({ input, crlfDelay: Infinity });
   let header: string[] | null = null;
-  for await (const line of rl) {
+  let buf: string | null = null;
+  for await (const raw of rl) {
+    // Campo entre aspas com quebra de linha (ex.: metodologia de pesquisas): junta até fechar as aspas.
+    buf = buf === null ? raw : `${buf}\n${raw}`;
+    if ((buf.match(/"/g)?.length ?? 0) % 2 === 1) continue;
+    const line = buf;
+    buf = null;
     if (!line) continue;
     const cells = parseTseLine(line);
     if (!header) {

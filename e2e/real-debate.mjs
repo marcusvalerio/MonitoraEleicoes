@@ -19,7 +19,7 @@ const text = async (path) => {
 };
 const api = async (path) => (await fetch(B + path)).json();
 
-for (const r of ["/", "/overview", "/debates", `/debates/${D}`, `/debates/${D}/live`, `/debates/${D}/analytics`, "/social", "/map", "/sources", "/methodology", "/elections"]) {
+for (const r of ["/", "/overview", "/debates", `/debates/${D}`, `/debates/${D}/live`, `/debates/${D}/analytics`, "/social", "/map", "/sources", "/methodology", "/elections", "/eleicoes", "/comparar"]) {
   ok((await p.goto(B + r, { waitUntil: "networkidle" })).status() === 200, `${r} 200`);
 }
 

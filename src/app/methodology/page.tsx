@@ -142,7 +142,7 @@ export default async function MethodologyPage() {
             <p className="flex flex-wrap items-center gap-2">
               Modo atual: {mode === "demo" ? <DemoBadge /> : <Tag tone="pos">LIVE</Tag>}
             </p>
-            <p>No modo demonstração, todos os dados são fictícios e gerados de forma determinística: 4 participantes, cerca de 100 falas, 12 temas, eventos e repercussão social simulada. Classificador em uso: <span className="font-mono text-[12px]">{ai?.providerId.replace("ai:", "") ?? "—"}</span>. Dados demo e reais nunca são misturados: a troca é feita no servidor pela variável <span className="font-mono text-[12px]">DATA_MODE</span>.</p>
+            <p>A aplicação usa somente dados reais. Dados sintéticos existem apenas nos testes automatizados (perfis de teste, recusados em produção). Classificador em uso: <span className="font-mono text-[12px]">{ai?.providerId.replace("ai:", "") ?? "—"}</span>. Dados de teste e reais nunca são misturados.</p>
           </S>
         </article>
       </div>

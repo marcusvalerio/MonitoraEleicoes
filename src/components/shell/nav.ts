@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Database, LayoutDashboard, Landmark, Map, MessagesSquare, Mic2, Radio } from "lucide-react";
+import { Activity, ClipboardList, Columns2, Flag, Users, BookOpen, Database, LayoutDashboard, Landmark, Radio, Gauge } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -14,34 +14,46 @@ export interface NavGroup {
 }
 
 export function navGroups(currentDebateId: string | null): NavGroup[] {
-  const live = currentDebateId ? `/debates/${currentDebateId}/live` : "/debates";
+  void currentDebateId;
   return [
     {
       label: "Acompanhar",
       items: [
-        { href: "/overview", label: "Overview", icon: LayoutDashboard, match: (p) => p === "/" || p.startsWith("/overview") },
-        { href: "/debates", label: "Debates", icon: Mic2, match: (p) => p.startsWith("/debates") && !p.endsWith("/live") },
-        { href: live, label: "Ao Vivo", icon: Radio, match: (p) => p.endsWith("/live") },
-        { href: "/ao-vivo", label: "Ingestão", icon: Radio, match: (p) => p.startsWith("/ao-vivo") },
-        { href: "/social", label: "Repercussão", icon: MessagesSquare, match: (p) => p.startsWith("/social") },
+        { href: "/", label: "Visão geral", icon: LayoutDashboard, match: (p) => p === "/" || p.startsWith("/overview") },
+        { href: "/apuracao", label: "Ao vivo", icon: Radio, match: (p) => p.startsWith("/apuracao") || p.startsWith("/ao-vivo") },
       ],
     },
     {
-      label: "Explorar",
+      label: "Eleições",
       items: [
-        { href: "/elections", label: "Eleições", icon: Landmark, match: (p) => p.startsWith("/elections"), phase: "P1" },
-        { href: "/map", label: "Mapa", icon: Map, match: (p) => p.startsWith("/map") },
-        { href: "/analyses", label: "Análises", icon: BarChart3, match: (p) => p.startsWith("/analyses"), phase: "P2" },
+        { href: "/eleicoes", label: "Eleições", icon: Landmark, match: (p) => p.startsWith("/eleicoes") },
+        { href: "/candidatos", label: "Candidatos", icon: Users, match: (p) => p.startsWith("/candidato") },
+        { href: "/partidos", label: "Partidos", icon: Flag, match: (p) => p.startsWith("/partido") },
+        { href: "/pesquisas", label: "Pesquisas", icon: ClipboardList, match: (p) => p.startsWith("/pesquisas") },
+        { href: "/comparar", label: "Comparar", icon: Columns2, match: (p) => p.startsWith("/comparar") },
+      ],
+    },
+    {
+      label: "Campanha",
+      items: [{ href: "/avaliacao", label: "Avaliação", icon: Gauge, match: (p) => p.startsWith("/avaliacao") }],
+    },
+    {
+      label: "Conversação",
+      items: [
+        { href: "/monitoramento", label: "Redes", icon: Activity, match: (p) => p.startsWith("/monitoramento") },
       ],
     },
     {
       label: "Referência",
       items: [
-        { href: "/sources", label: "Fontes", icon: Database, match: (p) => p.startsWith("/sources") },
-        { href: "/methodology", label: "Metodologia", icon: BookOpen, match: (p) => p.startsWith("/methodology") },
+        { href: "/fontes", label: "Fontes", icon: Database, match: (p) => p.startsWith("/fontes") || p.startsWith("/sources") },
+        { href: "/metodologia", label: "Metodologia", icon: BookOpen, match: (p) => p.startsWith("/metodologia") || p.startsWith("/methodology") },
       ],
     },
   ];
 }
+
+/** Itens fixos da barra inferior no mobile (o restante fica no menu/gaveta). */
+export const MOBILE_PRIMARY = ["Visão geral", "Ao vivo", "Eleições", "Avaliação"];
 
 export const navItems = (id: string | null) => navGroups(id).flatMap((g) => g.items);

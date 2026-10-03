@@ -12,6 +12,7 @@ import { FilePressProvider, FileRegistryElectionProvider, FileTranscriptProvider
 import { LIVE_SOURCES } from "./files/sources";
 import { ReplayLiveTranscriptProvider, type ReplaySpeed } from "./replay";
 import { G1LiveEditorialProvider, G1_PROVIDER_ID } from "./g1";
+import { XProvider } from "./x";
 import { YouTubeProvider } from "./youtube";
 import { PLATFORM_MATRIX, UnavailableSocialProvider } from "./social/catalog";
 import type { SocialListeningProvider } from "./contracts";
@@ -22,11 +23,15 @@ import { FIXTURE_SOURCES } from "./fixture/sources";
 /**
  * ÚNICO ponto de seleção de providers. Nenhuma outra camada testa "é demo?".
  *
- *   DATA_MODE=demo     → providers DEMO (padrão)
- *   DATA_MODE=fixture  → providers alternativos (formatos diferentes; prova de desacoplamento)
- *   DATA_MODE=live     → dados reais (arquivos importados em data/real; redes sociais não configuradas)
+ *   DATA_MODE=live     → dados reais (PADRÃO — única opção da aplicação real)
+ *   DATA_MODE=demo     → providers DEMO (dados fictícios) — SOMENTE testes automatizados
+ *   DATA_MODE=fixture  → providers alternativos (prova de desacoplamento) — SOMENTE testes automatizados
+ *
+ * Perfis sintéticos exigem MONITORA_ALLOW_SYNTHETIC=1 (ou NODE_ENV=test) e são SEMPRE recusados em produção
+ * (VERCEL_ENV=production ou MONITORA_ENV=production): nesses casos o perfil efetivo é "live".
  */
-export type ProfileId = "demo" | "fixture" | "live";
+export type { ProfileId } from "./profile-guard";
+import type { ProfileId } from "./profile-guard";
 
 export type { ClockSpec } from "@/lib/clock";
 import type { ClockSpec } from "@/lib/clock";
@@ -49,10 +54,8 @@ export interface ProviderProfile {
   persistence: "memory" | "postgres";
 }
 
-export function getProfileId(): ProfileId {
-  const v = process.env.DATA_MODE;
-  return v === "live" || v === "fixture" ? v : "demo";
-}
+export { getProfileId, syntheticAllowed } from "./profile-guard";
+import { getProfileId } from "./profile-guard";
 
 export function buildProfile(id: ProfileId): ProviderProfile {
   if (id === "fixture") {
@@ -163,5 +166,6 @@ export function buildControlProviders(
  */
 export function buildSocialProviders(env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch, now: () => number = Date.now): SocialListeningProvider[] {
   const yt = new YouTubeProvider({ apiKey: env.YOUTUBE_API_KEY, hashKey: env.IDENTITY_HASH_KEY, budget: Number(env.YOUTUBE_QUOTA_PER_RUN ?? 1500) }, fetchImpl, now);
-  return [yt, ...PLATFORM_MATRIX.filter((e) => e.platform !== "youtube").map((e) => new UnavailableSocialProvider(e))];
+  const x = new XProvider({ bearerToken: env.X_API_BEARER_TOKEN, hashKey: env.IDENTITY_HASH_KEY, maxPosts: Number(env.X_MAX_POSTS_PER_RUN ?? 500) }, fetchImpl, now);
+  return [x, yt, ...PLATFORM_MATRIX.filter((e) => e.platform !== "youtube" && e.platform !== "x").map((e) => new UnavailableSocialProvider(e))];
 }

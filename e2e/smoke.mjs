@@ -5,7 +5,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || u
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 const errs = []; p.on("pageerror", (e) => errs.push(String(e))); p.on("console", (m) => m.type() === "error" && errs.push(m.text()));
 let fail = 0; const ok = (c, m) => { console.log(c ? "PASS" : "FAIL", m); if (!c) fail++; };
-for (const r of ["/", "/overview", "/debates", `/debates/${D}`, `/debates/${D}/live`, `/debates/${D}/analytics`, "/social", "/map", "/map?territorio=UF:RJ", "/elections", "/elections/2026/RJ/rio", "/analyses", "/sources", "/methodology", "/api/debates", `/api/debates/${D}/transcript?limit=5`, "/api/repercussion?granularity=900", "/api/repercussion/candidates", "/api/elections/2026-geral/results", "/api/sources", ...EXTRA]) {
+for (const r of ["/", "/overview", "/debates", `/debates/${D}`, `/debates/${D}/live`, `/debates/${D}/analytics`, "/social", "/map", "/map?territorio=UF:RJ", "/elections", "/elections/2026/RJ/rio", "/eleicoes", "/analyses", "/sources", "/methodology", "/api/debates", `/api/debates/${D}/transcript?limit=5`, "/api/repercussion?granularity=900", "/api/repercussion/candidates", "/api/elections/2026-geral/results", "/api/sources", ...EXTRA]) {
   const res = await p.goto(B + r, { waitUntil: "networkidle" }); ok(res.status() === 200, `${r} ${res.status()}`);
 }
 ok((await p.goto(B + "/debates/nope")).status() === 404, "404 debate inexistente");

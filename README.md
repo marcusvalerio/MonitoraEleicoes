@@ -16,20 +16,23 @@ npm run test:db      # testes de persistência (branch Neon 'test'; requer DATAB
 
 Banco (perfil `live`): PostgreSQL no Neon — `npm run db:migrate`, `npm run ingest -- --env development`. Setup completo em [`docs/DATABASE.md`](docs/DATABASE.md).
 
-Perfis de dados (`DATA_MODE`, resolvido em tempo de execução; o indicador global do shell informa o perfil):
+Perfis de dados (`DATA_MODE`, resolvido em tempo de execução). **A aplicação real usa somente `live`** (padrão).
+`demo` e `fixture` contêm dados fictícios e existem apenas para testes automatizados: exigem `MONITORA_ALLOW_SYNTHETIC=1`
+(ou `NODE_ENV=test`) e são recusados em produção (`VERCEL_ENV`/`MONITORA_ENV=production`) — `src/providers/profile-guard.ts`.
 
 | Perfil | Dados |
 |---|---|
-| `demo` (padrão) | fictícios, sem nenhuma API externa |
-| `fixture` | fictícios, providers alternativos (formatos de origem diferentes) — prova de desacoplamento |
-| `live` | **reais**, persistidos no PostgreSQL (Neon) pelo worker de ingestão a partir de `data/real` (hoje: debate para o Governo do RJ, TV Globo, 29/09/2026 — considerações finais, dataset `validation`) |
+| `live` (padrão) | **reais**, persistidos no PostgreSQL (Neon): TSE (histórico e apuração), debates reais (`data/real`), g1, redes conectadas |
+| `demo` (só testes) | fictícios, sem nenhuma API externa |
+| `fixture` (só testes) | fictícios, providers alternativos — prova de desacoplamento |
 
 ```bash
-npm run e2e                                                    # perfil demo
+MONITORA_ALLOW_SYNTHETIC=1 DATA_MODE=demo npm start   # servidor de TESTE (dados fictícios)
+npm run e2e                                                    # perfil demo (teste)
 BASE_URL=http://localhost:3002 DEBATE_ID=fx-show-0001 npm run e2e  # perfil fixture
 BASE_URL=http://localhost:3004 npm run e2e:real:pg             # perfil live (debate real lido do PostgreSQL)
-BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:live   # ingestão contínua: admin → worker → Neon → /ao-vivo
-BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:g1     # g1 editorial (fixture local; servidor com G1_ALLOWED_HOSTS=127.0.0.1:4599)
+BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:live   # servidor de teste com MONITORA_ALLOW_SYNTHETIC=1;# ingestão contínua: admin → worker → Neon → /ao-vivo
+BASE_URL=http://localhost:3004 ADMIN_TOKEN=… npm run e2e:g1     # idem;# g1 editorial (fixture local; servidor com G1_ALLOWED_HOSTS=127.0.0.1:4599)
 npm run ingest:g1 -- --dry-run --url <URL>                       # teste REAL do g1 sem gravar (docs/G1-PROVIDER.md)
 ```
 

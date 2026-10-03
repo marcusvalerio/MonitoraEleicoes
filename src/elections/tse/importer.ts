@@ -17,7 +17,7 @@ export const candidaciesUrl = (y: number) => `${TSE_BASE}/consulta_cand/consulta
 export const resultsUrl = (y: number) => `${TSE_BASE}/votacao_candidato_munzona/votacao_candidato_munzona_${y}.zip`;
 
 type Row = Record<string, unknown>;
-async function bulk(sql: Sql, table: string, cols: [string, string][], rows: Row[], conflict: string, returning = "", chunk = 2000) {
+export async function bulk(sql: Sql, table: string, cols: [string, string][], rows: Row[], conflict: string, returning = "", chunk = 2000) {
   const out: Row[] = [];
   const names = cols.map((c) => c[0]).join(", ");
   const defs = cols.map(([n, t]) => `${n} ${t}`).join(", ");
@@ -44,15 +44,15 @@ export async function seedReference(sql: Sql) {
   await bulk(sql, "territory", [["id", "int"], ["level", "text"], ["name", "text"], ["uf", "text"], ["parent_id", "int"], ["ibge_code", "int"]], terr, "on conflict (id) do nothing");
 }
 
-async function startBatch(sql: Sql, year: number, kind: string, url: string, sha256: string | null) {
+export async function startBatch(sql: Sql, year: number, kind: string, url: string, sha256: string | null) {
   const id = randomUUID();
   await sql`insert into import_batch (id, year, kind, source_url, file_sha256, status) values (${id}, ${year}, ${kind}, ${url}, ${sha256}, 'running')`;
   return id;
 }
-async function finishBatch(sql: Sql, id: string, c: { read: number; written: number; rejected: number; error?: string }) {
+export async function finishBatch(sql: Sql, id: string, c: { read: number; written: number; rejected: number; error?: string }) {
   await sql`update import_batch set status = ${c.error ? "failed" : "completed"}, rows_read = ${c.read}, rows_written = ${c.written}, rows_rejected = ${c.rejected}, error = ${c.error ?? null}, finished_at = now() where id = ${id}`;
 }
-async function sourceRecord(sql: Sql, o: { datasetId: string; datasetKind: string; kind: string; year: number; url: string; sha256: string | null }) {
+export async function sourceRecord(sql: Sql, o: { datasetId: string; datasetKind: string; kind: string; year: number; url: string; sha256: string | null }) {
   await sql`insert into dataset (id, kind, description) values (${o.datasetId}, ${o.datasetKind}, 'Histórico eleitoral oficial (TSE · Dados Abertos)') on conflict (id) do nothing`;
   await sql`insert into source (id, dataset_id, name, type, provider, provider_id, provider_kind, url, status, description)
     values ('src-tse', ${o.datasetId}, 'TSE · Dados Abertos', 'official', 'TSE', 'tse-dados-abertos', 'election', 'https://dadosabertos.tse.jus.br', 'connected', 'Candidaturas e resultados oficiais por município/zona (arquivos públicos).')

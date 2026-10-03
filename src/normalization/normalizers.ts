@@ -543,4 +543,23 @@ const ytStats: Fn = (r) => {
   return { type: "social_metrics", value: { recordId: `youtube:video:${p.video_id}`, metrics: clean({ views: num(p.statistics.viewCount), likes: num(p.statistics.likeCount), comments: num(p.statistics.commentCount) }), at: r.collectedAt } };
 };
 
-Object.assign(NORMALIZERS, { "youtube.video-stats/v1": ytStats, "youtube.video/v1": ytVideo, "youtube.comment/v1": ytComment, "g1.live-post/v1": g1Post, "live.event/v1": liveEvent, "live.segment/v1": liveSegment, "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });
+// ───────── SOCIAL LISTENING (X) ─────────
+import type { XPostMetricsV1, XPostV1 } from "@/providers/x";
+const xPost: Fn = (r, ctx, sourceId) => {
+  const p = r.payload as XPostV1;
+  if (!p.post_id) fail(r, "post sem id", "post_id");
+  if (!p.text?.trim()) fail(r, "post sem texto", "text");
+  const root = p.conversation_id && p.conversation_id !== p.post_id ? `x:post:${p.conversation_id}` : null;
+  return {
+    type: "social_record",
+    value: { id: `x:post:${p.post_id}`, platform: "x", providerId: r.providerId, externalId: r.externalId, monitorId: null, contentType: p.replied_to ? "reply" : "post", parentId: p.replied_to ? `x:post:${p.replied_to}` : null, rootId: root, authorHash: p.author_hash, authorDisplayName: null, publishedAt: p.created_at, collectedAt: r.collectedAt, title: null, text: p.text, language: p.lang, permalink: r.sourceUrl, mediaType: null, metrics: {}, contentHash: payloadHash(p), provenance: { nature: "collected", sourceId, mode: ctx.mode, record: ref(r) } },
+  };
+};
+const xMetrics: Fn = (r) => {
+  const p = r.payload as XPostMetricsV1;
+  const m = p.public_metrics ?? {};
+  // só o que a API devolveu (impression_count pode faltar) — ausente nunca vira 0
+  return { type: "social_metrics", value: { recordId: `x:post:${p.post_id}`, metrics: clean({ views: num(m.impression_count), likes: num(m.like_count), replies: num(m.reply_count), shares: num(m.retweet_count) }), at: r.collectedAt } };
+};
+
+Object.assign(NORMALIZERS, { "x.post/v1": xPost, "x.post-metrics/v1": xMetrics, "youtube.video-stats/v1": ytStats, "youtube.video/v1": ytVideo, "youtube.comment/v1": ytComment, "g1.live-post/v1": g1Post, "live.event/v1": liveEvent, "live.segment/v1": liveSegment, "file.manifest/v1": fileManifest, "file.cue/v1": fileCue, "file.party/v1": fileParty, "file.candidate/v1": fileCandidate, "file.article/v1": fileArticle });

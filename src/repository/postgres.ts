@@ -1,3 +1,4 @@
+import { syntheticAllowed } from "@/providers/profile-guard";
 import type { Candidate, DataMode, Debate, DebateBlock, MediaArticle, Party, SocialMetric, SocialPost, Source, SpeechClassification, TranscriptSegment } from "@/domain/types";
 import { MODERATOR_SPEAKER_ID, UNKNOWN_SPEAKER_ID } from "@/domain/types";
 import type { SourceRecord } from "@/domain/provenance";
@@ -173,7 +174,12 @@ export class PostgresRepository implements Repository {
     for (const r of debates as Row[]) addSrc(r.id as string, store.sourceRecords.get(r.source_record_id as string)?.sourceId);
     for (const r of segments as Row[]) addSrc(r.debate_id as string, r.rec_source_id as string);
     for (const r of media as Row[]) if (r.debate_id) addSrc(r.debate_id as string, store.sourceRecords.get(r.source_record_id as string)?.sourceId);
+    // Dados sintéticos (datasets demo/fixture deixados por testes) nunca aparecem na aplicação real.
+    // Também eventos criados por testes E2E (ids "e2e-…"/"live-e2e-…"), mesmo quando reaproveitam transcrição real.
+    const isTest = (id: string) => /^(live-)?e2e-/.test(id);
+    const hidden = syntheticAllowed() ? new Set<string>() : new Set((debates as Row[]).filter((r) => mode(r.dataset_id) === "demo" || isTest(r.id as string)).map((r) => r.id as string));
     for (const r of debates as Row[]) {
+      if (hidden.has(r.id as string)) continue;
       const d: Debate = {
         id: r.id as string,
         title: r.title as string,
@@ -196,6 +202,7 @@ export class PostgresRepository implements Repository {
     for (const r of blocks as Row[]) store.blocks.get(r.debate_id as string)?.push({ id: r.id as string, label: r.label as string, startOffset: num(r.start_offset_s), endOffset: num(r.end_offset_s) } satisfies DebateBlock);
 
     for (const r of segments as Row[]) {
+      if (hidden.has(r.debate_id as string) || (mode(r.dataset_id) === "demo" && !syntheticAllowed())) continue;
       const seg = segmentFromRow(r, mode(r.dataset_id), ref(r));
       store.push(store.segments, seg.debateId, seg);
     }
@@ -393,6 +400,7 @@ export class PostgresRepository implements Repository {
           from candidate c left join party p on p.id = c.party_id`,
     ]);
     const d = (deb as Row[])[0];
+    if (d && (d.kind === "demo" || d.kind === "fixture" || /^(live-)?e2e-/.test(d.id as string)) && !syntheticAllowed()) return null;
     if (!d) return null;
     const dataMode: DataMode = d.kind === "demo" || d.kind === "fixture" ? "demo" : "live";
     const segs = (rows as Row[]).map((r) => segmentFromRow(r, dataMode, r.source_record_id ? { recordId: r.source_record_id as string, externalId: r.rec_external_id as string, providerId: r.rec_provider_id as string } : undefined));
