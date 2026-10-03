@@ -10,7 +10,7 @@ export function Topbar({ debate, status }: { debate: Debate | null; status: Data
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
       <div className="flex h-12 items-center gap-4 px-4 md:px-8">
-        <Link href="/overview" className="lg:hidden" aria-label="Monitora Eleições — início">
+        <Link href="/" className="lg:hidden" aria-label="Monitora Eleições — início">
           <LogoMark size={22} />
         </Link>
         <Link href="/apuracao" className="flex min-w-0 items-baseline gap-3 hover:[&_.t]:text-white">

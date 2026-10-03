@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border pb-3">
         <p className="font-[family-name:var(--font-display)] text-[11px] font-semibold tracking-[0.18em] text-fg-3">ADMINISTRAÇÃO DA PLATAFORMA</p>
         <nav aria-label="Administração" className="flex gap-1 text-[12.5px]">
-          {[["/admin/campanhas", "Campanhas"], ["/admin/usuarios", "Usuários"], ["/admin/debates", "Debates"], ["/admin/inteligencia", "Inteligência"]].map(([h, l]) => (
+          {[["/admin/campanhas", "Campanhas"], ["/admin/usuarios", "Usuários"], ["/admin/inteligencia", "Inteligência"]].map(([h, l]) => (
             <Link key={h} href={h} className="rounded-[6px] px-2.5 py-1 text-fg-2 hover:bg-elevated hover:text-fg">{l}</Link>
           ))}
         </nav>

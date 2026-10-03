@@ -12,7 +12,7 @@ export function Sidebar({ currentDebateId }: { currentDebateId: string | null })
   const path = usePathname();
   return (
     <aside className="sticky top-0 hidden h-dvh w-[208px] shrink-0 flex-col border-r border-border bg-bg lg:flex">
-      <Link href="/overview" className="flex items-center gap-2.5 px-5 pt-5 pb-7" aria-label="Monitora Eleições — início">
+      <Link href="/" className="flex items-center gap-2.5 px-5 pt-5 pb-7" aria-label="Monitora Eleições — início">
         <LogoMark size={20} />
         <span className="font-display text-[12.5px] leading-[1.05] font-bold tracking-[0.08em] text-fg">
           MONITORA

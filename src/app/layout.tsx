@@ -36,7 +36,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: { default: "Monitora Eleições", template: "%s · Monitora Eleições" },
-  description: "O que foi dito. O que repercutiu. O que os dados mostram. Plataforma de inteligência eleitoral e acompanhamento de debates.",
+  description: "O que foi dito. O que repercutiu. O que os dados mostram. Inteligência eleitoral baseada em dados oficiais.",
 };
 
 export const viewport: Viewport = { themeColor: "#0A0A0B", colorScheme: "dark" };
