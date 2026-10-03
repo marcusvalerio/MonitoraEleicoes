@@ -1,4 +1,4 @@
-import { Activity, ClipboardList, Columns2, Flag, Users, BookOpen, Database, LayoutDashboard, Landmark, Radio } from "lucide-react";
+import { Activity, ClipboardList, Columns2, Flag, Users, BookOpen, Database, LayoutDashboard, Landmark, Radio, Gauge } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -34,6 +34,10 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
       ],
     },
     {
+      label: "Campanha",
+      items: [{ href: "/avaliacao", label: "Avaliação", icon: Gauge, match: (p) => p.startsWith("/avaliacao") }],
+    },
+    {
       label: "Conversação",
       items: [
         { href: "/monitoramento", label: "Redes", icon: Activity, match: (p) => p.startsWith("/monitoramento") },
@@ -50,6 +54,6 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
 }
 
 /** Itens fixos da barra inferior no mobile (o restante fica no menu/gaveta). */
-export const MOBILE_PRIMARY = ["Visão geral", "Ao vivo", "Eleições", "Redes"];
+export const MOBILE_PRIMARY = ["Visão geral", "Ao vivo", "Eleições", "Avaliação"];
 
 export const navItems = (id: string | null) => navGroups(id).flatMap((g) => g.items);

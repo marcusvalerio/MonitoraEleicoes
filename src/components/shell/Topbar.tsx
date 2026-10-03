@@ -3,6 +3,7 @@ import type { Debate } from "@/domain/types";
 import { SearchTrigger } from "./CommandPalette";
 import { LogoMark } from "./Logo";
 import { DataStatus, type DataStatusInfo } from "./DataStatus";
+import { UserMenu } from "./UserMenu";
 
 export function Topbar({ debate, status }: { debate: Debate | null; status: DataStatusInfo }) {
   void debate;
@@ -23,6 +24,7 @@ export function Topbar({ debate, status }: { debate: Debate | null; status: Data
             <SearchTrigger compact />
           </div>
           <DataStatus status={status} live={false} />
+          <UserMenu />
         </div>
       </div>
     </header>

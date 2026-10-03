@@ -4,7 +4,7 @@
 import { chromium } from "playwright";
 
 const B = process.env.BASE_URL || "http://localhost:3000";
-const ROUTES = ["/", "/apuracao", "/ao-vivo", "/eleicoes", "/eleicoes?ano=2026", "/eleicoes?ano=2022&cargo=3&uf=SP", "/candidatos", "/partidos", "/partido/PT", "/pesquisas", "/comparar?partido=PT,PL", "/monitoramento", "/fontes", "/metodologia", "/debates"];
+const ROUTES = ["/", "/apuracao", "/login", "/avaliacao", "/ao-vivo", "/eleicoes", "/eleicoes?ano=2026", "/eleicoes?ano=2022&cargo=3&uf=SP", "/candidatos", "/partidos", "/partido/PT", "/pesquisas", "/comparar?partido=PT,PL", "/monitoramento", "/fontes", "/metodologia", "/debates"];
 const FORBIDDEN = /fictíci|simulad|\(E2E\)|Demonstração|\b0 votos\b|vencedor|ganhou a eleição|melhor candidat/i;
 let fail = 0;
 const ok = (c, m) => {
@@ -53,7 +53,7 @@ if (before) {
 }
 await m.goto(B + "/", { waitUntil: "networkidle" });
 await m.getByTestId("mobile-menu").click();
-ok((await m.getByRole("dialog", { name: "Menu" }).getByRole("link").count()) >= 12, "mobile: gaveta com navegação completa");
+ok((await m.getByRole("dialog", { name: "Menu" }).getByRole("link").count()) >= 11, "mobile: gaveta com navegação completa (11 itens após ocultar debates)");
 ok(errs.length === 0, "sem erros de console: " + errs.slice(0, 3).join(" | "));
 await b.close();
 process.exit(fail ? 1 : 0);

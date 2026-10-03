@@ -5,7 +5,7 @@ não está definido e o código antigo usava `demo` como padrão. O código de `
 sintético recusado em produção). Banco `main` do Neon: migrations 0001–0002.
 
 1. **Snapshot** do branch `main` no Neon (ponto de retorno).
-2. **Migrations** 0003–0010: `node scripts/db-migrate.mjs --env production` (exige `DATABASE_URL_PRODUCTION`).
+2. **Migrations** 0003–0011 (0011 = autenticação/campanhas/avaliação; ver docs/AUTENTICACAO.md): `node scripts/db-migrate.mjs --env production` (exige `DATABASE_URL_PRODUCTION`).
 3. **Importação TSE** (produção, `--confirm-production`): candidaturas+resultados 2014/2018/2022, candidaturas 2026,
    `--identity`; pesquisas 2026 (`--kind polls`); fotos oficiais 2026 dos cargos majoritários (`--kind photos`). Requer `IDENTITY_HASH_KEY` (o mesmo valor guardado com segurança).
 4. **Variáveis na Vercel** (Production): `DATABASE_URL` (Neon main), `DATA_MODE=live`, `IDENTITY_HASH_KEY`, `ADMIN_TOKEN`;
