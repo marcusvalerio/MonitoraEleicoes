@@ -7,6 +7,7 @@ import { Topbar } from "@/components/shell/Topbar";
 import { OfflineBanner } from "@/components/shell/OfflineBanner";
 import { getCurrentDebate } from "@/services/debates";
 import { getRepository } from "@/repository";
+import { intelSql } from "@/services/intelligence";
 
 /** Identidade Eleições 2026: General Sans (títulos/cargos), Clash Grotesk (números), Geist Sans (interface). */
 const generalSans = localFont({
@@ -44,6 +45,7 @@ export const viewport: Viewport = { themeColor: "#0A0A0B", colorScheme: "dark" }
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const debate = await getCurrentDebate();
   const status = await (await getRepository()).getDataStatus();
+  const official = !!(await intelSql().catch(() => null));
   return (
     <html lang="pt-BR" className={`${generalSans.variable} ${clashGrotesk.variable} ${GeistSans.variable}`}>
       <body>
@@ -54,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Sidebar currentDebateId={debate?.status === "live" ? debate.id : null} />
           <div className="flex min-w-0 flex-1 flex-col">
             <OfflineBanner />
-            <Topbar debate={debate} status={status} />
+            <Topbar debate={debate} status={status} official={official} />
             <main id="conteudo" className="flex-1 pb-20 lg:pb-0">
               {children}
             </main>

@@ -5,7 +5,7 @@ import { LogoMark } from "./Logo";
 import { DataStatus, type DataStatusInfo } from "./DataStatus";
 import { UserMenu } from "./UserMenu";
 
-export function Topbar({ debate, status }: { debate: Debate | null; status: DataStatusInfo }) {
+export function Topbar({ debate, status, official }: { debate: Debate | null; status: DataStatusInfo; official: boolean }) {
   void debate;
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
@@ -23,7 +23,7 @@ export function Topbar({ debate, status }: { debate: Debate | null; status: Data
           <div className="md:hidden">
             <SearchTrigger compact />
           </div>
-          <DataStatus status={status} live={false} />
+          <DataStatus status={status} live={false} official={official} />
           <UserMenu />
         </div>
       </div>
