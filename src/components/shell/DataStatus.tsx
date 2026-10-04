@@ -18,7 +18,7 @@ export interface DataStatusInfo {
 }
 
 /** Indicador global do estado dos dados — o único lugar onde "DEMO" aparece. */
-export function DataStatus({ status, live }: { status: DataStatusInfo; live: boolean }) {
+export function DataStatus({ status, live, official = true }: { status: DataStatusInfo; live: boolean; official?: boolean }) {
   const mode = status.mode;
   const online = useOnline();
   const [open, setOpen] = useState(false);
@@ -34,9 +34,9 @@ export function DataStatus({ status, live }: { status: DataStatusInfo; live: boo
       document.removeEventListener("keydown", esc);
     };
   }, [open]);
-  const state = !online ? "offline" : status.overall;
+  const state = !online ? "offline" : status.overall === "connected" && !official ? "not_configured" : status.overall;
   const dot = { offline: "bg-neg", demo: "bg-warn", connected: "bg-pos", degraded: "bg-warn", not_configured: "bg-fg-3" }[state];
-  const label = { offline: "Offline", demo: status.profile === "fixture" ? "Fixture" : "Demo", connected: "Dados reais", degraded: "Degradado", not_configured: "Sem fonte" }[state];
+  const label = { offline: "Offline", demo: status.profile === "fixture" ? "Fixture" : "Demo", connected: "Dados oficiais", degraded: "Degradado", not_configured: "Fonte indisponível" }[state];
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="dialog" className="flex h-8 items-center gap-2 rounded-[var(--radius-md)] border border-border px-2.5 text-[11.5px] text-fg-2 transition-colors hover:border-border-strong hover:text-fg">
