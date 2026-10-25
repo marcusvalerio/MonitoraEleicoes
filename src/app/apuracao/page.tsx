@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
+import { refreshCountIfStale } from "@/elections/apuracao/onDemand";
 import Link from "next/link";
 import { intelSql } from "@/services/intelligence";
 import { getBoundaries } from "@/services/geo";
@@ -26,6 +28,8 @@ import { CandidatePhoto } from "@/components/apuracao/CandidatePhoto";
 import { fmtDateTime, fmtInt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+/** Tempo para a coleta sob demanda rodar depois da resposta (after). */
+export const maxDuration = 60;
 export const metadata: Metadata = { title: "Apuração ao vivo" };
 
 const pctOf = (m: { value: number | null; status: string }) => (m.status === "value" ? m.value : null);
@@ -88,6 +92,8 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   const headline = headlineOf(br.state);
   const started = headline === "ao_vivo" || headline === "encerrada";
   const final = br.state === "totalizada";
+  // Apuração em andamento: depois de responder, busca os arquivos novos do TSE (no máx. 1×/min no total).
+  if (!final) after(() => refreshCountIfStale(sql, year, round as 1 | 2));
   const demo = !!s?.datasetKind && s.datasetKind !== "production";
   // Cor = identidade estável (ordem do nº de urna), nunca posição/ranking nem ideologia.
   // A cor acompanha o candidato entre os turnos: a ordem do nº de urna vem do 1º turno quando ele existe.
