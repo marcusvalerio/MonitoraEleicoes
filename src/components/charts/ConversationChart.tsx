@@ -108,7 +108,7 @@ export function ConversationChart({
             </text>
           </g>
         ))}
-        <line x1={pad.l} x2={pad.l + iw} y1={y(0)} y2={y(0)} stroke="#34343a" />
+        <line x1={pad.l} x2={pad.l + iw} y1={y(0)} y2={y(0)} stroke="#cfc9bd" />
         <text x={pad.l + iw + 6} y={y(0) + 3} fontSize={10} className="fill-fg-3">
           /min
         </text>
@@ -121,7 +121,7 @@ export function ConversationChart({
           return (
             <g key={a.code}>
               <line x1={ax} x2={ax} y1={ty + 8} y2={y(0)} stroke={a.kind === "spike" ? "#6b9cf2" : "#46464d"} strokeDasharray={a.kind === "spike" ? undefined : "2 3"} strokeWidth={1} opacity={0.8} />
-              <circle cx={ax} cy={ty + 8} r={2.5} fill={a.kind === "spike" ? "#6b9cf2" : "#a4a4a8"} />
+              <circle cx={ax} cy={ty + 8} r={2.5} fill={a.kind === "spike" ? "#6b9cf2" : "#55555c"} />
               <text x={ax + (anchor === "start" ? 6 : -6)} y={ty + 4} textAnchor={anchor} fontSize={10} className="fill-fg-3 tnum font-mono">
                 {wallClock(startsAt, a.t, false)}
               </text>
@@ -138,7 +138,7 @@ export function ConversationChart({
         {/* faixa de temas */}
         {runs.map((r, i) => (
           <g key={i}>
-            <rect x={x(r.start)} y={bandY} width={Math.max(1, x(r.end) - x(r.start) - 2)} height={band - 8} rx={3} fill={hp && topicAt(hp.t) === r.topic ? "#f2f2f0" : i % 2 ? "#26262b" : "#303036"} />
+            <rect x={x(r.start)} y={bandY} width={Math.max(1, x(r.end) - x(r.start) - 2)} height={band - 8} rx={3} fill={hp && topicAt(hp.t) === r.topic ? "#1a1a1c" : i % 2 ? "#26262b" : "#303036"} />
             {x(r.end) - x(r.start) > 34 && (
               <text x={x(r.start) + 6} y={bandY + 12.5} fontSize={10.5} className={hp && topicAt(hp.t) === r.topic ? "fill-bg" : "fill-fg-2"}>
                 {x(r.end) - x(r.start) > 7 * TOPIC_LABEL[r.topic].length + 12 ? TOPIC_LABEL[r.topic] : TOPIC_LABEL[r.topic].slice(0, Math.max(3, Math.floor((x(r.end) - x(r.start) - 12) / 7))) + "."}
@@ -162,8 +162,8 @@ export function ConversationChart({
         )}
         {hp && (
           <g>
-            <line x1={x(hp.t)} x2={x(hp.t)} y1={pad.t} y2={bandY + band - 8} stroke="#68686e" />
-            <circle cx={x(hp.t)} cy={y(hp.v)} r={4} fill="#6b9cf2" stroke="#0a0a0b" strokeWidth={2} />
+            <line x1={x(hp.t)} x2={x(hp.t)} y1={pad.t} y2={bandY + band - 8} stroke="#85858c" />
+            <circle cx={x(hp.t)} cy={y(hp.v)} r={4} fill="#6b9cf2" stroke="#f7f5f0" strokeWidth={2} />
           </g>
         )}
         <rect x={pad.l} y={pad.t} width={iw} height={ih + band + 8} fill="transparent" onPointerMove={onMove} onPointerLeave={() => setHover(null)} />

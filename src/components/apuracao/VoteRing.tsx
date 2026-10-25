@@ -18,7 +18,7 @@ export function VoteRing({ countedPct, turnout, valid, blank, nul, sectionsCount
   const pct = has(countedPct) ? Math.max(0, Math.min(100, countedPct.value!)) : null;
   const comp = has(turnout) && has(valid) && has(blank) && has(nul) && turnout.value! > 0 ? [
     { k: "Válidos", v: valid.value!, c: "#3987e5" },
-    { k: "Brancos", v: blank.value!, c: "#a4a4a8" },
+    { k: "Brancos", v: blank.value!, c: "#55555c" },
     { k: "Nulos", v: nul.value!, c: "#5a5a60" },
   ] : null;
   let acc = 0;
@@ -26,9 +26,9 @@ export function VoteRing({ countedPct, turnout, valid, blank, nul, sectionsCount
     <figure className="flex flex-col items-center gap-4 sm:flex-row sm:items-center lg:flex-col" data-testid="vote-ring" aria-label="Anel da apuração presidencial">
       <div className="relative size-[220px] shrink-0">
         <svg viewBox="0 0 220 220" className="size-full -rotate-90" aria-hidden>
-          <circle cx="110" cy="110" r={R1} fill="none" stroke="#1d1d21" strokeWidth="10" />
-          {pct !== null && <circle cx="110" cy="110" r={R1} fill="none" stroke="#f2f2f0" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(pct / 100) * C1} ${C1}`} style={{ transition: "stroke-dasharray 900ms cubic-bezier(.2,.7,.2,1)" }} />}
-          <circle cx="110" cy="110" r={R2} fill="none" stroke="#1d1d21" strokeWidth="14" />
+          <circle cx="110" cy="110" r={R1} fill="none" stroke="#e8e4dc" strokeWidth="10" />
+          {pct !== null && <circle cx="110" cy="110" r={R1} fill="none" stroke="#1a1a1c" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(pct / 100) * C1} ${C1}`} style={{ transition: "stroke-dasharray 900ms cubic-bezier(.2,.7,.2,1)" }} />}
+          <circle cx="110" cy="110" r={R2} fill="none" stroke="#e8e4dc" strokeWidth="14" />
           {comp?.map((s) => {
             const len = (s.v / turnout.value!) * C2;
             const el = <circle key={s.k} cx="110" cy="110" r={R2} fill="none" stroke={s.c} strokeWidth="14" strokeDasharray={`${Math.max(0, len - 2)} ${C2}`} strokeDashoffset={-acc} style={{ transition: "stroke-dasharray 900ms ease, stroke-dashoffset 900ms ease" }} />;
@@ -47,7 +47,7 @@ export function VoteRing({ countedPct, turnout, valid, blank, nul, sectionsCount
           <dt className="text-fg-3">Comparecimento</dt>
           <dd className="text-fg">{has(turnout) ? <NumberTicker value={turnout.value} className="text-[15px] font-medium" /> : <Unavailable m={turnout} />}</dd>
         </div>
-        {[{ k: "Válidos", m: valid, c: "#3987e5" }, { k: "Brancos", m: blank, c: "#a4a4a8" }, { k: "Nulos", m: nul, c: "#5a5a60" }].map((x) => (
+        {[{ k: "Válidos", m: valid, c: "#3987e5" }, { k: "Brancos", m: blank, c: "#55555c" }, { k: "Nulos", m: nul, c: "#5a5a60" }].map((x) => (
           <div key={x.k} className="flex items-baseline justify-between gap-3">
             <dt className="flex items-center gap-1.5 text-fg-3"><span className="size-2 rounded-[2px]" style={{ background: x.c }} aria-hidden />{x.k}</dt>
             <dd className="text-fg">

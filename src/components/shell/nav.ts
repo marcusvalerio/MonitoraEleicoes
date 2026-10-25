@@ -1,4 +1,4 @@
-import { Activity, ClipboardList, Columns2, Flag, Users, BookOpen, Database, LayoutDashboard, Landmark, Radio, Gauge } from "lucide-react";
+import { Activity, ClipboardList, Columns2, Flag, Users, BookOpen, Database, LayoutDashboard, Landmark, Radio, Map, Newspaper } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -20,7 +20,9 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
       label: "Acompanhar",
       items: [
         { href: "/", label: "Visão geral", icon: LayoutDashboard, match: (p) => p === "/" || p.startsWith("/overview") },
-        { href: "/apuracao", label: "Ao vivo", icon: Radio, match: (p) => p.startsWith("/apuracao") || p.startsWith("/ao-vivo") },
+        { href: "/apuracao", label: "Ao vivo", icon: Radio, match: (p) => (p.startsWith("/apuracao") && !p.startsWith("/apuracao/explorar")) || p.startsWith("/ao-vivo") },
+        { href: "/apuracao/explorar", label: "Explorar", icon: Map, match: (p) => p.startsWith("/apuracao/explorar") },
+        { href: "/noticias", label: "Notícias", icon: Newspaper, match: (p) => p.startsWith("/noticias") },
       ],
     },
     {
@@ -32,10 +34,6 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
         { href: "/pesquisas", label: "Pesquisas", icon: ClipboardList, match: (p) => p.startsWith("/pesquisas") },
         { href: "/comparar", label: "Comparar", icon: Columns2, match: (p) => p.startsWith("/comparar") },
       ],
-    },
-    {
-      label: "Campanha",
-      items: [{ href: "/avaliacao", label: "Avaliação", icon: Gauge, match: (p) => p.startsWith("/avaliacao") }],
     },
     {
       label: "Conversação",
@@ -54,6 +52,6 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
 }
 
 /** Itens fixos da barra inferior no mobile (o restante fica no menu/gaveta). */
-export const MOBILE_PRIMARY = ["Visão geral", "Ao vivo", "Eleições", "Avaliação"];
+export const MOBILE_PRIMARY = ["Ao vivo", "Explorar", "Notícias", "Eleições"];
 
 export const navItems = (id: string | null) => navGroups(id).flatMap((g) => g.items);

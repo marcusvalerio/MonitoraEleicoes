@@ -25,7 +25,7 @@ function bucket(u: UfCount): { v: number; label: string } | null {
   return { v: 3, label: "Avançada" };
 }
 const LEGEND = [
-  { label: "Não iniciada", color: "#1a1a1d" },
+  { label: "Não iniciada", color: "#e8e4dc" },
   { label: "Recebendo dados", color: SEQ[1] },
   { label: "Parcial", color: SEQ[2] },
   { label: "Avançada", color: SEQ[3] },

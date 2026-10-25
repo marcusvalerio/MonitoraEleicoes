@@ -75,7 +75,7 @@ export function VolumeChart({
         </defs>
         {ticks.map((v) => (
           <g key={v}>
-            <line x1={pad.l} x2={pad.l + iw} y1={y(v)} y2={y(v)} stroke="#252529" strokeDasharray={v === 0 ? undefined : "2 4"} />
+            <line x1={pad.l} x2={pad.l + iw} y1={y(v)} y2={y(v)} stroke="#e3dfd6" strokeDasharray={v === 0 ? undefined : "2 4"} />
             <text x={pad.l - 8} y={y(v) + 3} textAnchor="end" className="fill-fg-3 tnum" fontSize={10}>
               {v >= 1000 ? `${(v / 1000).toFixed(1).replace(".0", "")}k` : v}
             </text>
@@ -87,7 +87,7 @@ export function VolumeChart({
           </text>
         ))}
         {markers.map((m) => (
-          <line key={`${m.t}-${m.label}`} x1={x(m.t)} x2={x(m.t)} y1={pad.t - 10} y2={pad.t - 4} stroke="#a4a4a8" strokeWidth={1.5} strokeLinecap="round" />
+          <line key={`${m.t}-${m.label}`} x1={x(m.t)} x2={x(m.t)} y1={pad.t - 10} y2={pad.t - 4} stroke="#55555c" strokeWidth={1.5} strokeLinecap="round" />
         ))}
         <path d={area} fill="url(#vol-fill)" />
         <path d={line} fill="none" stroke="#6b9cf2" strokeWidth={2} strokeLinejoin="round" />
@@ -101,8 +101,8 @@ export function VolumeChart({
         )}
         {hp && (
           <g>
-            <line x1={x(hp.t)} x2={x(hp.t)} y1={pad.t} y2={pad.t + ih} stroke="#68686e" />
-            <circle cx={x(hp.t)} cy={y(hp.v)} r={4} fill="#6b9cf2" stroke="#111113" strokeWidth={2} />
+            <line x1={x(hp.t)} x2={x(hp.t)} y1={pad.t} y2={pad.t + ih} stroke="#85858c" />
+            <circle cx={x(hp.t)} cy={y(hp.v)} r={4} fill="#6b9cf2" stroke="#fcfbf8" strokeWidth={2} />
           </g>
         )}
         <rect x={pad.l} y={pad.t} width={iw} height={ih} fill="transparent" onPointerMove={onMove} onPointerLeave={() => setHover(null)} />

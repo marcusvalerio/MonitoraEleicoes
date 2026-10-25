@@ -13,7 +13,7 @@ export interface PartyVisualIdentity {
   source: string;
 }
 
-export const NEUTRAL_ENTITY_COLOR = "#68686e";
+export const NEUTRAL_ENTITY_COLOR = "#85858c";
 
 export function identityAt(identities: PartyVisualIdentity[], partyId: string, atIso: string): PartyVisualIdentity | null {
   const t = atIso.slice(0, 10);

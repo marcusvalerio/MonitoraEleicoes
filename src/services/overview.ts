@@ -33,7 +33,7 @@ export async function getOverview() {
           quote: lastSeg.text,
           volumeChange: volumeChange(metrics, s.offset, 300),
           sources: [...recentPlatforms.map(platformName), "Transcrição"],
-          related: related.map((id) => ({ id, name: name(id), color: s.participants.find((p) => p.id === id)?.swatch ?? "#68686e" })),
+          related: related.map((id) => ({ id, name: name(id), color: s.participants.find((p) => p.id === id)?.swatch ?? "#85858c" })),
         }
       : null;
 

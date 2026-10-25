@@ -73,7 +73,7 @@ export default async function Monitoramento({ searchParams }: { searchParams: Pr
         <span className="text-fg-3">Fontes:</span>
         {k.coverage.map((c) => (
           <span key={c.platform} className="inline-flex items-center gap-1" data-testid={`coverage-${c.platform}`}>
-            <span className="size-2 rounded-full" style={{ background: PLATFORM_COLOR[c.platform] ?? "#68686e" }} aria-hidden />
+            <span className="size-2 rounded-full" style={{ background: PLATFORM_COLOR[c.platform] ?? "#85858c" }} aria-hidden />
             <span className="text-fg-2">{PLATFORM[c.platform] ?? c.platform}</span>
             <Tag tone={ACCESS[c.accessStatus]?.t ?? "neutral"}>{ACCESS[c.accessStatus]?.l ?? c.accessStatus}</Tag>
             {c.periodStatus === "partial" && <Tag tone="warn">coleta parcial</Tag>}

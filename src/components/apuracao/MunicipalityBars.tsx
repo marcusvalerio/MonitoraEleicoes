@@ -35,7 +35,7 @@ export function MunicipalityBars({ rows }: { rows: MunicipalityRow[] }) {
               <span className="truncate text-fg-2">{r.name}</span>
               <span className="shrink-0 font-[family-name:var(--font-num)] text-fg tabular-nums">{r.validVotes === null ? "—" : fmtInt(r.validVotes)}<span className="ml-1 text-[10.5px] text-fg-3">{r.countedPct !== null && r.countedPct < 100 ? `${r.countedPct.toFixed(0)}% seções` : ""}</span></span>
             </div>
-            <div className="flex h-2 overflow-hidden rounded-full bg-[#1a1a1e]" title={r.parts.map((p) => `${p.name}: ${p.pct.toFixed(1).replace(".", ",")}%`).join(" · ")}>
+            <div className="flex h-2 overflow-hidden rounded-full bg-[#e8e4dc]" title={r.parts.map((p) => `${p.name}: ${p.pct.toFixed(1).replace(".", ",")}%`).join(" · ")}>
               {r.parts.map((p, j) => (
                 <motion.span key={p.name} className="h-full" style={{ background: p.color }} initial={{ width: 0 }} animate={{ width: `${p.pct}%` }} transition={{ duration: 0.7, delay: 0.05 * j, ease: [0.2, 0.7, 0.2, 1] }} />
               ))}

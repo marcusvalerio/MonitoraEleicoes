@@ -25,7 +25,7 @@ interface Props {
 
 const BASE = 2.2;
 const MAX = 46;
-const EMPTY = "#1f1f24";
+const EMPTY = "#ddd8ce";
 // Exterior: pilar hexagonal no Atlântico, a leste do Nordeste (coordenadas do viewBox do SVG, 613 × 639).
 const EXTERIOR_AT = { x: 590, y: 255 };
 
@@ -68,15 +68,15 @@ export default function Brazil3D({ columns, selected, reducedMotion, onHover, on
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 0.95;
     el.appendChild(renderer.domElement);
     renderer.domElement.style.touchAction = "pan-y";
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x0a0a0b, 900, 1900);
+    scene.fog = new THREE.Fog(0xf7f5f0, 2400, 4200);
     const camera = new THREE.PerspectiveCamera(32, 1, 1, 4000);
 
-    scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x0b0b10, 1.1));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8478, 0.9));
     const key = new THREE.DirectionalLight(0xffffff, 2.2);
     key.position.set(-260, 520, 420);
     scene.add(key);
@@ -107,7 +107,7 @@ export default function Brazil3D({ columns, selected, reducedMotion, onHover, on
       mesh.userData.key = k;
       mesh.scale.z = 0.001;
       // Contorno fino das divisas: herda a escala do bloco (sobe junto).
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 35), new THREE.LineBasicMaterial({ color: 0x0a0a0b, transparent: true, opacity: 0.55 }));
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 35), new THREE.LineBasicMaterial({ color: 0xf7f5f0, transparent: true, opacity: 0.55 }));
       mesh.add(edges);
       map.add(mesh);
       items.set(k, { key: k, mesh, mat, center, h: 0.001, target: BASE, delay: reducedMotion ? 0 : i * 45, lift: 0, color: new THREE.Color(EMPTY), live: false });
@@ -129,7 +129,7 @@ export default function Brazil3D({ columns, selected, reducedMotion, onHover, on
     for (let x = -60; x <= 680; x += 14) for (let y = -40; y <= 680; y += 14) dots.push(x, y, -0.5);
     const dotGeo = new THREE.BufferGeometry();
     dotGeo.setAttribute("position", new THREE.Float32BufferAttribute(dots, 3));
-    map.add(new THREE.Points(dotGeo, new THREE.PointsMaterial({ color: 0x2a2a31, size: 1.6, sizeAttenuation: true })));
+    map.add(new THREE.Points(dotGeo, new THREE.PointsMaterial({ color: 0xd6d1c6, size: 1.6, sizeAttenuation: true })));
 
     // Câmera orbital: azimute por arraste (com inércia), inclinação fixa, alvo e distância animados ao focar uma UF.
     const cam = { az: -0.32, azV: 0, tilt: 0.92, base: 900, dist: 900, distT: 900, target: new THREE.Vector3(), targetT: new THREE.Vector3() };

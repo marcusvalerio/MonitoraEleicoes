@@ -2,25 +2,25 @@
 
 /* ───────── MONITORA ELEIÇÕES · Design tokens ───────── */
 @theme {
-  --color-bg: #0a0a0b;
-  --color-surface: #111113;
-  --color-elevated: #171719;
-  --color-hover: #1d1d20;
-  --color-border: #252529;
-  --color-border-strong: #34343a;
-  --color-fg: #f2f2f0;
-  --color-fg-2: #a4a4a8;
-  --color-fg-3: #68686e;
+  --color-bg: #f7f5f0;
+  --color-surface: #fcfbf8;
+  --color-elevated: #f0ede6;
+  --color-hover: #ebe7df;
+  --color-border: #e3dfd6;
+  --color-border-strong: #cfc9bd;
+  --color-fg: #1a1a1c;
+  --color-fg-2: #55555c;
+  --color-fg-3: #85858c;
 
   /* Semânticas (uso controlado; nunca para candidatos) */
-  --color-pos: #4cb782;
-  --color-pos-bg: #4cb7821a;
-  --color-neg: #e5645f;
-  --color-neg-bg: #e5645f1a;
-  --color-warn: #e2a336;
-  --color-warn-bg: #e2a3361a;
-  --color-info: #6b9cf2;
-  --color-info-bg: #6b9cf21a;
+  --color-pos: #2f8f5b;
+  --color-pos-bg: #2f8f5b1a;
+  --color-neg: #c94a45;
+  --color-neg-bg: #c94a451a;
+  --color-warn: #a86d12;
+  --color-warn-bg: #a86d121a;
+  --color-info: #2f6fd6;
+  --color-info-bg: #2f6fd61a;
 
   /* Categóricas de tipo de fala (validadas CVD no surface) */
   --color-grp-1: #3987e5;
@@ -75,7 +75,7 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html, body {
@@ -93,7 +93,7 @@ body {
 
 ::selection { background: #6b9cf240; }
 
-* { scrollbar-width: thin; scrollbar-color: #2c2c31 transparent; }
+* { scrollbar-width: thin; scrollbar-color: #cfc9bd transparent; }
 
 .tnum { font-variant-numeric: tabular-nums; }
 

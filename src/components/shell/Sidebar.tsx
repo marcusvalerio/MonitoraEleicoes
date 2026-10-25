@@ -67,7 +67,7 @@ export function MobileNav({ currentDebateId }: { currentDebateId: string | null 
     <>
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <button type="button" aria-label="Fechar menu" className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+          <button type="button" aria-label="Fechar menu" className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
           <nav className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-[var(--radius-lg,12px)] border-t border-border bg-surface p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] motion-safe:animate-[sheet-in_220ms_ease-out]" aria-label="Navegação completa">
             {navGroups(currentDebateId).map((g) => (
               <div key={g.label} className="mb-3">

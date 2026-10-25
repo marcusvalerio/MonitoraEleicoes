@@ -220,7 +220,7 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
                     <span className="ml-auto tnum text-fg-3">{replayable ? fmtDuration(secs) : `${stats.get(p.id)?.n ?? 0} fala(s)`}</span>
                   </div>
                   <div className="mt-1 ml-4 h-1 overflow-hidden rounded-full bg-elevated">
-                    <motion.div className="h-full rounded-full" style={{ background: active ? "#f2f2f0" : "#68686e" }} animate={{ width: `${(secs / maxSecs) * 100}%` }} transition={{ duration: 0.6 }} />
+                    <motion.div className="h-full rounded-full" style={{ background: active ? "#1a1a1c" : "#85858c" }} animate={{ width: `${(secs / maxSecs) * 100}%` }} transition={{ duration: 0.6 }} />
                   </div>
                 </button>
               </li>
@@ -290,10 +290,10 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
             const isMod = s.speakerId === moderatorId;
             const isSel = selectedSeg?.id === s.id;
             return (
-              <motion.li key={s.id} id={`seg-${s.id}`} layout="position" initial={{ opacity: 0, backgroundColor: "#1d1d20" }} animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }} transition={{ duration: 0.9 }}>
+              <motion.li key={s.id} id={`seg-${s.id}`} layout="position" initial={{ opacity: 0, backgroundColor: "#ebe7df" }} animate={{ opacity: 1, backgroundColor: "rgba(0,0,0,0)" }} transition={{ duration: 0.9 }}>
                 <button type="button" onClick={() => (setSelected(s.id), setMobileTab("analise"))} className={cn("group flex w-full gap-3 px-4 py-3 text-left transition-colors", isSel ? "bg-elevated" : "hover:bg-elevated/50")} aria-current={isSel ? "true" : undefined}>
                   <span className="w-[58px] shrink-0 pt-0.5 font-mono text-[11px] text-fg-3">{wallClock(debate.startsAt, s.startOffset)}</span>
-                  <span className={cn("mt-1.5 w-[3px] shrink-0 self-stretch rounded-full", isSel ? "opacity-100" : "opacity-60")} style={{ background: p?.swatch ?? "#34343a" }} aria-hidden />
+                  <span className={cn("mt-1.5 w-[3px] shrink-0 self-stretch rounded-full", isSel ? "opacity-100" : "opacity-60")} style={{ background: p?.swatch ?? "#cfc9bd" }} aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className={cn("block text-[11px] font-semibold tracking-wider uppercase", isMod ? "text-fg-3" : "text-fg")}>{p?.name ?? "Moderação"}</span>
                     <span className={cn("mt-0.5 block text-[13.5px] leading-relaxed", isMod ? "text-fg-3" : "text-fg-2 group-hover:text-fg")}>“{s.text}”</span>

@@ -12,7 +12,7 @@ export function AuthFrame({ title, children, footer }: { title: string; children
           <p className="mt-4 font-[family-name:var(--font-display)] text-[15px] font-bold tracking-[0.18em] text-fg">MONITORA ELEIÇÕES</p>
           <p className="mt-1.5 text-[12.5px] text-fg-3">Inteligência eleitoral baseada em dados oficiais.</p>
         </div>
-        <div className="rounded-[14px] border border-border bg-surface/80 p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.8)] backdrop-blur">
+        <div className="rounded-[14px] border border-border bg-surface/80 p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.18)] backdrop-blur">
           <h1 className="mb-5 font-[family-name:var(--font-display)] text-[19px] font-semibold text-fg">{title}</h1>
           {children}
         </div>

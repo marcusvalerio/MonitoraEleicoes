@@ -54,7 +54,7 @@ export function Apuracao3DPanel({ territories, fallback, legend }: { territories
     () =>
       territories.map((t) => {
         if (mode === "apuracao") return { key: t.key, color: t.countedPct !== null && t.countedPct >= 100 ? "#8dbaf2" : "#4a8be6", height: t.countedPct === null ? null : t.countedPct / 100, live: t.live };
-        if (!t.leader) return { key: t.key, color: "#1f1f24", height: null };
+        if (!t.leader) return { key: t.key, color: "#ddd8ce", height: null };
         // Líder: piso visual de 15% para que a cor sempre apareça; o número exato está no tooltip.
         const h = mode === "lider" ? (t.leader.pct === null ? null : 0.15 + (t.leader.pct / 100) * 0.85) : Math.sqrt((t.validVotes ?? 0) / maxVotes);
         return { key: t.key, color: t.leader.color, height: h, live: t.live };
@@ -125,7 +125,7 @@ export function Apuracao3DPanel({ territories, fallback, legend }: { territories
           <>
             <Swatch c="#4a8be6" l="Em apuração" />
             <Swatch c="#8dbaf2" l="100% das seções" />
-            <Swatch c="#1f1f24" l="Sem dado" />
+            <Swatch c="#ddd8ce" l="Sem dado" />
             <span className="text-fg-3">· altura = % de seções totalizadas</span>
           </>
         ) : (

@@ -60,7 +60,7 @@ export function PresidentialBoard({ year, officeLabel, candidates, started, fina
                   {c.number !== null ? ` · ${c.number}` : ""}
                   {c.name && c.name !== c.ballotName ? ` · ${c.name}` : ""}
                 </span>
-                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#1d1d21]" aria-hidden>
+                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#e8e4dc]" aria-hidden>
                   <span className="block h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${c.pct !== null ? (c.pct / top) * 100 : 0}%`, background: c.color }} />
                 </span>
               </span>

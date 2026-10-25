@@ -16,7 +16,7 @@ export interface BarItem {
 }
 
 /** Barras horizontais para comparação de categorias. Valores sempre visíveis (sem depender de cor). */
-export function BarList({ items, max, format = "int", color = "#a4a4a8", onSelect }: { items: BarItem[]; max?: number; format?: "int" | "duration"; color?: string; onSelect?: (id: string) => void }) {
+export function BarList({ items, max, format = "int", color = "#55555c", onSelect }: { items: BarItem[]; max?: number; format?: "int" | "duration"; color?: string; onSelect?: (id: string) => void }) {
   const valueFormat = format === "duration" ? fmtDuration : fmtInt;
   const m = max ?? Math.max(1, ...items.map((i) => i.value));
   const [hover, setHover] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export function BarList({ items, max, format = "int", color = "#a4a4a8", onSelec
               <span className="relative h-2 overflow-hidden rounded-r-[4px] bg-transparent">
                 <motion.span
                   className="absolute inset-y-0 left-0 rounded-r-[4px]"
-                  style={{ background: active ? "#f2f2f0" : color }}
+                  style={{ background: active ? "#1a1a1c" : color }}
                   initial={false}
                   animate={{ width: `${(it.value / m) * 100}%` }}
                   transition={{ duration: 0.5, ease: "easeOut" }}

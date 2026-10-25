@@ -7,7 +7,8 @@ import { UF_IBGE, UF_NAME } from "@/elections/reference";
 import { StateView } from "@/components/ui/states";
 import { EvidenceBadge } from "@/components/intel/EvidenceSection";
 import { LiveRefresh } from "@/components/intel/LiveRefresh";
-import { SERIES, OTHER } from "@/components/intel/palette";
+import { OTHER } from "@/components/intel/palette";
+import { partyColor } from "@/components/intel/partyColors";
 import { FlagMark } from "@/components/apuracao/FlagMark";
 import { LiveStatus, headlineOf } from "@/components/apuracao/LiveStatus";
 import { LiveIntro } from "@/components/apuracao/LiveIntro";
@@ -91,7 +92,7 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   // Cor = identidade estável (ordem do nº de urna), nunca posição/ranking nem ideologia.
   // A cor acompanha o candidato entre os turnos: a ordem do nº de urna vem do 1º turno quando ele existe.
   const roster = (brFirst?.candidates.length ? brFirst : br).candidates;
-  const colorByNumber = new Map([...roster].sort((a, b) => (a.ballotNumber ?? 999) - (b.ballotNumber ?? 999)).map((c, i) => [c.ballotNumber, SERIES[i] ?? OTHER]));
+  const colorByNumber = new Map([...roster].sort((a, b) => (a.ballotNumber ?? 999) - (b.ballotNumber ?? 999)).map((c, i) => [c.ballotNumber, partyColor(c.party, i)]));
   const colorBySq = new Map(br.candidates.map((c) => [String(c.sqCandidato), colorByNumber.get(c.ballotNumber) ?? OTHER]));
   const colorOf = (n: number | null) => colorByNumber.get(n) ?? OTHER;
   const leaderOf = (t: TerritoryResult) => {
@@ -222,7 +223,12 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
 
       {/* ESTADOS */}
       <section aria-labelledby="ufs" className="mt-12">
-        <h2 id="ufs" className="mb-3 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">ESTADOS · PRESIDENTE</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="ufs" className="font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">ESTADOS · PRESIDENTE</h2>
+          <Link href={uf ? `/apuracao/explorar?uf=${uf}` : "/apuracao/explorar"} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-4 text-[13px] font-semibold text-bg hover:opacity-90" data-testid="explorar-cta">
+            Explorar até a escola →
+          </Link>
+        </div>
         <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 xl:grid-cols-3" data-testid="states-rows">
           {mapRows.map((r) => (
             <li key={r.uf} className="border-t border-border/60">
@@ -230,7 +236,7 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
                 <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold text-fg">{r.uf}</span>
                 <span className="min-w-0">
                   <span className="block truncate text-[12.5px] text-fg-2">{r.leader ? r.leader.name : r.stateLabel}</span>
-                  <span className="mt-1 block h-1 overflow-hidden rounded-full bg-[#1d1d21]" aria-hidden>
+                  <span className="mt-1 block h-1 overflow-hidden rounded-full bg-[#e8e4dc]" aria-hidden>
                     <span className="block h-full rounded-full transition-[width] duration-700" style={{ width: `${r.countedPct ?? 0}%`, background: r.state === "totalizada" ? "#8dbaf2" : "#4a8be6" }} />
                   </span>
                 </span>

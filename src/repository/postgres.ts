@@ -435,7 +435,7 @@ export class PostgresRepository implements Repository {
       editorial: ed,
       editorialCursor: ed.reduce((m, x) => Math.max(m, x.changeSeq ?? 0), afterEditorial),
       editorialTotal: (edTotal as Row[])[0].n as number,
-      candidates: (cands as Row[]).map((c) => ({ id: c.id as string, name: `${c.name}${c.acronym ? ` (${c.acronym})` : ""}`, color: (c.color as string) ?? "#68686e" })),
+      candidates: (cands as Row[]).map((c) => ({ id: c.id as string, name: `${c.name}${c.acronym ? ` (${c.acronym})` : ""}`, color: (c.color as string) ?? "#85858c" })),
       serverTime: new Date().toISOString(),
     };
   };

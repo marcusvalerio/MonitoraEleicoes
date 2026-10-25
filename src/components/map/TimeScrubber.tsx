@@ -88,11 +88,11 @@ export function TimeScrubber({ series, startsAt, totalEnd: rawEnd, now, value, o
       >
         <svg width={width} height={h} className="block">
           {series.map((s) => (
-            <rect key={s.t} x={x(s.t) + 1} y={h - (s.v / max) * (h - 6)} width={bw} height={(s.v / max) * (h - 6)} rx={1.5} fill={s.t + 300 <= value ? (windowMode === "janela" && s.t < value - 900 ? "#34343a" : "#4a8be6") : s.t < now ? "#26262b" : "#18181b"} />
+            <rect key={s.t} x={x(s.t) + 1} y={h - (s.v / max) * (h - 6)} width={bw} height={(s.v / max) * (h - 6)} rx={1.5} fill={s.t + 300 <= value ? (windowMode === "janela" && s.t < value - 900 ? "#cfc9bd" : "#4a8be6") : s.t < now ? "#26262b" : "#18181b"} />
           ))}
           <line x1={x(now)} x2={x(now)} y1={0} y2={h} stroke="#e5645f" strokeDasharray="2 3" />
         </svg>
-        <div className="absolute top-0 bottom-[22px] w-[2px] -translate-x-1/2 rounded-full bg-fg shadow-[0_0_0_3px_#0a0a0b]" style={{ left: x(value) }} aria-hidden>
+        <div className="absolute top-0 bottom-[22px] w-[2px] -translate-x-1/2 rounded-full bg-fg shadow-[0_0_0_3px_#f7f5f0]" style={{ left: x(value) }} aria-hidden>
           <span className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full bg-fg" />
         </div>
         {events.map((ev) => (

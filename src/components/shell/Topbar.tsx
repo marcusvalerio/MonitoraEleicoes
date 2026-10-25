@@ -13,7 +13,7 @@ export function Topbar({ debate, status, official }: { debate: Debate | null; st
         <Link href="/" className="lg:hidden" aria-label="Monitora Eleições — início">
           <LogoMark size={22} />
         </Link>
-        <Link href="/apuracao" className="flex min-w-0 items-baseline gap-3 hover:[&_.t]:text-white">
+        <Link href="/apuracao" className="flex min-w-0 items-baseline gap-3 hover:[&_.t]:text-black">
           <span className="t truncate font-display text-[13px] font-semibold tracking-[0.04em] text-fg uppercase">Eleições 2026 · Apuração ao vivo</span>
         </Link>
         <div className="ml-auto flex items-center gap-3">

@@ -122,7 +122,7 @@ export function MapCanvas({ boundaries, rows, layer, entities, selectedKey, onHo
                   d={d}
                   fill={f.color}
                   fillOpacity={f.opacity}
-                  stroke={active ? "#f2f2f0" : "#0a0a0b"}
+                  stroke={active ? "#1a1a1c" : "#f7f5f0"}
                   strokeWidth={active ? 1.6 : 0.7}
                   vectorEffect="non-scaling-stroke"
                   style={{ transition: "fill 500ms ease, fill-opacity 500ms ease" }}

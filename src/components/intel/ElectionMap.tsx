@@ -73,7 +73,7 @@ export function ElectionMap({ boundaries, rows, entities, title }: { boundaries:
           </span>
         ))}
         <span className="inline-flex items-center gap-1.5 text-fg-3">
-          <span className="size-2 rounded-full bg-[#1a1a1d] ring-1 ring-border" aria-hidden />
+          <span className="size-2 rounded-full bg-[#e8e4dc] ring-1 ring-border" aria-hidden />
           sem votos apurados / não coletado
         </span>
         <span className="text-fg-3">· intensidade = participação nos votos da UF</span>

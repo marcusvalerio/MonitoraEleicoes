@@ -91,9 +91,9 @@ export function ExteriorGlobe({ cities, total }: { cities: ExteriorCity[]; total
         <svg viewBox="-170 -170 340 340" className="size-full" aria-label="Globo com as cidades do exterior onde houve votação">
           <defs>
             <radialGradient id="globe-fill" cx="35%" cy="30%" r="75%">
-              <stop offset="0%" stopColor="#1a2233" />
-              <stop offset="70%" stopColor="#0e1118" />
-              <stop offset="100%" stopColor="#0a0a0b" />
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="70%" stopColor="#eef1f6" />
+              <stop offset="100%" stopColor="#f7f5f0" />
             </radialGradient>
             <radialGradient id="globe-glow" r="50%">
               <stop offset="80%" stopColor="#3987e5" stopOpacity="0" />
@@ -101,12 +101,12 @@ export function ExteriorGlobe({ cities, total }: { cities: ExteriorCity[]; total
             </radialGradient>
           </defs>
           <circle r={R + 14} fill="url(#globe-glow)" />
-          <circle r={R} fill="url(#globe-fill)" stroke="#252a36" />
-          <path d={grat.join("")} fill="none" stroke="#232a38" strokeWidth="0.7" />
+          <circle r={R} fill="url(#globe-fill)" stroke="#c9cfdb" />
+          <path d={grat.join("")} fill="none" stroke="#cdd3de" strokeWidth="0.7" />
           {br && (
             <g transform={`translate(${br.x},${br.y})`} opacity={0.4 + br.depth * 0.6}>
-              <circle r="3" fill="#f2f2f0" />
-              <text x="6" y="3" fontSize="8" fill="#a4a4a8">Brasil</text>
+              <circle r="3" fill="#1a1a1c" />
+              <text x="6" y="3" fontSize="8" fill="#55555c">Brasil</text>
             </g>
           )}
           {placed
@@ -115,12 +115,12 @@ export function ExteriorGlobe({ cities, total }: { cities: ExteriorCity[]; total
             .sort((a, b) => a.p!.depth - b.p!.depth)
             .map(({ c, p }) => {
               const r = 2 + Math.sqrt((c.validVotes ?? 0) / max) * 11;
-              const col = c.leader?.color ?? "#68686e";
+              const col = c.leader?.color ?? "#85858c";
               return (
                 <g key={c.key} transform={`translate(${p!.x},${p!.y})`} opacity={0.35 + p!.depth * 0.65} onPointerEnter={() => setActive(c.key)} onPointerLeave={() => setActive(null)} className="cursor-pointer">
                   <circle r={r * 2.2} fill={col} opacity="0.12" className="motion-safe:animate-[pulse-dot_2.8s_ease-in-out_infinite]" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
-                  <circle r={r} fill={col} stroke={active === c.key ? "#f2f2f0" : "none"} strokeWidth="1.2" />
-                  {(active === c.key || r > 9) && <text y={-r - 4} textAnchor="middle" fontSize="8.5" fill="#f2f2f0">{c.name}</text>}
+                  <circle r={r} fill={col} stroke={active === c.key ? "#1a1a1c" : "none"} strokeWidth="1.2" />
+                  {(active === c.key || r > 9) && <text y={-r - 4} textAnchor="middle" fontSize="8.5" fill="#1a1a1c">{c.name}</text>}
                 </g>
               );
             })}
@@ -150,7 +150,7 @@ export function ExteriorGlobe({ cities, total }: { cities: ExteriorCity[]; total
                 <span className="text-right text-[11px] text-fg-3 tabular-nums">{i + 1}</span>
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 truncate text-fg-2">
-                    <span className="size-1.5 shrink-0 rounded-full" style={{ background: c.leader?.color ?? "#68686e" }} aria-hidden />
+                    <span className="size-1.5 shrink-0 rounded-full" style={{ background: c.leader?.color ?? "#85858c" }} aria-hidden />
                     {c.name}
                     {c.lat === null && <span className="text-[10px] text-fg-3">· sem coordenada</span>}
                   </span>

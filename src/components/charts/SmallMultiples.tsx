@@ -26,7 +26,7 @@ export function TopicSmallMultiples({ items, startsAt, domainEnd, bucket = 300 }
                 <span className="text-[11.5px] text-fg-2 tnum">{fmtCompact(total)}</span>
               </div>
               <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-1.5 h-[56px] w-full" role="img" aria-label={`${TOPIC_LABEL[m.topic]}: ${total} publicações`}>
-                <line x1={0} x2={W} y1={H - 0.5} y2={H - 0.5} stroke="#34343a" vectorEffect="non-scaling-stroke" />
+                <line x1={0} x2={W} y1={H - 0.5} y2={H - 0.5} stroke="#cfc9bd" vectorEffect="non-scaling-stroke" />
                 {pts.length > 1 && (
                   <>
                     <polygon points={`0,${H} ${pts.join(" ")} ${x(m.series.length - 1)},${H}`} fill="#6b9cf2" opacity={0.18} />

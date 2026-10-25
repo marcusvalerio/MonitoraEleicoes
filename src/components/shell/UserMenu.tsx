@@ -23,7 +23,6 @@ export async function UserMenu() {
       <div className="absolute right-0 z-40 mt-1 w-56 rounded-[10px] border border-border bg-surface p-1.5 text-[12.5px] shadow-xl">
         <p className="truncate px-2.5 py-1.5 text-[11.5px] text-fg-3">{u.email}</p>
         {u.isAdmin && <Link href="/admin" className="flex items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-fg-2 hover:bg-elevated hover:text-fg"><Shield size={13} aria-hidden /> Administração</Link>}
-        <Link href="/avaliacao" className="block rounded-[6px] px-2.5 py-1.5 text-fg-2 hover:bg-elevated hover:text-fg">Avaliação</Link>
         <Link href="/conta/senha" className="block rounded-[6px] px-2.5 py-1.5 text-fg-2 hover:bg-elevated hover:text-fg">Trocar senha</Link>
         <form action={logoutAction}>
           <button className="flex w-full items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-left text-fg-2 hover:bg-elevated hover:text-fg" data-testid="logout"><LogOut size={13} aria-hidden /> Sair</button>

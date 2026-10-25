@@ -232,7 +232,7 @@ export class UnconfiguredSocialProvider implements SocialProvider {
     kind: "social" as const,
     mode: "live" as const,
     capabilities: { realtime: false, historical: false, posts: false, aggregatedCounts: false, engagement: false, candidates: false, topics: false, geolocation: "none" as const },
-    config: { requiredEnv: ["YOUTUBE_API_KEY", "X_API_BEARER_TOKEN"], configured: false },
+    config: { requiredEnv: ["YOUTUBE_API_KEY"], configured: false },
     rateLimit: noLimit,
     retry: DEFAULT_RETRY,
     sourceId: "src-social-not-configured",

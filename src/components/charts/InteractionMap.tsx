@@ -57,7 +57,7 @@ export function InteractionMap({ nodes, edges, segmentText }: { nodes: MapNode[]
             <defs>
               {["idle", "on"].map((s) => (
                 <marker key={s} id={`arrow-${s}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M0,0 L10,5 L0,10 z" fill={s === "on" ? "#f2f2f0" : "#68686e"} />
+                  <path d="M0,0 L10,5 L0,10 z" fill={s === "on" ? "#1a1a1c" : "#85858c"} />
                 </marker>
               ))}
             </defs>
@@ -83,9 +83,9 @@ export function InteractionMap({ nodes, edges, segmentText }: { nodes: MapNode[]
               return (
                 <g key={k} className="cursor-pointer" onClick={() => setSel(sel === k ? null : k)} onMouseEnter={() => setHover(k)} onMouseLeave={() => setHover(null)}>
                   <path d={`M${sx},${sy} Q${mx},${my} ${ex},${ey}`} fill="none" stroke="transparent" strokeWidth={14} />
-                  <path d={`M${sx},${sy} Q${mx},${my} ${ex},${ey}`} fill="none" stroke={on ? "#f2f2f0" : "#68686e"} strokeWidth={1.25 + (e.count / maxC) * 3} markerEnd={`url(#arrow-${on ? "on" : "idle"})`} opacity={sel && !on ? 0.35 : 1} />
+                  <path d={`M${sx},${sy} Q${mx},${my} ${ex},${ey}`} fill="none" stroke={on ? "#1a1a1c" : "#85858c"} strokeWidth={1.25 + (e.count / maxC) * 3} markerEnd={`url(#arrow-${on ? "on" : "idle"})`} opacity={sel && !on ? 0.35 : 1} />
                   <g transform={`translate(${mx},${my})`}>
-                    <rect x={-10} y={-8} width={20} height={16} rx={4} fill="#171719" stroke={on ? "#f2f2f0" : "#34343a"} />
+                    <rect x={-10} y={-8} width={20} height={16} rx={4} fill="#f0ede6" stroke={on ? "#1a1a1c" : "#cfc9bd"} />
                     <text textAnchor="middle" y={3.5} fontSize={10} className="fill-fg tnum" fontWeight={600}>
                       {e.count}
                     </text>
@@ -99,7 +99,7 @@ export function InteractionMap({ nodes, edges, segmentText }: { nodes: MapNode[]
               const below = p.y > cy;
               return (
                 <g key={n.id} transform={`translate(${p.x},${p.y})`}>
-                  <circle r={20} fill="#111113" stroke={n.color} strokeWidth={2} />
+                  <circle r={20} fill="#fcfbf8" stroke={n.color} strokeWidth={2} />
                   <text textAnchor="middle" y={4} fontSize={11.5} fontWeight={600} className="fill-fg">
                     {n.initials}
                   </text>
