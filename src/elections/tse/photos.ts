@@ -55,3 +55,49 @@ export async function importPhotos(sql: Sql, year: number, entries: Iterable<Pho
   log("info", "tse.photos.imported", { year, read, written, skipped, source: o.sourceUrl });
   return { read, written, skipped };
 }
+
+/** Pacotes oficiais baixados por instância (um download por UF/ano, reaproveitado por 30 min; falha expira em 5 min). */
+const zips = new Map<string, { at: number; ttl: number; zip: Promise<Buffer | null> }>();
+
+async function officialZip(url: string, fetchImpl: typeof fetch): Promise<Buffer | null> {
+  const hit = zips.get(url);
+  if (hit && Date.now() - hit.at < hit.ttl) return hit.zip;
+  const entry = { at: Date.now(), ttl: 30 * 60_000, zip: Promise.resolve<Buffer | null>(null) };
+  entry.zip = (async () => {
+    try {
+      const res = await fetchImpl(url, { redirect: "error", signal: AbortSignal.timeout(20_000) });
+      const len = Number(res.headers.get("content-length") ?? 0);
+      if (!res.ok || len > 80_000_000) throw new Error(`HTTP ${res.status}`);
+      return Buffer.from(await res.arrayBuffer());
+    } catch (e) {
+      entry.ttl = 5 * 60_000;
+      log("warn", "tse.photos.fetch_failed", { url, error: e instanceof Error ? e.message : String(e) });
+      return null;
+    }
+  })();
+  zips.set(url, entry);
+  return entry.zip;
+}
+
+/**
+ * Foto oficial sob demanda: candidatura majoritária ainda sem foto no banco ⇒ busca o membro F<UF><SQ>_div no pacote
+ * oficial do TSE, valida e grava (mesma rotina do importador, com proveniência). Sem pacote/membro ⇒ false (monograma).
+ */
+export async function fetchOfficialPhoto(sql: Sql, year: number, sq: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  const [scope] = (await sql`select s.office_id, t.uf from count_candidate cc join count_snapshot s on s.id = cc.snapshot_id join territory t on t.id = s.territory_id
+    where s.year = ${year} and cc.sq_candidato = ${sq} order by s.office_id limit 1`) as { office_id: number; uf: string | null }[];
+  if (!scope || !MAJORITARIAN.has(scope.office_id)) return false;
+  const uf = scope.office_id === 1 ? "BR" : scope.uf;
+  if (!uf || !/^[A-Z]{2}$/.test(uf)) return false;
+  const url = photosUrl(year, uf);
+  const zip = await officialZip(url, fetchImpl);
+  if (!zip) return false;
+  const { listZip, readZipMember } = await import("./zip");
+  const member = listZip(zip).find((m) => {
+    const r = MEMBER_RE.exec(m.name.split("/").pop() ?? "");
+    return r && r[2] === sq;
+  });
+  if (!member) return false;
+  const res = await importPhotos(sql, year, [{ member: member.name, bytes: readZipMember(zip, member) }], { sourceUrl: url, zipSha256: createHash("sha256").update(zip).digest("hex"), wanted: new Set([sq]) });
+  return res.written > 0;
+}

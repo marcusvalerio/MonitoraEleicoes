@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { fmtInt } from "@/lib/format";
+import { CandidatePhoto } from "./CandidatePhoto";
 
 export interface CompareFinalist {
   sq: string;
@@ -28,7 +29,7 @@ const ease = [0.2, 0.7, 0.2, 1] as const;
  * 1º × 2º turno dos finalistas: % dos válidos e votos em cada turno, lado a lado — números oficiais do TSE.
  * A variação é aritmética (2º − 1º). Não há inferência de transferência de votos nem de causa.
  */
-export function RoundCompare({ finalists, rows, secondPartial }: { finalists: CompareFinalist[]; rows: CompareRow[]; secondPartial: boolean }) {
+export function RoundCompare({ year, finalists, rows, secondPartial }: { year: number; finalists: CompareFinalist[]; rows: CompareRow[]; secondPartial: boolean }) {
   const [focus, setFocus] = useState(finalists[0]?.sq ?? "");
   const [sort, setSort] = useState<"delta" | "nome">("delta");
   const f = finalists.find((x) => x.sq === focus) ?? finalists[0];
@@ -57,9 +58,12 @@ export function RoundCompare({ finalists, rows, secondPartial }: { finalists: Co
               className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface/60 p-5"
             >
               <span className="absolute inset-y-0 left-0 w-1" style={{ background: c.color }} aria-hidden />
-              <header className="flex items-baseline justify-between gap-3">
-                <h3 className="font-[family-name:var(--font-display)] text-[17px] font-semibold text-fg">{c.name}</h3>
-                <span className="text-[11.5px] text-fg-3">{c.party ?? ""}</span>
+              <header className="flex items-center gap-3">
+                <CandidatePhoto year={year} sq={c.sq} name={c.name} size={52} ring={c.color} />
+                <div className="min-w-0">
+                  <h3 className="truncate font-[family-name:var(--font-display)] text-[17px] font-semibold text-fg">{c.name}</h3>
+                  <span className="text-[11.5px] text-fg-3">{c.party ?? ""}</span>
+                </div>
               </header>
               <div className="mt-4 space-y-3">
                 {(["first", "second"] as const).map((r) => {

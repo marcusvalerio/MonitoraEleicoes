@@ -200,7 +200,7 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         <section aria-labelledby="cmp" className="mt-14">
           <h2 id="cmp" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">1º × 2º TURNO · FINALISTAS</h2>
           <p className="mb-4 text-[11.5px] text-fg-3">Desempenho de quem está no 2º turno, nos dois turnos, no Brasil e em cada estado.</p>
-          {cmp && finalists.length === 2 ? <RoundCompare finalists={finalists} rows={cmp.rows} secondPartial={!final} /> : <StateView state="empty" title="Comparativo indisponível">O 2º turno ainda não tem votos oficiais coletados.</StateView>}
+          {cmp && finalists.length === 2 ? <RoundCompare year={year} finalists={finalists} rows={cmp.rows} secondPartial={!final} /> : <StateView state="empty" title="Comparativo indisponível">O 2º turno ainda não tem votos oficiais coletados.</StateView>}
         </section>
       )}
 
