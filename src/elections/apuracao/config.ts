@@ -103,7 +103,7 @@ export function countFileUrl(e: Pick<CountElection, "cycle" | "code">, office: n
 const UFS_EXCEPT_DF = Object.keys(UF_IBGE).filter((u) => u !== "DF");
 /** Abrangências em que cada cargo existe numa eleição geral (Dep. Estadual não existe no DF; Distrital só no DF). */
 export function scopesFor(officeId: number): string[] {
-  if (officeId === 1) return ["BR", ...Object.keys(UF_IBGE)];
+  if (officeId === 1) return ["BR", ...Object.keys(UF_IBGE), "ZZ"]; // ZZ = votos no exterior (só Presidente)
   if (officeId === 7) return UFS_EXCEPT_DF;
   if (officeId === 8) return ["DF"];
   return Object.keys(UF_IBGE);

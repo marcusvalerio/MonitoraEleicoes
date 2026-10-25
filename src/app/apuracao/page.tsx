@@ -13,6 +13,12 @@ import { LiveStatus, headlineOf } from "@/components/apuracao/LiveStatus";
 import { LiveIntro } from "@/components/apuracao/LiveIntro";
 import { VoteRing } from "@/components/apuracao/VoteRing";
 import { ApuracaoMap, type UfCount } from "@/components/apuracao/ApuracaoMap";
+import { Apuracao3DPanel, type Territory3D } from "@/components/apuracao/Apuracao3DPanel";
+import { RoundCompare, type CompareFinalist } from "@/components/apuracao/RoundCompare";
+import { ExteriorGlobe } from "@/components/apuracao/ExteriorGlobe";
+import { MunicipalityBars } from "@/components/apuracao/MunicipalityBars";
+import { compareRounds, resultsByMunicipality, resultsByUf, roundsWithData, type TerritoryResult } from "@/analytics/turnos";
+import { exteriorCoords } from "@/geo/exterior";
 import { PresidentialBoard, type BoardCandidate } from "@/components/apuracao/PresidentialBoard";
 import { FollowedPanel } from "@/components/apuracao/FollowedPanel";
 import { CandidatePhoto } from "@/components/apuracao/CandidatePhoto";
@@ -53,7 +59,6 @@ function board(view: CountView, colorBySq: Map<string, string>): BoardCandidate[
 export default async function Apuracao({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const year = Number(sp.ano) || 2026;
-  const round = sp.turno === "2" ? 2 : 1;
   const uf = typeof sp.uf === "string" && sp.uf.toUpperCase() in UF_IBGE ? sp.uf.toUpperCase() : null;
   const sql = await intelSql();
   if (!sql)
@@ -62,13 +67,21 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         <StateView state="provider_unavailable" title="Fonte indisponível neste ambiente">A base oficial (TSE) não está disponível aqui. Nenhum número é exibido — nem estimado.</StateView>
       </div>
     );
-  const [br, ufs, boundaries, ufPres, ufSen, ufDep] = await Promise.all([
+  // Turno: o pedido na URL; sem pedido, o 2º turno assim que o TSE publicar algo dele (noite do 2º turno = ao vivo).
+  const rounds = await roundsWithData(sql, year);
+  const round = sp.turno === "1" ? 1 : sp.turno === "2" ? 2 : rounds.includes(2) ? 2 : 1;
+  const [br, ufs, boundaries, ufPres, ufSen, ufDep, terr, exterior, muns, brFirst, ufFirst] = await Promise.all([
     countView(sql, { year, round, officeId: 1, territoryId: 0 }),
     countByUf(sql, { year, round, officeId: 1 }),
     getBoundaries("uf"),
     uf ? countView(sql, { year, round, officeId: 1, territoryId: UF_IBGE[uf] }) : Promise.resolve(null),
     uf ? countView(sql, { year, round, officeId: 5, territoryId: UF_IBGE[uf] }) : Promise.resolve(null),
     uf ? countView(sql, { year, round, officeId: 6, territoryId: UF_IBGE[uf] }) : Promise.resolve(null),
+    resultsByUf(sql, { year, round, officeId: 1 }),
+    resultsByMunicipality(sql, { year, round, officeId: 1, uf: "ZZ" }),
+    uf ? resultsByMunicipality(sql, { year, round, officeId: 1, uf }) : Promise.resolve([] as TerritoryResult[]),
+    round === 2 ? countView(sql, { year, round: 1, officeId: 1, territoryId: 0 }) : Promise.resolve(null),
+    round === 2 ? resultsByUf(sql, { year, round: 1, officeId: 1 }) : Promise.resolve([] as TerritoryResult[]),
   ]);
   const s = br.snapshot;
   const headline = headlineOf(br.state);
@@ -76,7 +89,27 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   const final = br.state === "totalizada";
   const demo = !!s?.datasetKind && s.datasetKind !== "production";
   // Cor = identidade estável (ordem do nº de urna), nunca posição/ranking nem ideologia.
-  const colorBySq = new Map([...br.candidates].sort((a, b) => (a.ballotNumber ?? 999) - (b.ballotNumber ?? 999)).map((c, i) => [String(c.sqCandidato), SERIES[i] ?? OTHER]));
+  // A cor acompanha o candidato entre os turnos: a ordem do nº de urna vem do 1º turno quando ele existe.
+  const roster = (brFirst?.candidates.length ? brFirst : br).candidates;
+  const colorByNumber = new Map([...roster].sort((a, b) => (a.ballotNumber ?? 999) - (b.ballotNumber ?? 999)).map((c, i) => [c.ballotNumber, SERIES[i] ?? OTHER]));
+  const colorBySq = new Map(br.candidates.map((c) => [String(c.sqCandidato), colorByNumber.get(c.ballotNumber) ?? OTHER]));
+  const colorOf = (n: number | null) => colorByNumber.get(n) ?? OTHER;
+  const leaderOf = (t: TerritoryResult) => {
+    const c = t.candidates[0];
+    return c && c.votes > 0 ? { name: c.name, party: c.party, pct: c.pct, votes: c.votes, color: colorOf(c.number) } : null;
+  };
+  const territories: Territory3D[] = terr.map((t) => ({ key: t.key, name: t.key === "ZZ" ? "Exterior" : UF_NAME[t.key] ?? t.name, countedPct: t.countedPct, validVotes: t.validVotes, live: t.phase === "partial", leader: leaderOf(t) }));
+  const zz = terr.find((t) => t.key === "ZZ") ?? null;
+  const cities = exterior.map((t) => ({ key: t.key, name: t.name, ...(exteriorCoords(t.name) ?? { lat: null, lon: null }), validVotes: t.validVotes, leader: leaderOf(t) }));
+  const munRows = muns.map((m) => ({ key: m.key, name: m.name, validVotes: m.validVotes, countedPct: m.countedPct, parts: m.candidates.filter((c) => c.pct !== null).map((c) => ({ name: c.name, color: colorOf(c.number), pct: c.pct! })) }));
+  const cmp = round === 2 ? compareRounds(ufFirst, terr, { key: "BR", territoryId: 0, name: "Brasil", uf: null, phase: br.snapshot?.phase ?? "", countedPct: null, validVotes: null, collectedAt: "", candidates: br.candidates.filter((c) => c.votes.status === "value").map((c) => ({ sq: String(c.sqCandidato), name: c.name, party: c.party, number: c.ballotNumber, votes: c.votes.value ?? 0, pct: c.pct.status === "value" ? c.pct.value : null })) }) : null;
+  const finalists: CompareFinalist[] = cmp
+    ? cmp.finalists.map((f) => {
+        const a = brFirst?.candidates.find((c) => c.ballotNumber === f.number);
+        return { sq: f.sq, name: f.name, party: f.party, color: colorOf(f.number), first: a && a.votes.status === "value" ? { votes: a.votes.value ?? 0, pct: a.pct.status === "value" ? a.pct.value : null } : null, second: { votes: f.votes, pct: f.pct } };
+      })
+    : [];
+  const roundHref = (r: number) => `?${new URLSearchParams({ ...(year !== 2026 ? { ano: String(year) } : {}), turno: String(r), ...(uf ? { uf } : {}) })}`;
   const cands = board(br, colorBySq);
   const entities = cands.map((c) => ({ id: c.sq, name: c.ballotName, color: c.color, partyAcronym: c.party ?? "" }));
   const sqByName = new Map(cands.map((c) => [c.ballotName, c.sq]));
@@ -106,6 +139,14 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
             </div>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-3">
+            <nav className="flex rounded-full border border-border bg-bg/60 p-0.5 text-[12px] backdrop-blur" aria-label="Turno">
+              {[1, 2].map((r) => (
+                <Link key={r} href={roundHref(r)} scroll={false} aria-current={r === round ? "page" : undefined} className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 transition-colors ${r === round ? "bg-fg font-semibold text-bg" : rounds.includes(r) ? "text-fg-2 hover:text-fg" : "text-fg-3"}`}>
+                  {r}º turno
+                  {r === 2 && rounds.includes(2) && !(round === 2 && final) && <span className="size-1.5 rounded-full bg-[#e5484d] motion-safe:animate-[pulse-dot_1.6s_ease-in-out_infinite]" aria-label="ao vivo" />}
+                </Link>
+              ))}
+            </nav>
             <LiveStatus state={br.state} />
             <LiveRefresh intervalS={15} label="Atualizado" />
           </div>
@@ -142,7 +183,7 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
           </div>
         </div>
         <div className="order-2 lg:order-1 lg:col-span-8">
-          <ApuracaoMap boundaries={boundaries} rows={mapRows} entities={entities} />
+          <Apuracao3DPanel territories={territories} legend={entities.filter((e) => territories.some((t) => t.leader?.name === e.name)).map((e) => ({ name: e.name, color: e.color }))} fallback={<ApuracaoMap boundaries={boundaries} rows={mapRows} entities={entities} />} />
         </div>
         <div className="order-3 lg:col-span-8">
           <h3 className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">PRESIDENTE · APURAÇÃO GERAL</h3>
@@ -152,6 +193,31 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         <aside className="order-4 lg:col-span-4">
           <FollowedPanel year={year} round={round} refreshKey={refreshKey} />
         </aside>
+      </section>
+
+      {/* COMPARATIVO 1º × 2º TURNO */}
+      {round === 2 && (
+        <section aria-labelledby="cmp" className="mt-14">
+          <h2 id="cmp" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">1º × 2º TURNO · FINALISTAS</h2>
+          <p className="mb-4 text-[11.5px] text-fg-3">Desempenho de quem está no 2º turno, nos dois turnos, no Brasil e em cada estado.</p>
+          {cmp && finalists.length === 2 ? <RoundCompare finalists={finalists} rows={cmp.rows} secondPartial={!final} /> : <StateView state="empty" title="Comparativo indisponível">O 2º turno ainda não tem votos oficiais coletados.</StateView>}
+        </section>
+      )}
+
+      {/* MUNICÍPIOS DA UF SELECIONADA */}
+      {uf && (
+        <section aria-labelledby="mun" className="mt-14">
+          <h2 id="mun" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">MUNICÍPIOS · {UF_NAME[uf].toUpperCase()} · PRESIDENTE</h2>
+          <p className="mb-4 text-[11.5px] text-fg-3">Divisão oficial dos votos válidos em cada município. Zonas e locais de votação: em breve (exigem a base por seção do TSE).</p>
+          <MunicipalityBars rows={munRows} />
+        </section>
+      )}
+
+      {/* EXTERIOR */}
+      <section aria-labelledby="ext" className="mt-14">
+        <h2 id="ext" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">VOTOS NO EXTERIOR · PRESIDENTE</h2>
+        <p className="mb-4 text-[11.5px] text-fg-3">Brasileiros que votaram fora do país (TSE “ZZ”). Arraste o globo para girar.</p>
+        <ExteriorGlobe cities={cities} total={zz ? { validVotes: zz.validVotes, countedPct: zz.countedPct, leader: leaderOf(zz) } : null} />
       </section>
 
       {/* ESTADOS */}

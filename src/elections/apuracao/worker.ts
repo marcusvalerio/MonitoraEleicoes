@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Sql } from "@/persistence/db";
-import { BR, MAJORITARIAN, UF_IBGE } from "@/elections/reference";
+import { MAJORITARIAN, ufTerritory } from "@/elections/reference";
 import { log } from "@/infrastructure/log";
 import { seedReference } from "@/elections/tse/importer";
 import { countFileUrl, discoverElections, scopesFor, type CountElection } from "./config";
@@ -59,7 +59,7 @@ export async function planTargets(sql: Sql, elections: CountElection[], o: Count
       for (const uf of scopesFor(office.id).filter(wantUf)) out.push({ election: e, officeId: office.id, uf, municipality: null });
       if (o.municipalities && MAJORITARIAN.has(office.id)) {
         const muns = (await sql.query("select id, uf, tse_code from territory where level = 'municipio' and tse_code is not null and ($1::text[] = '{}' or uf = any($1::text[])) order by uf, tse_code", [o.ufs ?? []])) as { id: number; uf: string; tse_code: number }[];
-        for (const m of muns) if (m.uf !== "ZZ") out.push({ election: e, officeId: office.id, uf: m.uf, municipality: { tseCode: Number(m.tse_code), territoryId: m.id } });
+        for (const m of muns) if (m.uf !== "ZZ" || office.id === 1) out.push({ election: e, officeId: office.id, uf: m.uf, municipality: { tseCode: Number(m.tse_code), territoryId: m.id } });
       }
     }
   return out;
@@ -81,7 +81,7 @@ async function setCheckpoint(sql: Sql, stream: string, cursor: string, at: strin
 
 function territoryOf(t: CountTarget) {
   if (t.municipality) return t.municipality.territoryId;
-  return t.uf === "BR" ? BR : UF_IBGE[t.uf];
+  return ufTerritory(t.uf) as number;
 }
 
 /** Persiste um arquivo já normalizado. Retorna "new" | "unchanged". Idempotente: pode ser reprocessado com segurança. */

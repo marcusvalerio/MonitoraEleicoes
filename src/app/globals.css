@@ -29,10 +29,10 @@
   --color-grp-4: #c98500;
   --color-grp-5: #9085e9;
 
-  --font-display: var(--font-general), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-data: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-num: var(--font-clash), var(--font-geist-sans), ui-sans-serif, sans-serif;
+  --font-num: var(--font-geist-sans), ui-sans-serif, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
   --radius-sm: 4px;

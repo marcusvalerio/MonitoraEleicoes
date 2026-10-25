@@ -9,23 +9,10 @@ import { getCurrentDebate } from "@/services/debates";
 import { getRepository } from "@/repository";
 import { intelSql } from "@/services/intelligence";
 
-/** Identidade Eleições 2026: General Sans (títulos/cargos), Clash Grotesk (números), Geist Sans (interface). */
-const generalSans = localFont({
-  src: [
-    { path: "./fonts/general-sans-500.woff2", weight: "500" },
-    { path: "./fonts/general-sans-600.woff2", weight: "600" },
-    { path: "./fonts/general-sans-700.woff2", weight: "700" },
-  ],
-  variable: "--font-general",
-  display: "swap",
-});
-const clashGrotesk = localFont({
-  src: [
-    { path: "./fonts/clash-grotesk-500.woff2", weight: "500" },
-    { path: "./fonts/clash-grotesk-600.woff2", weight: "600" },
-    { path: "./fonts/clash-grotesk-700.woff2", weight: "700" },
-  ],
-  variable: "--font-clash",
+/** Identidade Eleições 2026: Geist (títulos e números, Vercel) e Inter (texto corrido, Google Fonts — arquivo local, sem rede no build). */
+const inter = localFont({
+  src: [{ path: "./fonts/inter-latin-var.woff2", weight: "100 900", style: "normal" }],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -47,7 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const status = await (await getRepository()).getDataStatus();
   const official = !!(await intelSql().catch(() => null));
   return (
-    <html lang="pt-BR" className={`${generalSans.variable} ${clashGrotesk.variable} ${GeistSans.variable}`}>
+    <html lang="pt-BR" className={`${inter.variable} ${GeistSans.variable}`}>
       <body>
         <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-elevated focus:px-3 focus:py-2">
           Pular para o conteúdo

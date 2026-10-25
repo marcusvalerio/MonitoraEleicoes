@@ -1,7 +1,5 @@
-Fontes auto-hospedadas (sem dependência de CDN em tempo de execução):
+Fontes auto-hospedadas (sem dependência de CDN em tempo de execução nem no build):
 
-- General Sans (500, 600, 700) — Indian Type Foundry, distribuída pela Fontshare (ITF Free Font License: uso pessoal e comercial gratuito).
-- Clash Grotesk (500, 600, 700) — Indian Type Foundry, Fontshare (mesma licença).
-- Geist Sans — Vercel, pacote npm `geist` (SIL Open Font License).
-
-Origem: https://www.fontshare.com (arquivos .woff2 baixados da API oficial em 2026-10-01).
+- Geist Sans — Vercel, pacote npm `geist` (SIL Open Font License). Títulos, cargos e números (tabulares).
+- Inter (variável, subconjunto latin) — Rasmus Andersson, distribuída pelo Google Fonts; arquivo copiado de
+  `@fontsource-variable/inter` (SIL Open Font License). Texto corrido da interface.
