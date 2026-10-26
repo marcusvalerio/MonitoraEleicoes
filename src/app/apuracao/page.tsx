@@ -247,7 +247,7 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
             <div className="lg:col-span-4"><RaceCard title="Presidente" subtitle={`Votação em ${UF_NAME[uf]}`} view={ufPres} year={year} limit={12} /></div>
-            <div className="lg:col-span-8"><StateMunicipalMap uf={uf} rows={munMap} roundLabel={munRoundLabel} exploreHref={(tse) => `/apuracao/explorar?uf=${uf}&mun=${tse}`} /></div>
+            <div className="lg:col-span-8"><StateMunicipalMap uf={uf} rows={munMap} roundLabel={munRoundLabel} /></div>
           </div>
           {munRows.length > 0 && <div className="mt-6"><MunicipalityBars rows={munRows} /></div>}
         </section>

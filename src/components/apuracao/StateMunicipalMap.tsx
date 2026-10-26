@@ -22,7 +22,7 @@ interface Malha {
  * Mapa da UF dividido por município (malha oficial do IBGE), colorido pelo partido de quem lidera em cada um.
  * Município sem resultado oficial fica neutro (nunca colorido por estimativa). Clique ⇒ explorar até a escola.
  */
-export function StateMunicipalMap({ uf, rows, roundLabel, exploreHref }: { uf: string; rows: MunResult[]; roundLabel: string; exploreHref: (tse: string) => string }) {
+export function StateMunicipalMap({ uf, rows, roundLabel }: { uf: string; rows: MunResult[]; roundLabel: string }) {
   const [malha, setMalha] = useState<Malha | null>(null);
   const [failed, setFailed] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function StateMunicipalMap({ uf, rows, roundLabel, exploreHref }: { uf: s
             const r = byName.get(m.key);
             const fill = r?.leader?.color ?? "#e3dfd6";
             return (
-              <Link key={m.ibge} href={r ? exploreHref(r.tse) : "#"} scroll={false}>
+              <Link key={m.ibge} href={r ? `/apuracao/explorar?uf=${uf}&mun=${r.tse}` : "#"} scroll={false}>
                 <motion.path
                   d={m.d}
                   fill={fill}
