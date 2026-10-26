@@ -44,7 +44,18 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
     const lons = places.map((p) => p.lon).sort((a, b) => a - b);
     // recorte robusto (1%–99%): uma coordenada fora do lugar não achata o mapa
     const q = (a: number[], f: number) => a[Math.min(a.length - 1, Math.max(0, Math.round(f * (a.length - 1))))];
-    const [la0, la1, lo0, lo1] = [q(lats, 0.01), q(lats, 0.99), q(lons, 0.01), q(lons, 0.99)];
+    let [la0, la1, lo0, lo1] = [q(lats, 0.01), q(lats, 0.99), q(lons, 0.01), q(lons, 0.99)];
+    // Com o contorno oficial do município, o enquadramento é o município inteiro (uma escola só não vira "zoom infinito").
+    const ring = rings && rings.for === oKey ? rings.r.flat() : [];
+    for (const [lon, lat] of ring) {
+      if (lat < la0) la0 = lat;
+      if (lat > la1) la1 = lat;
+      if (lon < lo0) lo0 = lon;
+      if (lon > lo1) lo1 = lon;
+    }
+    // Sem contorno, garante uma janela mínima (~1 km) em volta dos pontos.
+    if (la1 - la0 < 0.01) [la0, la1] = [la0 - 0.005, la1 + 0.005];
+    if (lo1 - lo0 < 0.01) [lo0, lo1] = [lo0 - 0.005, lo1 + 0.005];
     const k = Math.cos((((la0 + la1) / 2) * Math.PI) / 180);
     const spanX = Math.max(1e-4, (lo1 - lo0) * k);
     const spanY = Math.max(1e-4, la1 - la0);
@@ -54,7 +65,7 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
     const ox = (W - spanX * s) / 2;
     const oy = (H - spanY * s) / 2;
     return { H, x: (lon: number) => ox + (lon - lo0) * k * s, y: (lat: number) => H - (oy + (lat - la0) * s) };
-  }, [places]);
+  }, [places, rings, oKey]);
   const pts = useMemo(() => {
     if (!view) return [];
     const max = Math.max(1, ...places.map((p) => Object.entries(p.votes).reduce((a, [k, v]) => (numbers.has(k) ? a + v : a), 0)));
@@ -115,7 +126,7 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
   const h = pts.find((p) => p.key === hover);
   const zoomed = vb.w < full.w - 1;
   return (
-    <figure className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-[#11141b]" data-testid="places-map">
+    <figure className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-[#0b0d12]" data-testid="places-map">
       <motion.svg
         ref={svgRef}
         viewBox={`${full.x} ${full.y} ${full.w} ${full.h}`}
@@ -140,7 +151,7 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
         {rings && rings.for === oKey && (
           <motion.path
             d={rings.r.map((r) => `M${r.map(([lon, lat]) => `${view.x(lon).toFixed(1)},${view.y(lat).toFixed(1)}`).join("L")}Z`).join("")}
-            fill="#151a24"
+            fill="#1a2030"
             stroke="#5b6475"
             strokeWidth={(2 * vb.w) / full.w}
             strokeLinejoin="round"

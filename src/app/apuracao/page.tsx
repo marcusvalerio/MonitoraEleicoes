@@ -5,7 +5,6 @@ import { RaceHero } from "@/components/apuracao/RaceHero";
 import { CountTimeline } from "@/components/apuracao/CountTimeline";
 import { BrazilMunicipalMap } from "@/components/apuracao/BrazilMunicipalMap";
 import { CountPills } from "@/components/apuracao/CountPills";
-import { BlankNull } from "@/components/apuracao/BlankNull";
 import { StateMunicipalMap, type MunResult } from "@/components/apuracao/StateMunicipalMap";
 import { municipalitiesOf } from "@/analytics/locais";
 import Link from "next/link";
@@ -23,7 +22,7 @@ import type { UfCount } from "@/components/apuracao/ApuracaoMap";
 import { RoundCompare, type CompareFinalist } from "@/components/apuracao/RoundCompare";
 import { ExteriorGlobe } from "@/components/apuracao/ExteriorGlobe";
 import { MunicipalityBars } from "@/components/apuracao/MunicipalityBars";
-import { blankNullByUf, compareRounds, countTimeline, resultsByMunicipality, resultsByUf, roundsWithData, type TerritoryResult } from "@/analytics/turnos";
+import { compareRounds, countTimeline, resultsByMunicipality, resultsByUf, roundsWithData, type TerritoryResult } from "@/analytics/turnos";
 import { exteriorCoords } from "@/geo/exterior";
 import { PresidentialBoard, type BoardCandidate } from "@/components/apuracao/PresidentialBoard";
 import { CandidatePhoto } from "@/components/apuracao/CandidatePhoto";
@@ -96,7 +95,7 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   // Apuração em andamento: depois de responder, busca os arquivos novos do TSE (no máx. 1×/min no total).
   if (!final) after(() => refreshCountIfStale(sql, year, round as 1 | 2));
   if (!final && uf) after(() => refreshUfMunicipalitiesIfStale(sql, year, round as 1 | 2, uf));
-  const [blankNull, timeline] = await Promise.all([blankNullByUf(sql, { year, round }), countTimeline(sql, { year, round })]);
+  const timeline = await countTimeline(sql, { year, round });
   // Municípios da UF escolhida: apuração do turno (coletada sob demanda); sem ela, votação por local do 1º turno.
   const munFallback = uf && !muns.some((m) => m.candidates.length) ? await municipalitiesOf(sql, { year, round: 1, uf }) : [];
   const demo = !!s?.datasetKind && s.datasetKind !== "production";
@@ -279,15 +278,6 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         </section>
       )}
 
-      {/* BRANCOS E NULOS — perto do Exterior quando a apuração termina */}
-      {final && (
-      <section aria-labelledby="bn" className="mt-24">
-        <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">BRANCOS E NULOS · REGIÕES E ESTADOS</p>
-          <h2 id="bn" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">Brancos e nulos</h2>
-        <p className="mb-4 text-[11.5px] text-fg-3">Percentual sobre o comparecimento apurado em cada lugar. Brancos e nulos não entram nos votos válidos.</p>
-        <BlankNull ufs={blankNull.ufs} regions={blankNull.regions} ufName={(k) => (k === "ZZ" ? "Exterior" : (UF_NAME[k] ?? k))} />
-      </section>
-      )}
 
       {/* EXTERIOR */}
       <section aria-labelledby="ext" className="mt-24">
@@ -327,14 +317,6 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         </ul>
       </section>
 
-      {!final && (
-      <section aria-labelledby="bn" className="mt-24">
-        <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">BRANCOS E NULOS · REGIÕES E ESTADOS</p>
-          <h2 id="bn" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">Brancos e nulos</h2>
-        <p className="mb-4 text-[11.5px] text-fg-3">Percentual sobre o comparecimento apurado em cada lugar. Brancos e nulos não entram nos votos válidos.</p>
-        <BlankNull ufs={blankNull.ufs} regions={blankNull.regions} ufName={(k) => (k === "ZZ" ? "Exterior" : (UF_NAME[k] ?? k))} />
-      </section>
-      )}
 
       {/* UF SELECIONADA: Presidente na UF + Senado + Câmara */}
       <section id="estado" aria-labelledby="est" className="mt-12 scroll-mt-20">
