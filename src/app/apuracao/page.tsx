@@ -196,7 +196,18 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
           {s?.sourceUrl && <a className="hover:text-fg" href={s.sourceUrl} target="_blank" rel="noreferrer">ver fonte →</a>}
         </p>
         {s && <div className="mt-3"><CountPills countedPct={s.countedPct} sectionsCounted={s.sectionsCounted} sectionsTotal={s.sectionsTotal} turnout={s.turnout} abstention={s.abstention} electorate={s.electorate} /></div>}
-        {(() => { const w = cands.find((c) => c.elected); return w ? <WinnerBanner sq={w.sq} name={w.ballotName} party={w.party} pct={w.pct} color={w.color} round={round} /> : null; })()}
+        {(() => {
+          const w = cands.find((c) => c.elected);
+          if (w) return <WinnerBanner sq={w.sq} name={w.ballotName} party={w.party} pct={w.pct} color={w.color} round={round} />;
+          // Definição aritmética com números oficiais: a diferença entre 1º e 2º já supera todo o eleitorado das seções
+          // ainda não totalizadas (eleitorado − comparecimento − abstenção apurados). Não é a marcação "eleito" do TSE.
+          const v = (m?: { value: number | null; status: string }) => (m?.status === "value" ? m.value : null);
+          const [a, b] = cands;
+          const el = v(s?.electorate), tu = v(s?.turnout), ab = v(s?.abstention);
+          if (round !== 2 || !s || !a || !b || a.votes === null || b.votes === null || el === null || tu === null || ab === null) return null;
+          const remaining = Math.max(0, el - tu - ab);
+          return a.votes - b.votes > remaining ? <WinnerBanner sq={a.sq} name={a.ballotName} party={a.party} pct={a.pct} color={a.color} round={round} pending remaining={remaining} /> : null;
+        })()}
       </header>
 
       {demo && (
