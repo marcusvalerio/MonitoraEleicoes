@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import { intelSql } from "@/services/intelligence";
 import { listZip, readZipMember } from "@/elections/tse/zip";
 import { readBoletim } from "@/elections/tse/bu";
@@ -10,7 +9,7 @@ import { log } from "@/infrastructure/log";
  * 2º turno POR ESCOLA a partir dos Boletins de Urna oficiais (um por seção, publicados pelo TSE na noite da eleição).
  * Etapas (idempotentes, retomáveis): 1) seção → escola pelo cadastro oficial (eleitorado_local_votacao);
  * 2) para cada município ainda sem resultado, lê o BU de cada seção e soma por escola (place_result, turno 2).
- * Cada chamada trabalha ~4 min e encadeia a próxima até terminar; uma concessão no banco impede execuções paralelas.
+ * Cada chamada trabalha ~4 min; chamadas repetidas continuam de onde parou. Concessão no banco por frente evita duplicidade.
  */
 export const maxDuration = 300;
 const YEAR = 2026, ROUND = 2, PLEITO = 3221, ELEICAO = 6258;
@@ -23,7 +22,11 @@ type Sql = NonNullable<Awaited<ReturnType<typeof intelSql>>>;
 export async function GET(req: Request) {
   const sql = await intelSql();
   if (!sql) return Response.json({ error: "banco indisponível" }, { status: 503 });
-  if (!(await takeLease(sql, YEAR, 9200 + ROUND, 200))) return Response.json({ skipped: "importação em andamento" });
+  // Frentes paralelas: ?frente=N&de=K processa só os municípios com código % K = N (cada frente tem sua concessão).
+  const q = new URL(req.url).searchParams;
+  const K = Math.max(1, Math.min(8, Number(q.get("de") ?? 1)));
+  const N = Math.max(0, Math.min(K - 1, Number(q.get("frente") ?? 0)));
+  if (!(await takeLease(sql, YEAR, 9200 + ROUND * 10 + N, 200))) return Response.json({ skipped: "importação em andamento" });
   const t0 = Date.now();
   const report: Record<string, unknown> = {};
   try {
@@ -44,10 +47,11 @@ export async function GET(req: Request) {
       const todo = (await sql`select p.uf, s.municipality_tse as mun from section_place s join polling_place p using (year, municipality_tse, zone, place)
         where s.year = ${YEAR} and not exists (select 1 from place_result r where r.year = ${YEAR} and r.round = ${ROUND} and r.office_id = 1 and r.municipality_tse = s.municipality_tse)
         group by p.uf, s.municipality_tse order by p.uf, s.municipality_tse`) as { uf: string; mun: number }[];
-      report.municipios_restantes = todo.length;
+      const mine = todo.filter((t) => t.mun % K === N);
+      report.municipios_restantes = mine.length;
       const cs = new Map<string, Map<number, { zone: number; section: number }[]>>();
       let done = 0;
-      for (const { uf, mun } of todo) {
+      for (const { uf, mun } of mine) {
         if (Date.now() - t0 > BUDGET) break;
         if (!cs.has(uf)) cs.set(uf, await sectionsOf(uf).catch(() => new Map()));
         const secs = cs.get(uf)!.get(mun) ?? [];
@@ -55,19 +59,11 @@ export async function GET(req: Request) {
         done++;
       }
       report.municipios_feitos = done;
-      report.fim = done === todo.length;
+      report.fim = done === mine.length;
     }
   } catch (e) {
     log("warn", "importar.turno2.failed", { error: e instanceof Error ? e.message : String(e) });
     report.erro = e instanceof Error ? e.message : String(e);
-  }
-  // encadeia a próxima etapa enquanto houver trabalho
-  if (report.fim !== true) {
-    const self = new URL(req.url);
-    after(async () => {
-      await sql.query("update ingestion_checkpoint set updated_at = now() - interval '1 hour' where stream = $1", [`ondemand:${YEAR}:${9200 + ROUND}`]);
-      await fetch(self, { signal: AbortSignal.timeout(5_000) }).catch(() => {});
-    });
   }
   return Response.json(report);
 }
