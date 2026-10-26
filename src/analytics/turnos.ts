@@ -134,3 +134,22 @@ export async function blankNullByUf(sql: Sql, q: { year: number; round: number }
   });
   return { ufs, regions };
 }
+
+export interface TimelinePoint {
+  at: string;
+  counted: number;
+  /** % dos válidos por nº de urna (somente publicados pelo TSE). */
+  pct: Record<string, number>;
+}
+
+/** Evolução oficial do % de cada candidatura ao longo da apuração (Brasil, Presidente): um ponto por arquivo coletado. */
+export async function countTimeline(sql: Sql, q: { year: number; round: number }): Promise<TimelinePoint[]> {
+  const rows = (await sql`select s.source_generated_at as at, s.counted_pct as counted,
+      json_object_agg(cc.ballot_number::text, cc.pct) filter (where cc.pct_status = 'value' and cc.ballot_number is not null) as pct
+    from count_snapshot s join count_candidate cc on cc.snapshot_id = s.id
+    where s.year = ${q.year} and s.round = ${q.round} and s.office_id = 1 and s.territory_id = ${BR} and s.counted_pct_status = 'value'
+    group by s.id, s.source_generated_at, s.counted_pct order by s.source_generated_at`) as Row[];
+  return rows
+    .filter((r) => r.pct)
+    .map((r) => ({ at: new Date(r.at as string).toISOString(), counted: Number(r.counted), pct: Object.fromEntries(Object.entries(r.pct as Record<string, unknown>).map(([k, v]) => [k, Number(v)])) }));
+}

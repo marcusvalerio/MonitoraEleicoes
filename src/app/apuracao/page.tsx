@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { after } from "next/server";
 import { refreshCountIfStale, refreshUfMunicipalitiesIfStale } from "@/elections/apuracao/onDemand";
 import { RaceHero } from "@/components/apuracao/RaceHero";
+import { CountTimeline } from "@/components/apuracao/CountTimeline";
 import { CountPills } from "@/components/apuracao/CountPills";
 import { BlankNull } from "@/components/apuracao/BlankNull";
 import { StateMunicipalMap, type MunResult } from "@/components/apuracao/StateMunicipalMap";
@@ -24,7 +25,7 @@ import { Apuracao3DPanel, type Territory3D } from "@/components/apuracao/Apuraca
 import { RoundCompare, type CompareFinalist } from "@/components/apuracao/RoundCompare";
 import { ExteriorGlobe } from "@/components/apuracao/ExteriorGlobe";
 import { MunicipalityBars } from "@/components/apuracao/MunicipalityBars";
-import { blankNullByUf, compareRounds, resultsByMunicipality, resultsByUf, roundsWithData, type TerritoryResult } from "@/analytics/turnos";
+import { blankNullByUf, compareRounds, countTimeline, resultsByMunicipality, resultsByUf, roundsWithData, type TerritoryResult } from "@/analytics/turnos";
 import { exteriorCoords } from "@/geo/exterior";
 import { PresidentialBoard, type BoardCandidate } from "@/components/apuracao/PresidentialBoard";
 import { FollowedPanel } from "@/components/apuracao/FollowedPanel";
@@ -99,7 +100,7 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   // Apuração em andamento: depois de responder, busca os arquivos novos do TSE (no máx. 1×/min no total).
   if (!final) after(() => refreshCountIfStale(sql, year, round as 1 | 2));
   if (!final && uf) after(() => refreshUfMunicipalitiesIfStale(sql, year, round as 1 | 2, uf));
-  const blankNull = await blankNullByUf(sql, { year, round });
+  const [blankNull, timeline] = await Promise.all([blankNullByUf(sql, { year, round }), countTimeline(sql, { year, round })]);
   // Municípios da UF escolhida: apuração do turno (coletada sob demanda); sem ela, votação por local do 1º turno.
   const munFallback = uf && !muns.some((m) => m.candidates.length) ? await municipalitiesOf(sql, { year, round: 1, uf }) : [];
   const demo = !!s?.datasetKind && s.datasetKind !== "production";
@@ -179,6 +180,12 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         const side = (c: typeof a) => ({ sq: c.sq, name: c.ballotName, party: c.party, number: c.number, votes: c.votes, pct: c.pct, color: c.color });
         return <RaceHero year={year} a={side(a)} b={side(b)} countedPct={v(s?.countedPct)} status={status} remaining={remaining} />;
       })()}
+      {cands.length >= 2 && timeline.length >= 2 && (
+        <section className="mb-6 rounded-[var(--radius-lg)] border border-border bg-surface p-4 md:p-5" aria-labelledby="linha">
+          <h2 id="linha" className="mb-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2 uppercase">Ao longo da apuração</h2>
+          <CountTimeline points={timeline} series={cands.slice(0, 2).map((c) => ({ number: String(c.number), name: c.ballotName, color: c.color }))} />
+        </section>
+      )}
       {/* BARRA DE IDENTIDADE */}
       <header className="relative -mx-4 mb-6 overflow-hidden border-b border-border bg-[radial-gradient(120%_140%_at_0%_0%,rgba(29,107,71,0.18),transparent_55%),radial-gradient(90%_120%_at_100%_0%,rgba(27,63,143,0.16),transparent_60%)] px-4 py-5 md:-mx-6 md:px-6" data-testid="apuracao-brand">
         {headline === "ao_vivo" && <span className="absolute inset-x-0 bottom-0 h-px overflow-hidden" aria-hidden><span className="block h-full w-1/3 bg-gradient-to-r from-transparent via-[#e5484d] to-transparent motion-safe:animate-[sweep_3.2s_linear_infinite]" /></span>}

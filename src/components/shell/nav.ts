@@ -1,4 +1,4 @@
-import { Activity, ClipboardList, Columns2, Flag, Users, BookOpen, Database, LayoutDashboard, Landmark, Radio, Map, Newspaper } from "lucide-react";
+import { Columns2, Flag, Users, BookOpen, Database, Landmark, Radio, Map } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -17,12 +17,10 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
   void currentDebateId;
   return [
     {
-      label: "Acompanhar",
+      label: "Apuração",
       items: [
-        { href: "/", label: "Visão geral", icon: LayoutDashboard, match: (p) => p === "/" || p.startsWith("/overview") },
         { href: "/apuracao", label: "Ao vivo", icon: Radio, match: (p) => (p.startsWith("/apuracao") && !p.startsWith("/apuracao/explorar")) || p.startsWith("/ao-vivo") },
         { href: "/apuracao/explorar", label: "Explorar", icon: Map, match: (p) => p.startsWith("/apuracao/explorar") },
-        { href: "/noticias", label: "Notícias", icon: Newspaper, match: (p) => p.startsWith("/noticias") },
       ],
     },
     {
@@ -31,14 +29,7 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
         { href: "/eleicoes", label: "Eleições", icon: Landmark, match: (p) => p.startsWith("/eleicoes") },
         { href: "/candidatos", label: "Candidatos", icon: Users, match: (p) => p.startsWith("/candidato") },
         { href: "/partidos", label: "Partidos", icon: Flag, match: (p) => p.startsWith("/partido") },
-        { href: "/pesquisas", label: "Pesquisas", icon: ClipboardList, match: (p) => p.startsWith("/pesquisas") },
         { href: "/comparar", label: "Comparar", icon: Columns2, match: (p) => p.startsWith("/comparar") },
-      ],
-    },
-    {
-      label: "Conversação",
-      items: [
-        { href: "/monitoramento", label: "Redes", icon: Activity, match: (p) => p.startsWith("/monitoramento") },
       ],
     },
     {
@@ -52,6 +43,6 @@ export function navGroups(currentDebateId: string | null): NavGroup[] {
 }
 
 /** Itens fixos da barra inferior no mobile (o restante fica no menu/gaveta). */
-export const MOBILE_PRIMARY = ["Ao vivo", "Explorar", "Notícias", "Eleições"];
+export const MOBILE_PRIMARY = ["Ao vivo", "Explorar", "Eleições", "Comparar"];
 
 export const navItems = (id: string | null) => navGroups(id).flatMap((g) => g.items);
