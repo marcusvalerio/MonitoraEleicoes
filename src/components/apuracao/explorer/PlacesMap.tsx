@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { fmtInt } from "@/lib/format";
 import type { Cand } from "./AreaList";
@@ -19,8 +19,22 @@ export interface MapPlace {
  * Escolas no mapa pela coordenada OFICIAL do TSE (latitude/longitude do local de votação). Cor = partido de quem lidera
  * no local; tamanho = votos válidos. Escola sem coordenada não aparece aqui (fica na lista) — posição nunca é inventada.
  */
-export function PlacesMap({ places, cands, selected }: { places: MapPlace[]; cands: Cand[]; selected?: string | null }) {
+export function PlacesMap({ places, cands, selected, outline }: { places: MapPlace[]; cands: Cand[]; selected?: string | null; outline?: { uf: string; name: string } | null }) {
   const router = useRouter();
+  // Contorno oficial do município (IBGE) como base do mapa; sem ele, só os pontos.
+  const [rings, setRings] = useState<{ for: string; r: number[][][] } | null>(null);
+  const oKey = outline ? `${outline.uf}/${outline.name}` : "";
+  useEffect(() => {
+    if (!oKey) return;
+    let live = true;
+    fetch(`/api/contorno/${oKey.split("/").map(encodeURIComponent).join("/")}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => live && j?.rings && setRings({ for: oKey, r: j.rings }))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [oKey]);
   const [hover, setHover] = useState<string | null>(null);
   const numbers = useMemo(() => new Set(cands.map((c) => c.number)), [cands]);
   const W = 1000;
@@ -123,6 +137,20 @@ export function PlacesMap({ places, cands, selected }: { places: MapPlace[]; can
           </pattern>
         </defs>
         <rect width={W} height={view.H} fill="url(#grid)" />
+        {rings && rings.for === oKey && (
+          <motion.path
+            d={rings.r.map((r) => `M${r.map(([lon, lat]) => `${view.x(lon).toFixed(1)},${view.y(lat).toFixed(1)}`).join("L")}Z`).join("")}
+            fill="#ffffff"
+            fillOpacity={0.85}
+            stroke="#b9b2a5"
+            strokeWidth={(1.5 * vb.w) / full.w}
+            strokeLinejoin="round"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+            style={{ filter: "drop-shadow(0 6px 14px rgba(60,50,30,.10))" }}
+          />
+        )}
         {pts
           .sort((a, b) => b.r - a.r)
           .map((p, i) => (

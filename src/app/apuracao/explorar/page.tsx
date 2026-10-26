@@ -115,7 +115,7 @@ export default async function Explorar({ searchParams }: { searchParams: Promise
 
         {mun && mapPlaces.length > 0 && (
           <section className="mt-6" aria-label="Mapa das escolas">
-            <PlacesMap places={mapPlaces} cands={cands} selected={sel?.key ?? null} />
+            <PlacesMap places={mapPlaces} cands={cands} selected={sel?.key ?? null} outline={uf && uf !== "ZZ" && munInfo ? { uf, name: munInfo.name } : null} />
           </section>
         )}
 

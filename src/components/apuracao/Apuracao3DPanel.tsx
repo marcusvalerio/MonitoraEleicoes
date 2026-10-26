@@ -30,6 +30,13 @@ const subscribeRM = (fn: () => void) => {
   m.addEventListener("change", fn);
   return () => m.removeEventListener("change", fn);
 };
+const subscribeSm = (fn: () => void) => {
+  const m = window.matchMedia("(max-width: 639px)");
+  m.addEventListener("change", fn);
+  return () => m.removeEventListener("change", fn);
+};
+/** Celular: mapa 2D leve e legível no lugar da cena 3D (menos bateria, toque mais preciso). */
+const useSmall = () => useSyncExternalStore(subscribeSm, () => window.matchMedia("(max-width: 639px)").matches, () => false);
 const useReducedMotion = () => useSyncExternalStore(subscribeRM, () => window.matchMedia("(prefers-reduced-motion: reduce)").matches, () => false);
 
 /** % → texto pt-BR. */
@@ -69,7 +76,8 @@ export function Apuracao3DPanel({ territories, fallback, legend }: { territories
     router.push(`?${q.toString()}`, { scroll: false });
   };
 
-  if (failed) return <>{fallback}</>;
+  const small = useSmall();
+  if (failed || small) return <>{fallback}</>;
   const h = hover ? by.get(hover.key) : null;
 
   return (
