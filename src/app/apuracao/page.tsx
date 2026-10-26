@@ -172,8 +172,8 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         return <RaceHero year={year} a={side(a)} b={side(b)} countedPct={v(s?.countedPct)} status={status} remaining={remaining} />;
       })()}
       {/* BARRA DE CONTROLE: turno, estado da coleta e fonte */}
-      <div className="glass sticky top-[52px] z-20 -mx-4 mb-8 flex flex-wrap items-center gap-x-4 gap-y-2 border-y hairline px-4 py-2.5 md:-mx-6 md:px-6" data-testid="apuracao-brand">
-        <nav className="flex rounded-full border border-border bg-bg/60 p-0.5 text-[12px]" aria-label="Turno">
+      <div className="glass z-20 -mx-4 mb-8 flex flex-nowrap items-center gap-x-3 overflow-x-auto border-y hairline px-4 py-2 [scrollbar-width:none] md:sticky md:top-12 md:-mx-6 md:gap-x-4 md:px-6" data-testid="apuracao-brand">
+        <nav className="flex shrink-0 rounded-full border border-border bg-bg/60 p-0.5 text-[12px]" aria-label="Turno">
           {[1, 2].map((r) => (
             <Link key={r} href={roundHref(r)} scroll={false} aria-current={r === round ? "page" : undefined} className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 transition-colors ${r === round ? "bg-fg font-semibold text-bg" : rounds.includes(r) ? "text-fg-2 hover:text-fg" : "text-fg-3"}`}>
               {r}º turno
@@ -181,8 +181,8 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
             </Link>
           ))}
         </nav>
-        <LiveStatus state={br.state} />
-        <LiveRefresh intervalS={15} label="Atualizado" />
+        <span className="shrink-0"><LiveStatus state={br.state} /></span>
+        <span className="shrink-0"><LiveRefresh intervalS={15} label="Atualizado" /></span>
         <span className="ml-auto hidden items-center gap-2 text-[11px] text-fg-3 md:flex">
           <EvidenceBadge kind="oficial" source="TSE" />
           {s ? <span>arquivo de {fmtDateTime(s.generatedAt)}</span> : <span>nenhum arquivo coletado</span>}
