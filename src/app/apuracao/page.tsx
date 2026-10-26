@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { refreshCountIfStale, refreshUfMunicipalitiesIfStale } from "@/elections/apuracao/onDemand";
 import { RaceHero } from "@/components/apuracao/RaceHero";
 import { CountTimeline } from "@/components/apuracao/CountTimeline";
+import { BrazilMunicipalMap } from "@/components/apuracao/BrazilMunicipalMap";
 import { CountPills } from "@/components/apuracao/CountPills";
 import { BlankNull } from "@/components/apuracao/BlankNull";
 import { StateMunicipalMap, type MunResult } from "@/components/apuracao/StateMunicipalMap";
@@ -184,6 +185,12 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         <section className="mb-6 rounded-[var(--radius-lg)] border border-border bg-surface p-4 md:p-5" aria-labelledby="linha">
           <h2 id="linha" className="mb-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2 uppercase">Ao longo da apuração</h2>
           <CountTimeline points={timeline} series={cands.slice(0, 2).map((c) => ({ number: String(c.number), name: c.ballotName, color: c.color }))} />
+        </section>
+      )}
+      {cands.length > 0 && (
+        <section className="mb-8" aria-labelledby="brasil-mun">
+          <h2 id="brasil-mun" className="mb-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2 uppercase">O Brasil, município por município</h2>
+          <BrazilMunicipalMap year={year} round={round} focus={cands[0]?.number ?? null} cands={cands.filter((c) => c.number !== null).map((c) => ({ number: c.number!, name: c.ballotName, color: c.color }))} />
         </section>
       )}
       {/* BARRA DE IDENTIDADE */}
