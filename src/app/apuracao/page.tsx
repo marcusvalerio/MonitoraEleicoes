@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { after } from "next/server";
 import { refreshCountIfStale, refreshUfMunicipalitiesIfStale } from "@/elections/apuracao/onDemand";
-import { WinnerBanner } from "@/components/apuracao/WinnerBanner";
+import { RaceHero } from "@/components/apuracao/RaceHero";
 import { CountPills } from "@/components/apuracao/CountPills";
 import { BlankNull } from "@/components/apuracao/BlankNull";
 import { StateMunicipalMap, type MunResult } from "@/components/apuracao/StateMunicipalMap";
@@ -166,6 +166,19 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   return (
     <div className="mx-auto max-w-[1400px] px-4 pb-16 md:px-6">
       <LiveIntro headline={headline} year={year} />
+      {(() => {
+        // Placar do 2º turno no topo. "definido" = conta com números oficiais: a diferença supera o eleitorado das
+        // seções ainda não totalizadas (eleitorado − comparecimento − abstenção apurados). "eleito" só com a marca do TSE.
+        if (round !== 2) return null;
+        const [a, b] = cands;
+        if (!a || !b) return null;
+        const v = (m?: { value: number | null; status: string }) => (m?.status === "value" ? m.value : null);
+        const el = v(s?.electorate), tu = v(s?.turnout), ab = v(s?.abstention);
+        const remaining = el !== null && tu !== null && ab !== null ? Math.max(0, el - tu - ab) : null;
+        const status = a.elected ? "eleito" : remaining !== null && a.votes !== null && b.votes !== null && a.votes - b.votes > remaining ? "definido" : "apurando";
+        const side = (c: typeof a) => ({ sq: c.sq, name: c.ballotName, party: c.party, number: c.number, votes: c.votes, pct: c.pct, color: c.color });
+        return <RaceHero year={year} a={side(a)} b={side(b)} countedPct={v(s?.countedPct)} status={status} remaining={remaining} />;
+      })()}
       {/* BARRA DE IDENTIDADE */}
       <header className="relative -mx-4 mb-6 overflow-hidden border-b border-border bg-[radial-gradient(120%_140%_at_0%_0%,rgba(29,107,71,0.18),transparent_55%),radial-gradient(90%_120%_at_100%_0%,rgba(27,63,143,0.16),transparent_60%)] px-4 py-5 md:-mx-6 md:px-6" data-testid="apuracao-brand">
         {headline === "ao_vivo" && <span className="absolute inset-x-0 bottom-0 h-px overflow-hidden" aria-hidden><span className="block h-full w-1/3 bg-gradient-to-r from-transparent via-[#e5484d] to-transparent motion-safe:animate-[sweep_3.2s_linear_infinite]" /></span>}
@@ -196,18 +209,6 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
           {s?.sourceUrl && <a className="hover:text-fg" href={s.sourceUrl} target="_blank" rel="noreferrer">ver fonte →</a>}
         </p>
         {s && <div className="mt-3"><CountPills countedPct={s.countedPct} sectionsCounted={s.sectionsCounted} sectionsTotal={s.sectionsTotal} turnout={s.turnout} abstention={s.abstention} electorate={s.electorate} /></div>}
-        {(() => {
-          const w = cands.find((c) => c.elected);
-          if (w) return <WinnerBanner sq={w.sq} name={w.ballotName} party={w.party} pct={w.pct} color={w.color} round={round} />;
-          // Definição aritmética com números oficiais: a diferença entre 1º e 2º já supera todo o eleitorado das seções
-          // ainda não totalizadas (eleitorado − comparecimento − abstenção apurados). Não é a marcação "eleito" do TSE.
-          const v = (m?: { value: number | null; status: string }) => (m?.status === "value" ? m.value : null);
-          const [a, b] = cands;
-          const el = v(s?.electorate), tu = v(s?.turnout), ab = v(s?.abstention);
-          if (round !== 2 || !s || !a || !b || a.votes === null || b.votes === null || el === null || tu === null || ab === null) return null;
-          const remaining = Math.max(0, el - tu - ab);
-          return a.votes - b.votes > remaining ? <WinnerBanner sq={a.sq} name={a.ballotName} party={a.party} pct={a.pct} color={a.color} round={round} pending remaining={remaining} /> : null;
-        })()}
       </header>
 
       {demo && (
