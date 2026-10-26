@@ -10,7 +10,6 @@ import { StateMunicipalMap, type MunResult } from "@/components/apuracao/StateMu
 import { municipalitiesOf } from "@/analytics/locais";
 import Link from "next/link";
 import { intelSql } from "@/services/intelligence";
-import { getBoundaries } from "@/services/geo";
 import { COUNT_STATE_LABEL, countByUf, countView, type CountView } from "@/analytics/apuracao";
 import { UF_IBGE, UF_NAME } from "@/elections/reference";
 import { StateView } from "@/components/ui/states";
@@ -18,18 +17,15 @@ import { EvidenceBadge } from "@/components/intel/EvidenceSection";
 import { LiveRefresh } from "@/components/intel/LiveRefresh";
 import { OTHER } from "@/components/intel/palette";
 import { partyColor } from "@/components/intel/partyColors";
-import { FlagMark } from "@/components/apuracao/FlagMark";
 import { LiveStatus, headlineOf } from "@/components/apuracao/LiveStatus";
 import { LiveIntro } from "@/components/apuracao/LiveIntro";
-import { ApuracaoMap, type UfCount } from "@/components/apuracao/ApuracaoMap";
-import { Apuracao3DPanel, type Territory3D } from "@/components/apuracao/Apuracao3DPanel";
+import type { UfCount } from "@/components/apuracao/ApuracaoMap";
 import { RoundCompare, type CompareFinalist } from "@/components/apuracao/RoundCompare";
 import { ExteriorGlobe } from "@/components/apuracao/ExteriorGlobe";
 import { MunicipalityBars } from "@/components/apuracao/MunicipalityBars";
 import { blankNullByUf, compareRounds, countTimeline, resultsByMunicipality, resultsByUf, roundsWithData, type TerritoryResult } from "@/analytics/turnos";
 import { exteriorCoords } from "@/geo/exterior";
 import { PresidentialBoard, type BoardCandidate } from "@/components/apuracao/PresidentialBoard";
-import { FollowedPanel } from "@/components/apuracao/FollowedPanel";
 import { CandidatePhoto } from "@/components/apuracao/CandidatePhoto";
 import { fmtDateTime, fmtInt } from "@/lib/format";
 
@@ -81,10 +77,9 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   // Turno: o pedido na URL; sem pedido, o 2º turno assim que o TSE publicar algo dele (noite do 2º turno = ao vivo).
   const rounds = await roundsWithData(sql, year);
   const round = sp.turno === "1" ? 1 : sp.turno === "2" ? 2 : rounds.includes(2) ? 2 : 1;
-  const [br, ufs, boundaries, ufPres, ufSen, ufDep, terr, exterior, muns, brFirst, ufFirst] = await Promise.all([
+  const [br, ufs, ufPres, ufSen, ufDep, terr, exterior, muns, brFirst, ufFirst] = await Promise.all([
     countView(sql, { year, round, officeId: 1, territoryId: 0 }),
     countByUf(sql, { year, round, officeId: 1 }),
-    getBoundaries("uf"),
     uf ? countView(sql, { year, round, officeId: 1, territoryId: UF_IBGE[uf] }) : Promise.resolve(null),
     uf ? countView(sql, { year, round, officeId: 5, territoryId: UF_IBGE[uf] }) : Promise.resolve(null),
     uf ? countView(sql, { year, round, officeId: 6, territoryId: UF_IBGE[uf] }) : Promise.resolve(null),
@@ -115,7 +110,6 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
     const c = t.candidates[0];
     return c && c.votes > 0 ? { name: c.name, party: c.party, pct: c.pct, votes: c.votes, color: colorOf(c.number) } : null;
   };
-  const territories: Territory3D[] = terr.map((t) => ({ key: t.key, name: t.key === "ZZ" ? "Exterior" : UF_NAME[t.key] ?? t.name, countedPct: t.countedPct, validVotes: t.validVotes, live: t.phase === "partial", leader: leaderOf(t) }));
   const zz = terr.find((t) => t.key === "ZZ") ?? null;
   // Cidades do exterior: apuração por cidade quando coletada; senão, votação oficial por seção (dados abertos do TSE).
   const extPlaces = exterior.length ? [] : await municipalitiesOf(sql, { year, round: 1, uf: "ZZ" });
@@ -152,7 +146,6 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   const cands = board(br, colorBySq);
   // Estado escolhido no mapa: o placar principal passa a mostrar a votação oficial daquela UF.
   const ufBoard = uf && ufPres?.candidates.length ? board(ufPres, colorBySq) : null;
-  const entities = cands.map((c) => ({ id: c.sq, name: c.ballotName, color: c.color, partyAcronym: c.party ?? "" }));
   const sqByName = new Map(cands.map((c) => [c.ballotName, c.sq]));
   const mapRows: UfCount[] = ufs.map((u) => ({
     uf: u.uf,
@@ -161,9 +154,6 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
     countedPct: pctOf(u.countedPct),
     leader: u.leader ? { id: sqByName.get(u.leader.name) ?? u.leader.name, name: u.leader.name, party: cands.find((c) => c.ballotName === u.leader!.name)?.party ?? null, votes: u.leader.votes, pct: u.leader.pct } : null,
   }));
-  const withData = mapRows.filter((r) => r.countedPct !== null && r.countedPct > 0).length;
-  const closed = ufs.filter((u) => u.state === "totalizada").length;
-  const refreshKey = s ? `${s.collectedAt}` : "none";
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 pb-16 md:px-6">
@@ -181,49 +171,39 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         const side = (c: typeof a) => ({ sq: c.sq, name: c.ballotName, party: c.party, number: c.number, votes: c.votes, pct: c.pct, color: c.color });
         return <RaceHero year={year} a={side(a)} b={side(b)} countedPct={v(s?.countedPct)} status={status} remaining={remaining} />;
       })()}
+      {/* BARRA DE CONTROLE: turno, estado da coleta e fonte */}
+      <div className="glass sticky top-[52px] z-20 -mx-4 mb-8 flex flex-wrap items-center gap-x-4 gap-y-2 border-y hairline px-4 py-2.5 md:-mx-6 md:px-6" data-testid="apuracao-brand">
+        <nav className="flex rounded-full border border-border bg-bg/60 p-0.5 text-[12px]" aria-label="Turno">
+          {[1, 2].map((r) => (
+            <Link key={r} href={roundHref(r)} scroll={false} aria-current={r === round ? "page" : undefined} className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 transition-colors ${r === round ? "bg-fg font-semibold text-bg" : rounds.includes(r) ? "text-fg-2 hover:text-fg" : "text-fg-3"}`}>
+              {r}º turno
+              {r === 2 && rounds.includes(2) && !(round === 2 && final) && <span className="size-1.5 rounded-full bg-[#ff5d57] motion-safe:animate-[pulse-dot_1.6s_ease-in-out_infinite]" aria-label="ao vivo" />}
+            </Link>
+          ))}
+        </nav>
+        <LiveStatus state={br.state} />
+        <LiveRefresh intervalS={15} label="Atualizado" />
+        <span className="ml-auto hidden items-center gap-2 text-[11px] text-fg-3 md:flex">
+          <EvidenceBadge kind="oficial" source="TSE" />
+          {s ? <span>arquivo de {fmtDateTime(s.generatedAt)}</span> : <span>nenhum arquivo coletado</span>}
+          {s?.sourceUrl && <a className="hover:text-fg" href={s.sourceUrl} target="_blank" rel="noreferrer">fonte →</a>}
+        </span>
+      </div>
+      {s && <div className="mb-10"><CountPills countedPct={s.countedPct} sectionsCounted={s.sectionsCounted} sectionsTotal={s.sectionsTotal} turnout={s.turnout} abstention={s.abstention} electorate={s.electorate} /></div>}
       {cands.length >= 2 && timeline.length >= 2 && (
-        <section className="mb-6 rounded-[var(--radius-lg)] border border-border bg-surface p-4 md:p-5" aria-labelledby="linha">
-          <h2 id="linha" className="mb-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2 uppercase">Ao longo da apuração</h2>
+        <section className="mb-16 rounded-[20px] border hairline bg-surface/60 p-5 md:p-8" aria-labelledby="linha">
+          <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">Ao longo da apuração · % dos válidos</p>
+          <h2 id="linha" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">A virada, arquivo por arquivo</h2>
           <CountTimeline points={timeline} series={cands.slice(0, 2).map((c) => ({ number: String(c.number), name: c.ballotName, color: c.color }))} />
         </section>
       )}
       {cands.length > 0 && (
-        <section className="mb-8" aria-labelledby="brasil-mun">
-          <h2 id="brasil-mun" className="mb-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2 uppercase">O Brasil, município por município</h2>
+        <section className="mb-16" aria-labelledby="brasil-mun">
+          <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">O mapa · cada pedaço é uma cidade · toque para abrir o estado</p>
+          <h2 id="brasil-mun" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">O Brasil, município por município</h2>
           <BrazilMunicipalMap year={year} round={round} focus={cands[0]?.number ?? null} cands={cands.filter((c) => c.number !== null).map((c) => ({ number: c.number!, name: c.ballotName, color: c.color }))} />
         </section>
       )}
-      {/* BARRA DE IDENTIDADE */}
-      <header className="relative -mx-4 mb-6 overflow-hidden border-b border-border bg-[radial-gradient(120%_140%_at_0%_0%,rgba(29,107,71,0.18),transparent_55%),radial-gradient(90%_120%_at_100%_0%,rgba(27,63,143,0.16),transparent_60%)] px-4 py-5 md:-mx-6 md:px-6" data-testid="apuracao-brand">
-        {headline === "ao_vivo" && <span className="absolute inset-x-0 bottom-0 h-px overflow-hidden" aria-hidden><span className="block h-full w-1/3 bg-gradient-to-r from-transparent via-[#e5484d] to-transparent motion-safe:animate-[sweep_3.2s_linear_infinite]" /></span>}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex items-center gap-3">
-            <FlagMark size={30} />
-            <div>
-              <p className="font-[family-name:var(--font-display)] text-[22px] leading-none font-bold tracking-[0.04em] text-fg md:text-[26px]">ELEIÇÕES {year}</p>
-              <p className="mt-1 font-[family-name:var(--font-display)] text-[12px] font-medium tracking-[0.16em] text-fg-2 uppercase">Apuração · Presidente · {round}º turno</p>
-            </div>
-          </div>
-          <div className="ml-auto flex flex-wrap items-center gap-3">
-            <nav className="flex rounded-full border border-border bg-bg/60 p-0.5 text-[12px] backdrop-blur" aria-label="Turno">
-              {[1, 2].map((r) => (
-                <Link key={r} href={roundHref(r)} scroll={false} aria-current={r === round ? "page" : undefined} className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 transition-colors ${r === round ? "bg-fg font-semibold text-bg" : rounds.includes(r) ? "text-fg-2 hover:text-fg" : "text-fg-3"}`}>
-                  {r}º turno
-                  {r === 2 && rounds.includes(2) && !(round === 2 && final) && <span className="size-1.5 rounded-full bg-[#e5484d] motion-safe:animate-[pulse-dot_1.6s_ease-in-out_infinite]" aria-label="ao vivo" />}
-                </Link>
-              ))}
-            </nav>
-            <LiveStatus state={br.state} />
-            <LiveRefresh intervalS={15} label="Atualizado" />
-          </div>
-        </div>
-        <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-fg-3">
-          <EvidenceBadge kind="oficial" source="TSE" />
-          {s ? <span>arquivo oficial gerado em {fmtDateTime(s.generatedAt)} · coletado em {fmtDateTime(s.collectedAt)}</span> : <span>nenhum arquivo coletado ainda</span>}
-          {s?.sourceUrl && <a className="hover:text-fg" href={s.sourceUrl} target="_blank" rel="noreferrer">ver fonte →</a>}
-        </p>
-        {s && <div className="mt-3"><CountPills countedPct={s.countedPct} sectionsCounted={s.sectionsCounted} sectionsTotal={s.sectionsTotal} turnout={s.turnout} abstention={s.abstention} electorate={s.electorate} /></div>}
-      </header>
 
       {demo && (
         <div role="note" className="mb-6 rounded-[var(--radius)] border border-warn/40 bg-warn-bg px-4 py-3 text-[12.5px] text-warn" data-testid="demo-banner">
@@ -240,25 +220,20 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
             <span className="mt-1 block font-[family-name:var(--font-sans)] text-[12px] font-normal text-fg-3">Os zeros dos arquivos oficiais antes da totalização não são votos.</span>
           </p>
         )}
-        <div className="lg:col-span-12">
-          <p className="mb-2 text-[12px] text-fg-3">{withData} de 27 UFs com dados · {closed} encerradas</p>
-          <Apuracao3DPanel territories={territories} legend={entities.filter((e) => territories.some((t) => t.leader?.name === e.name)).map((e) => ({ name: e.name, color: e.color }))} fallback={<ApuracaoMap boundaries={boundaries} rows={mapRows} entities={entities} />} />
-        </div>
-        <div className="lg:col-span-8">
-          <h3 className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">PRESIDENTE · {ufBoard ? `VOTAÇÃO EM ${UF_NAME[uf!].toUpperCase()}` : "APURAÇÃO GERAL"}</h3>
-          {ufBoard && <Link href={roundHref(round).replace(/&?uf=[A-Z]{2}/, "")} scroll={false} className="mb-1 inline-block text-[11.5px] text-info hover:underline">← voltar para o Brasil</Link>}
-          <p className="mb-2 text-[11.5px] text-fg-3">Ordem oficial por votos apurados (antes da totalização, pelo número de urna). Percentual sobre votos válidos.</p>
-          <PresidentialBoard year={year} officeLabel="Presidente" candidates={ufBoard ?? cands} started={started} final={final} />
-        </div>
-        <aside className="lg:col-span-4">
-          <FollowedPanel year={year} round={round} refreshKey={refreshKey} />
-        </aside>
+        {(ufBoard || round === 1) && (
+          <div className="lg:col-span-12">
+            <h3 className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">PRESIDENTE · {ufBoard ? `VOTAÇÃO EM ${UF_NAME[uf!].toUpperCase()}` : "APURAÇÃO GERAL"}</h3>
+            {ufBoard && <Link href={roundHref(round).replace(/&?uf=[A-Z]{2}/, "")} scroll={false} className="mb-1 inline-block text-[11.5px] text-info hover:underline">← voltar para o Brasil</Link>}
+            <PresidentialBoard year={year} officeLabel="Presidente" candidates={ufBoard ?? cands} started={started} final={final} />
+          </div>
+        )}
       </section>
 
       {/* COMPARATIVO 1º × 2º TURNO */}
       {round === 2 && (
-        <section aria-labelledby="cmp" className="mt-14">
-          <h2 id="cmp" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">1º × 2º TURNO · FINALISTAS</h2>
+        <section aria-labelledby="cmp" className="mt-24">
+          <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">1º × 2º TURNO · FINALISTAS</p>
+          <h2 id="cmp" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">Do 1º ao 2º turno</h2>
           <p className="mb-4 text-[11.5px] text-fg-3">Desempenho de quem está no 2º turno, nos dois turnos, no Brasil e em cada estado.</p>
           {cmp && finalists.length === 2 ? <RoundCompare year={year} finalists={finalists} rows={cmp.rows} secondPartial={!final} /> : <StateView state="empty" title="Comparativo indisponível">O 2º turno ainda não tem votos oficiais coletados.</StateView>}
         </section>
@@ -284,24 +259,27 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
 
       {/* BRANCOS E NULOS — perto do Exterior quando a apuração termina */}
       {final && (
-      <section aria-labelledby="bn" className="mt-14">
-        <h2 id="bn" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">BRANCOS E NULOS · REGIÕES E ESTADOS</h2>
+      <section aria-labelledby="bn" className="mt-24">
+        <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">BRANCOS E NULOS · REGIÕES E ESTADOS</p>
+          <h2 id="bn" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">Brancos e nulos</h2>
         <p className="mb-4 text-[11.5px] text-fg-3">Percentual sobre o comparecimento apurado em cada lugar. Brancos e nulos não entram nos votos válidos.</p>
         <BlankNull ufs={blankNull.ufs} regions={blankNull.regions} ufName={(k) => (k === "ZZ" ? "Exterior" : (UF_NAME[k] ?? k))} />
       </section>
       )}
 
       {/* EXTERIOR */}
-      <section aria-labelledby="ext" className="mt-14">
-        <h2 id="ext" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">VOTOS NO EXTERIOR · PRESIDENTE</h2>
+      <section aria-labelledby="ext" className="mt-24">
+        <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">VOTOS NO EXTERIOR · PRESIDENTE</p>
+          <h2 id="ext" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">O voto fora do Brasil</h2>
         <p className="mb-4 text-[11.5px] text-fg-3">Brasileiros que votaram fora do país (TSE “ZZ”). Cidades: {citiesLabel}. Arraste o globo para girar.</p>
         <ExteriorGlobe cities={cities} total={zz ? { validVotes: zz.validVotes, countedPct: zz.countedPct, leader: leaderOf(zz) } : null} />
       </section>
 
       {/* ESTADOS */}
-      <section aria-labelledby="ufs" className="mt-12">
+      <section aria-labelledby="ufs" className="mt-24">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="ufs" className="font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">ESTADOS · PRESIDENTE</h2>
+          <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">ESTADOS · PRESIDENTE</p>
+          <h2 id="ufs" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">Os 27 estados</h2>
           <Link href={uf ? `/apuracao/explorar?uf=${uf}` : "/apuracao/explorar"} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-4 text-[13px] font-semibold text-bg hover:opacity-90" data-testid="explorar-cta">
             Explorar até a escola →
           </Link>
@@ -313,7 +291,7 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
                 <span className="font-[family-name:var(--font-display)] text-[13px] font-semibold text-fg">{r.uf}</span>
                 <span className="min-w-0">
                   <span className="block truncate text-[12.5px] text-fg-2">{r.leader ? r.leader.name : r.stateLabel}</span>
-                  <span className="mt-1 block h-1 overflow-hidden rounded-full bg-[#e8e4dc]" aria-hidden>
+                  <span className="mt-1 block h-1 overflow-hidden rounded-full bg-[#1f2430]" aria-hidden>
                     <span className="block h-full rounded-full transition-[width] duration-700" style={{ width: `${r.countedPct ?? 0}%`, background: r.state === "totalizada" ? "#8dbaf2" : "#4a8be6" }} />
                   </span>
                 </span>
@@ -328,8 +306,9 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
       </section>
 
       {!final && (
-      <section aria-labelledby="bn" className="mt-14">
-        <h2 id="bn" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">BRANCOS E NULOS · REGIÕES E ESTADOS</h2>
+      <section aria-labelledby="bn" className="mt-24">
+        <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">BRANCOS E NULOS · REGIÕES E ESTADOS</p>
+          <h2 id="bn" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">Brancos e nulos</h2>
         <p className="mb-4 text-[11.5px] text-fg-3">Percentual sobre o comparecimento apurado em cada lugar. Brancos e nulos não entram nos votos válidos.</p>
         <BlankNull ufs={blankNull.ufs} regions={blankNull.regions} ufName={(k) => (k === "ZZ" ? "Exterior" : (UF_NAME[k] ?? k))} />
       </section>
@@ -337,7 +316,8 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
 
       {/* UF SELECIONADA: Presidente na UF + Senado + Câmara */}
       <section id="estado" aria-labelledby="est" className="mt-12 scroll-mt-20">
-        <h2 id="est" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">SENADO E CÂMARA {uf ? `· ${UF_NAME[uf].toUpperCase()}` : ""}</h2>
+        <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">SENADO E CÂMARA {uf ? `· ${UF_NAME[uf].toUpperCase()}` : ""}</p>
+          <h2 id="est" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">Senado e Câmara {uf ? `· ${UF_NAME[uf]}` : ""}</h2>
         <p className="mb-3 text-[11.5px] text-fg-3">Senado e Câmara são disputas por estado (regra oficial do TSE): escolha uma UF.</p>
         <nav className="mb-5 flex flex-wrap gap-1" aria-label="Escolher UF">
           {Object.keys(UF_IBGE).sort().map((u) => (

@@ -16,7 +16,7 @@ export interface BarItem {
 }
 
 /** Barras horizontais para comparação de categorias. Valores sempre visíveis (sem depender de cor). */
-export function BarList({ items, max, format = "int", color = "#55555c", onSelect }: { items: BarItem[]; max?: number; format?: "int" | "duration"; color?: string; onSelect?: (id: string) => void }) {
+export function BarList({ items, max, format = "int", color = "#a8adba", onSelect }: { items: BarItem[]; max?: number; format?: "int" | "duration"; color?: string; onSelect?: (id: string) => void }) {
   const valueFormat = format === "duration" ? fmtDuration : fmtInt;
   const m = max ?? Math.max(1, ...items.map((i) => i.value));
   const [hover, setHover] = useState<string | null>(null);

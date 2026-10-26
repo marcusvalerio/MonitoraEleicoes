@@ -43,7 +43,7 @@ export interface Fill {
 }
 
 export function fillFor(row: GeoAggregate | undefined, layer: MapLayer, max: number, entityColor: (row: GeoAggregate) => string | null): Fill {
-  const empty = { color: "#e8e4dc", opacity: 1 };
+  const empty = { color: "#1f2430", opacity: 1 };
   if (!row || !row.posts) return empty;
   if (layer === "volume" || layer === "tema") {
     const q = quantize(row.topicPosts, max);

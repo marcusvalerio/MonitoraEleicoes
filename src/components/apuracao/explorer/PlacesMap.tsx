@@ -115,7 +115,7 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
   const h = pts.find((p) => p.key === hover);
   const zoomed = vb.w < full.w - 1;
   return (
-    <figure className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-[#e4ddcf]" data-testid="places-map">
+    <figure className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-[#11141b]" data-testid="places-map">
       <motion.svg
         ref={svgRef}
         viewBox={`${full.x} ${full.y} ${full.w} ${full.h}`}
@@ -133,15 +133,15 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
         className={`block h-auto w-full ${zoomed ? "touch-none cursor-grab" : "touch-pan-y"}`} role="img" aria-label={`Mapa de ${pts.length} locais de votação`}>
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M40 0H0V40" fill="none" stroke="#d6cebe" strokeWidth={vb.w / full.w} />
+            <path d="M40 0H0V40" fill="none" stroke="#1a1e28" strokeWidth={vb.w / full.w} />
           </pattern>
         </defs>
         <rect width={W} height={view.H} fill="url(#grid)" />
         {rings && rings.for === oKey && (
           <motion.path
             d={rings.r.map((r) => `M${r.map(([lon, lat]) => `${view.x(lon).toFixed(1)},${view.y(lat).toFixed(1)}`).join("L")}Z`).join("")}
-            fill="#fbf9f4"
-            stroke="#6f675a"
+            fill="#151a24"
+            stroke="#5b6475"
             strokeWidth={(2 * vb.w) / full.w}
             strokeLinejoin="round"
             initial={{ opacity: 0 }}
@@ -157,9 +157,9 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
               key={p.key}
               cx={p.x}
               cy={p.y}
-              fill={p.lead?.c.color ?? "#85858c"}
+              fill={p.lead?.c.color ?? "#6b7180"}
               fillOpacity={hover && hover !== p.key ? 0.35 : 0.8}
-              stroke={selected === p.key || hover === p.key ? "#1a1a1c" : "#ffffff"}
+              stroke={selected === p.key || hover === p.key ? "#f3f4f6" : "#07080b"}
               strokeWidth={((selected === p.key || hover === p.key ? 2.5 : 1) * vb.w) / full.w}
               initial={{ r: 0 }}
               animate={{ r: Math.max(p.r * Math.pow(vb.w / full.w, 0.75), (2 * vb.w) / full.w) }}

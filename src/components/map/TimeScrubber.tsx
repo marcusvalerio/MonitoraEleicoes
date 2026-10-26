@@ -92,7 +92,7 @@ export function TimeScrubber({ series, startsAt, totalEnd: rawEnd, now, value, o
           ))}
           <line x1={x(now)} x2={x(now)} y1={0} y2={h} stroke="#e5645f" strokeDasharray="2 3" />
         </svg>
-        <div className="absolute top-0 bottom-[22px] w-[2px] -translate-x-1/2 rounded-full bg-fg shadow-[0_0_0_3px_#f7f5f0]" style={{ left: x(value) }} aria-hidden>
+        <div className="absolute top-0 bottom-[22px] w-[2px] -translate-x-1/2 rounded-full bg-fg shadow-[0_0_0_3px_#07080b]" style={{ left: x(value) }} aria-hidden>
           <span className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full bg-fg" />
         </div>
         {events.map((ev) => (

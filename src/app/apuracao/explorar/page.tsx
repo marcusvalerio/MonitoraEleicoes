@@ -177,7 +177,7 @@ function PlaceCard({ place, cands, numbers, year, sqByNumber }: { place: Awaited
                 <span className="truncate font-medium text-fg">{c.name} <span className="text-fg-3">· {c.party}</span></span>
                 <span className="font-[family-name:var(--font-num)] font-semibold text-fg tabular-nums">{pct((c.v / Math.max(1, valid)) * 100)}</span>
               </div>
-              <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#e8e4dc]">
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#1f2430]">
                 <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${(c.v / Math.max(1, valid)) * 100}%`, background: c.color }} />
               </div>
               <span className="text-[11px] text-fg-3 tabular-nums">{fmtInt(c.v)} votos</span>

@@ -54,7 +54,7 @@ export async function HomeDashboard() {
   const s = br.snapshot;
   const started = br.state === "em_apuracao" || br.state === "parcial" || br.state === "totalizada";
   const top = started ? br.candidates.filter((c) => c.votes.status === "value").slice(0, 6) : [];
-  const ents = top.map((c, i) => ({ id: String(c.candidacyId ?? c.sqCandidato), name: c.name, color: SERIES[i] ?? "#85858c", partyAcronym: c.party ?? "" }));
+  const ents = top.map((c, i) => ({ id: String(c.candidacyId ?? c.sqCandidato), name: c.name, color: SERIES[i] ?? "#6b7180", partyAcronym: c.party ?? "" }));
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-8 px-4 py-6 md:px-6 md:py-8">

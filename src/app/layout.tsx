@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   description: "O que foi dito. O que repercutiu. O que os dados mostram. Inteligência eleitoral baseada em dados oficiais.",
 };
 
-export const viewport: Viewport = { themeColor: "#f7f5f0", colorScheme: "light" };
+export const viewport: Viewport = { themeColor: "#07080b", colorScheme: "dark" };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const debate = await getCurrentDebate();

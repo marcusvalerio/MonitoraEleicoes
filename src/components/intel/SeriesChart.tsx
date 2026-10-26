@@ -106,7 +106,7 @@ export function SeriesChart({ points, labels, colors, bucket, height = 240 }: { 
             {hover !== null && (
               <g>
                 <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} className="stroke-fg-3" />
-                {visible.map((k) => <circle key={k} cx={x(hover)} cy={y(val(k, times[hover]))} r={4} fill={colorFor(k, colors)} stroke="#fcfbf8" strokeWidth={2} />)}
+                {visible.map((k) => <circle key={k} cx={x(hover)} cy={y(val(k, times[hover]))} r={4} fill={colorFor(k, colors)} stroke="#0e1015" strokeWidth={2} />)}
               </g>
             )}
           </svg>

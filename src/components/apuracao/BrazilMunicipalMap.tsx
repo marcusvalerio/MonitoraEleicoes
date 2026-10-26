@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { fmtInt } from "@/lib/format";
 
@@ -22,6 +23,7 @@ export function BrazilMunicipalMap({ year, round, cands, focus }: { year: number
   const [mode, setMode] = useState<Mode>("vencedor");
   const [hover, setHover] = useState<{ k: string; x: number; y: number } | null>(null);
   const box = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     let live = true;
@@ -42,19 +44,19 @@ export function BrazilMunicipalMap({ year, round, cands, focus }: { year: number
     const e = cur?.m[k];
     if (mode === "variacao") {
       const a = cur?.m[k], b = first?.m[k];
-      if (!a || !b || focus === null) return "#d9d4ca";
+      if (!a || !b || focus === null) return "#232835";
       const pa = a[0] === focus ? a[1] : a[2] === focus ? a[3] : null;
       const pb = b[0] === focus ? b[1] : b[2] === focus ? b[3] : null;
-      if (pa === null || pb === null) return "#d9d4ca";
+      if (pa === null || pb === null) return "#232835";
       const d = Math.max(-30, Math.min(30, pa - pb));
       const t = Math.abs(d) / 30;
-      return d >= 0 ? mix("#f3efe7", color.get(focus) ?? "#555", 0.15 + t * 0.85) : mix("#f3efe7", "#4f4b45", 0.15 + t * 0.85);
+      return d >= 0 ? mix("#161a22", color.get(focus) ?? "#555", 0.15 + t * 0.85) : mix("#161a22", "#8a8f9c", 0.15 + t * 0.85);
     }
-    if (!e) return "#d9d4ca";
-    const c = color.get(e[0]) ?? "#85858c";
+    if (!e) return "#232835";
+    const c = color.get(e[0]) ?? "#6b7180";
     if (mode === "vencedor") return c;
     const margin = e[1] - (e[3] ?? 0);
-    return mix("#f3efe7", c, 0.2 + Math.min(1, margin / 50) * 0.8);
+    return mix("#161a22", c, 0.2 + Math.min(1, margin / 50) * 0.8);
   };
 
   if (failed) return <p className="text-[12px] text-fg-3">Malha municipal do IBGE indisponível no momento.</p>;
@@ -77,9 +79,9 @@ export function BrazilMunicipalMap({ year, round, cands, focus }: { year: number
           {cur ? `${fmtInt(cur.coverage)} municípios com dado oficial · ${cur.source === "apuracao" ? `${round}º turno · apuração por município (TSE)` : `${round}º turno · votação por seção (TSE · Dados Abertos)`}` : "carregando resultados…"}
         </span>
       </div>
-      <div ref={box} className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-[#ece7dd]" onPointerLeave={() => setHover(null)}>
+      <div ref={box} className="relative overflow-hidden rounded-[20px] border hairline bg-[radial-gradient(70%_60%_at_50%_45%,#121722,#07080b)]" onPointerLeave={() => setHover(null)}>
         {!geo ? (
-          <div className="aspect-square w-full animate-pulse bg-[#e4ddcf]" />
+          <div className="aspect-square w-full animate-pulse bg-[#0b0d12]" />
         ) : (
           <motion.svg viewBox={geo.viewBox} className="block h-auto max-h-[78vh] w-full" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7 }} role="img" aria-label="Mapa do Brasil por município">
             {geo.m.map(([k, d]) => (
@@ -87,9 +89,14 @@ export function BrazilMunicipalMap({ year, round, cands, focus }: { year: number
                 key={k}
                 d={d}
                 fill={fill(k)}
-                stroke="#ffffff"
-                strokeWidth={0.25}
-                strokeOpacity={0.7}
+                stroke="#07080b"
+                strokeWidth={0.3}
+                className="cursor-pointer transition-[filter] hover:brightness-150"
+                onClick={() => {
+                  const q = new URLSearchParams(window.location.search);
+                  q.set("uf", k.split("|")[0]);
+                  router.push(`?${q.toString()}#uf-escolhida`, { scroll: false });
+                }}
                 onPointerEnter={(ev) => {
                   const b = box.current!.getBoundingClientRect();
                   setHover({ k, x: ev.clientX - b.left, y: ev.clientY - b.top });
@@ -106,7 +113,7 @@ export function BrazilMunicipalMap({ year, round, cands, focus }: { year: number
               <>
                 <Line n={name.get(h[0]) ?? String(h[0])} c={color.get(h[0])} p={h[1]} />
                 {h[2] !== null && <Line n={name.get(h[2]) ?? String(h[2])} c={color.get(h[2])} p={h[3]!} />}
-                <p className="mt-1 text-[10.5px] text-fg-3">{fmtInt(h[4])} votos válidos</p>
+                <p className="mt-1 text-[10.5px] text-fg-3">{fmtInt(h[4])} votos válidos · toque para abrir o estado</p>
               </>
             ) : (
               <p className="mt-1 text-fg-3">Sem dado oficial coletado.</p>
@@ -131,7 +138,7 @@ export function BrazilMunicipalMap({ year, round, cands, focus }: { year: number
 function Line({ n, c, p }: { n: string; c?: string; p: number }) {
   return (
     <p className="mt-1 flex items-center gap-1.5">
-      <span className="size-2 rounded-full" style={{ background: c ?? "#85858c" }} />
+      <span className="size-2 rounded-full" style={{ background: c ?? "#6b7180" }} />
       <span className="truncate text-fg-2">{n}</span>
       <b className="ml-auto tabular-nums text-fg">{f(p)}</b>
     </p>

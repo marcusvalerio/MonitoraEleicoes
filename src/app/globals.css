@@ -2,25 +2,25 @@
 
 /* ───────── MONITORA ELEIÇÕES · Design tokens ───────── */
 @theme {
-  --color-bg: #f7f5f0;
-  --color-surface: #fcfbf8;
-  --color-elevated: #f0ede6;
-  --color-hover: #ebe7df;
-  --color-border: #e3dfd6;
-  --color-border-strong: #cfc9bd;
-  --color-fg: #1a1a1c;
-  --color-fg-2: #55555c;
-  --color-fg-3: #85858c;
+  --color-bg: #07080b;
+  --color-surface: #0e1015;
+  --color-elevated: #151821;
+  --color-hover: #1b1f2a;
+  --color-border: #1f2430;
+  --color-border-strong: #2f3545;
+  --color-fg: #f3f4f6;
+  --color-fg-2: #a8adba;
+  --color-fg-3: #6b7180;
 
   /* Semânticas (uso controlado; nunca para candidatos) */
-  --color-pos: #2f8f5b;
-  --color-pos-bg: #2f8f5b1a;
-  --color-neg: #c94a45;
-  --color-neg-bg: #c94a451a;
-  --color-warn: #a86d12;
-  --color-warn-bg: #a86d121a;
-  --color-info: #2f6fd6;
-  --color-info-bg: #2f6fd61a;
+  --color-pos: #3ddc84;
+  --color-pos-bg: #3ddc841f;
+  --color-neg: #ff5d57;
+  --color-neg-bg: #ff5d571f;
+  --color-warn: #f2b84b;
+  --color-warn-bg: #f2b84b1f;
+  --color-info: #5b9dff;
+  --color-info-bg: #5b9dff1f;
 
   /* Categóricas de tipo de fala (validadas CVD no surface) */
   --color-grp-1: #3987e5;
@@ -75,7 +75,7 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 html, body {
@@ -93,7 +93,7 @@ body {
 
 ::selection { background: #6b9cf240; }
 
-* { scrollbar-width: thin; scrollbar-color: #cfc9bd transparent; }
+* { scrollbar-width: thin; scrollbar-color: #2f3545 transparent; }
 
 .tnum { font-variant-numeric: tabular-nums; }
 
@@ -130,3 +130,17 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Atmosfera: brilho sutil de fundo e textura de grão (sem imagem externa) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(60vw 40vh at 15% -5%, #d6333a14, transparent 70%),
+    radial-gradient(60vw 40vh at 85% -5%, #1e5bbf18, transparent 70%);
+}
+.glass { background: color-mix(in srgb, var(--color-surface) 72%, transparent); backdrop-filter: blur(14px) saturate(140%); }
+.hairline { border-color: color-mix(in srgb, white 7%, transparent); }

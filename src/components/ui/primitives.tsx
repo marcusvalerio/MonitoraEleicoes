@@ -91,7 +91,7 @@ export function Delta({ value: input, className, neutral }: { value: number | nu
 }
 
 /** Sparkline (uma série, sem eixos). Última observação marcada. */
-export function Sparkline({ values, width = 88, height = 24, color = "#55555c", className }: { values: number[]; width?: number; height?: number; color?: string; className?: string }) {
+export function Sparkline({ values, width = 88, height = 24, color = "#a8adba", className }: { values: number[]; width?: number; height?: number; color?: string; className?: string }) {
   if (values.length < 2) return <span className={cn("inline-block", className)} style={{ width, height }} />;
   const max = Math.max(1, ...values);
   const x = (i: number) => (i / (values.length - 1)) * (width - 4) + 2;

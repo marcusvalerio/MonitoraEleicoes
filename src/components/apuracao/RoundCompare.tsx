@@ -75,7 +75,7 @@ export function RoundCompare({ year, finalists, rows, secondPartial }: { year: n
                         <span>{v ? `${fmtInt(v.votes)} votos` : "não coletado"}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#e8e4dc]">
+                        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#1f2430]">
                           <motion.div className="h-full rounded-full" style={{ background: c.color, opacity: r === "first" ? 0.55 : 1 }} initial={{ width: 0 }} whileInView={{ width: `${v?.pct ?? 0}%` }} viewport={{ once: true }} transition={{ duration: 1.1, delay: 0.15 + (r === "second" ? 0.15 : 0), ease }} />
                         </div>
                         <span className="w-16 text-right font-[family-name:var(--font-num)] text-[18px] font-semibold text-fg tabular-nums">{pct(v?.pct)}</span>
@@ -119,7 +119,7 @@ export function RoundCompare({ year, finalists, rows, secondPartial }: { year: n
             <motion.li layout key={r.key} transition={{ type: "spring", stiffness: 300, damping: 32 }} className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_4.5rem] items-center gap-3 border-t border-border/60 py-2">
               <span className="truncate text-[12.5px] text-fg-2">{r.name}</span>
               <span className="relative h-3" aria-hidden>
-                <span className="absolute inset-y-[3px] left-0 w-full rounded-full bg-[#e8e4dc]" />
+                <span className="absolute inset-y-[3px] left-0 w-full rounded-full bg-[#1f2430]" />
                 {a !== null && <motion.span className="absolute inset-y-[3px] left-0 rounded-full" style={{ background: f.color, opacity: 0.35 }} initial={{ width: 0 }} animate={{ width: `${a}%` }} transition={{ duration: 0.8, ease }} />}
                 {b !== null && <motion.span className="absolute inset-y-[5px] left-0 rounded-full" style={{ background: f.color }} initial={{ width: 0 }} animate={{ width: `${b}%` }} transition={{ duration: 0.9, delay: 0.08, ease }} />}
                 <span className="absolute inset-y-0 left-1/2 w-px bg-fg-3/40" />

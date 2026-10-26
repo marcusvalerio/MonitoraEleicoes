@@ -54,13 +54,13 @@ export function StateMunicipalMap({ uf, rows, roundLabel }: { uf: string; rows: 
         <motion.svg viewBox={malha.viewBox} className="block h-auto max-h-[70vh] w-full" initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }} role="img" aria-label={`Municípios de ${uf} por candidato à frente`}>
           {malha.municipios.map((m, i) => {
             const r = byName.get(m.key);
-            const fill = r?.leader?.color ?? "#e3dfd6";
+            const fill = r?.leader?.color ?? "#1f2430";
             return (
               <Link key={m.ibge} href={r ? `/apuracao/explorar?uf=${uf}&mun=${r.tse}` : "#"} scroll={false}>
                 <motion.path
                   d={m.d}
                   fill={fill}
-                  stroke="#fcfbf8"
+                  stroke="#0e1015"
                   strokeWidth={hover === m.key ? 2.5 : 0.6}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: hover && hover !== m.key ? 0.55 : r?.leader ? 0.55 + 0.45 * Math.min(1, Math.max(0, (r.leader.pct - 40) / 30)) : 1 }}

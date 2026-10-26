@@ -73,7 +73,7 @@ export function AreaList({ rows, cands, noun }: { rows: AreaRow[]; cands: Cand[]
                   <span className="block text-[11px] text-fg-3 tabular-nums">{fmtInt(r.valid)} válidos</span>
                 </span>
               </div>
-              <div className="mx-1 flex h-2 overflow-hidden rounded-full bg-[#e8e4dc]" title={r.parts.map((p) => `${p.name}: ${pct((p.v / Math.max(1, r.valid)) * 100)}`).join(" · ")}>
+              <div className="mx-1 flex h-2 overflow-hidden rounded-full bg-[#1f2430]" title={r.parts.map((p) => `${p.name}: ${pct((p.v / Math.max(1, r.valid)) * 100)}`).join(" · ")}>
                 {r.parts.map((p, j) => (
                   <motion.span key={p.number} className="h-full" style={{ background: p.color }} initial={{ width: 0 }} animate={{ width: `${(p.v / Math.max(1, r.valid)) * 100}%` }} transition={{ duration: 0.7, delay: 0.04 * j, ease: [0.2, 0.7, 0.2, 1] }} />
                 ))}

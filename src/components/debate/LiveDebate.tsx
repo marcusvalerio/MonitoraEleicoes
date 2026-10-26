@@ -220,7 +220,7 @@ export function LiveDebate({ debate, clock, participants, blocks, initial, focus
                     <span className="ml-auto tnum text-fg-3">{replayable ? fmtDuration(secs) : `${stats.get(p.id)?.n ?? 0} fala(s)`}</span>
                   </div>
                   <div className="mt-1 ml-4 h-1 overflow-hidden rounded-full bg-elevated">
-                    <motion.div className="h-full rounded-full" style={{ background: active ? "#1a1a1c" : "#85858c" }} animate={{ width: `${(secs / maxSecs) * 100}%` }} transition={{ duration: 0.6 }} />
+                    <motion.div className="h-full rounded-full" style={{ background: active ? "#1a1a1c" : "#6b7180" }} animate={{ width: `${(secs / maxSecs) * 100}%` }} transition={{ duration: 0.6 }} />
                   </div>
                 </button>
               </li>

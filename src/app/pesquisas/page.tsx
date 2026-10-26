@@ -76,7 +76,7 @@ export default async function Pesquisas({ searchParams }: { searchParams: Promis
                 <li key={c.company}>
                   <Link href={`?${new URLSearchParams({ ...Object.fromEntries(base), instituto: c.company })}`} className="grid grid-cols-[minmax(0,1fr)_96px_auto] items-center gap-3 rounded-[var(--radius-sm)] px-1.5 py-1 text-[12.5px] text-fg-2 hover:bg-elevated hover:text-fg">
                     <span className="truncate">{c.company}</span>
-                    <span className="h-2 rounded-r-[4px] bg-[#55555c]" style={{ width: `${Math.max(4, (c.n / summary.byCompany[0].n) * 100)}%` }} aria-hidden />
+                    <span className="h-2 rounded-r-[4px] bg-[#a8adba]" style={{ width: `${Math.max(4, (c.n / summary.byCompany[0].n) * 100)}%` }} aria-hidden />
                     <span className="text-right text-fg tnum">{fmtInt(c.n)}</span>
                   </Link>
                 </li>

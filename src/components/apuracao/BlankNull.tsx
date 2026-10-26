@@ -10,7 +10,7 @@ function Row({ r }: { r: BlankNullRow }) {
   return (
     <li className="grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)_auto] items-center gap-3 border-t border-border/70 py-2 text-[12.5px]">
       <span className="truncate text-fg-2">{r.name}</span>
-      <span className="flex h-2.5 overflow-hidden rounded-full bg-[#e8e4dc]" title={`Brancos ${pct(b)} · Nulos ${pct(n)} do comparecimento`}>
+      <span className="flex h-2.5 overflow-hidden rounded-full bg-[#1f2430]" title={`Brancos ${pct(b)} · Nulos ${pct(n)} do comparecimento`}>
         <span className="h-full bg-[#9a948a]" style={{ width: `${Math.min(100, (b ?? 0) * 5)}%` }} />
         <span className="h-full bg-[#4f4b45]" style={{ width: `${Math.min(100, (n ?? 0) * 5)}%` }} />
       </span>

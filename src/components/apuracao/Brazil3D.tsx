@@ -25,7 +25,7 @@ interface Props {
 
 const BASE = 2.2;
 const MAX = 46;
-const EMPTY = "#ddd8ce";
+const EMPTY = "#2a2f3b";
 // Exterior: pilar hexagonal no Atlântico, a leste do Nordeste (coordenadas do viewBox do SVG, 613 × 639).
 const EXTERIOR_AT = { x: 590, y: 255 };
 

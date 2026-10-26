@@ -12,7 +12,7 @@ export function CandidatePhoto({ year, sq, name, size = 44, ring }: { year: numb
     if (el?.complete && el.naturalWidth === 0) queueMicrotask(() => setFailed(true));
   }, [sq]);
   const initials = name.split(/\s+/).filter((w) => w.length > 2).slice(0, 2).map((w) => w[0]).join("") || name.slice(0, 2);
-  const style = { width: size, height: size, boxShadow: ring ? `0 0 0 2px #f7f5f0, 0 0 0 3.5px ${ring}` : undefined };
+  const style = { width: size, height: size, boxShadow: ring ? `0 0 0 2px #07080b, 0 0 0 3.5px ${ring}` : undefined };
   if (failed)
     return (
       <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-elevated font-[family-name:var(--font-display)] text-[13px] font-semibold text-fg-2" style={style} aria-hidden>

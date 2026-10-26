@@ -121,7 +121,7 @@ export function ConversationChart({
           return (
             <g key={a.code}>
               <line x1={ax} x2={ax} y1={ty + 8} y2={y(0)} stroke={a.kind === "spike" ? "#6b9cf2" : "#46464d"} strokeDasharray={a.kind === "spike" ? undefined : "2 3"} strokeWidth={1} opacity={0.8} />
-              <circle cx={ax} cy={ty + 8} r={2.5} fill={a.kind === "spike" ? "#6b9cf2" : "#55555c"} />
+              <circle cx={ax} cy={ty + 8} r={2.5} fill={a.kind === "spike" ? "#6b9cf2" : "#a8adba"} />
               <text x={ax + (anchor === "start" ? 6 : -6)} y={ty + 4} textAnchor={anchor} fontSize={10} className="fill-fg-3 tnum font-mono">
                 {wallClock(startsAt, a.t, false)}
               </text>
@@ -162,8 +162,8 @@ export function ConversationChart({
         )}
         {hp && (
           <g>
-            <line x1={x(hp.t)} x2={x(hp.t)} y1={pad.t} y2={bandY + band - 8} stroke="#85858c" />
-            <circle cx={x(hp.t)} cy={y(hp.v)} r={4} fill="#6b9cf2" stroke="#f7f5f0" strokeWidth={2} />
+            <line x1={x(hp.t)} x2={x(hp.t)} y1={pad.t} y2={bandY + band - 8} stroke="#6b7180" />
+            <circle cx={x(hp.t)} cy={y(hp.v)} r={4} fill="#6b9cf2" stroke="#07080b" strokeWidth={2} />
           </g>
         )}
         <rect x={pad.l} y={pad.t} width={iw} height={ih + band + 8} fill="transparent" onPointerMove={onMove} onPointerLeave={() => setHover(null)} />
