@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { after } from "next/server";
-import { refreshCountIfStale } from "@/elections/apuracao/onDemand";
+import { refreshCountIfStale, refreshUfMunicipalitiesIfStale } from "@/elections/apuracao/onDemand";
+import { WinnerBanner } from "@/components/apuracao/WinnerBanner";
+import { CountPills } from "@/components/apuracao/CountPills";
+import { BlankNull } from "@/components/apuracao/BlankNull";
+import { StateMunicipalMap, type MunResult } from "@/components/apuracao/StateMunicipalMap";
+import { municipalitiesOf } from "@/analytics/locais";
 import Link from "next/link";
 import { intelSql } from "@/services/intelligence";
 import { getBoundaries } from "@/services/geo";
@@ -14,13 +19,12 @@ import { partyColor } from "@/components/intel/partyColors";
 import { FlagMark } from "@/components/apuracao/FlagMark";
 import { LiveStatus, headlineOf } from "@/components/apuracao/LiveStatus";
 import { LiveIntro } from "@/components/apuracao/LiveIntro";
-import { VoteRing } from "@/components/apuracao/VoteRing";
 import { ApuracaoMap, type UfCount } from "@/components/apuracao/ApuracaoMap";
 import { Apuracao3DPanel, type Territory3D } from "@/components/apuracao/Apuracao3DPanel";
 import { RoundCompare, type CompareFinalist } from "@/components/apuracao/RoundCompare";
 import { ExteriorGlobe } from "@/components/apuracao/ExteriorGlobe";
 import { MunicipalityBars } from "@/components/apuracao/MunicipalityBars";
-import { compareRounds, resultsByMunicipality, resultsByUf, roundsWithData, type TerritoryResult } from "@/analytics/turnos";
+import { blankNullByUf, compareRounds, resultsByMunicipality, resultsByUf, roundsWithData, type TerritoryResult } from "@/analytics/turnos";
 import { exteriorCoords } from "@/geo/exterior";
 import { PresidentialBoard, type BoardCandidate } from "@/components/apuracao/PresidentialBoard";
 import { FollowedPanel } from "@/components/apuracao/FollowedPanel";
@@ -94,6 +98,10 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   const final = br.state === "totalizada";
   // Apuração em andamento: depois de responder, busca os arquivos novos do TSE (no máx. 1×/min no total).
   if (!final) after(() => refreshCountIfStale(sql, year, round as 1 | 2));
+  if (!final && uf) after(() => refreshUfMunicipalitiesIfStale(sql, year, round as 1 | 2, uf));
+  const blankNull = await blankNullByUf(sql, { year, round });
+  // Municípios da UF escolhida: apuração do turno (coletada sob demanda); sem ela, votação por local do 1º turno.
+  const munFallback = uf && !muns.some((m) => m.candidates.length) ? await municipalitiesOf(sql, { year, round: 1, uf }) : [];
   const demo = !!s?.datasetKind && s.datasetKind !== "production";
   // Cor = identidade estável (ordem do nº de urna), nunca posição/ranking nem ideologia.
   // A cor acompanha o candidato entre os turnos: a ordem do nº de urna vem do 1º turno quando ele existe.
@@ -107,7 +115,29 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
   };
   const territories: Territory3D[] = terr.map((t) => ({ key: t.key, name: t.key === "ZZ" ? "Exterior" : UF_NAME[t.key] ?? t.name, countedPct: t.countedPct, validVotes: t.validVotes, live: t.phase === "partial", leader: leaderOf(t) }));
   const zz = terr.find((t) => t.key === "ZZ") ?? null;
-  const cities = exterior.map((t) => ({ key: t.key, name: t.name, ...(exteriorCoords(t.name) ?? { lat: null, lon: null }), validVotes: t.validVotes, leader: leaderOf(t) }));
+  // Cidades do exterior: apuração por cidade quando coletada; senão, votação oficial por seção (dados abertos do TSE).
+  const extPlaces = exterior.length ? [] : await municipalitiesOf(sql, { year, round: 1, uf: "ZZ" });
+  const cities = exterior.length
+    ? exterior.map((t) => ({ key: t.key, name: t.name, ...(exteriorCoords(t.name) ?? { lat: null, lon: null }), validVotes: t.validVotes, leader: leaderOf(t) }))
+    : extPlaces.map((m) => {
+        const valid = Object.entries(m.votes).reduce((a, [k, v]) => (Number(k) < 90 ? a + v : a), 0);
+        const [num, v] = Object.entries(m.votes).filter(([k]) => Number(k) < 90).sort((a, b) => b[1] - a[1])[0] ?? [];
+        const cand = roster.find((c) => String(c.ballotNumber) === num);
+        return { key: m.key, name: m.name, ...(exteriorCoords(m.name) ?? { lat: null, lon: null }), validVotes: valid, leader: cand && v ? { name: cand.name, pct: (v / Math.max(1, valid)) * 100, color: colorOf(cand.ballotNumber) } : null };
+      });
+  const citiesLabel = exterior.length ? `${round}º turno` : "1º turno · votação oficial por seção";
+  const munMap: MunResult[] = muns.some((m) => m.candidates.length)
+    ? muns.map((m) => {
+        const c = m.candidates[0];
+        return { tse: m.key, name: m.name, valid: m.validVotes ?? 0, leader: c && c.votes > 0 && c.pct !== null ? { name: c.name, party: c.party, color: colorOf(c.number), pct: c.pct } : null };
+      })
+    : munFallback.map((m) => {
+        const valid = Object.entries(m.votes).reduce((a, [k, v]) => (Number(k) < 90 ? a + v : a), 0);
+        const [num, v] = Object.entries(m.votes).filter(([k]) => Number(k) < 90).sort((a, b) => b[1] - a[1])[0] ?? [];
+        const cand = roster.find((c) => String(c.ballotNumber) === num);
+        return { tse: m.key, name: m.name, valid, leader: cand && v ? { name: cand.name, party: cand.party, color: colorOf(cand.ballotNumber), pct: (v / Math.max(1, valid)) * 100 } : null };
+      });
+  const munRoundLabel = muns.some((m) => m.candidates.length) ? `${round}º turno · apuração oficial` : "1º turno · votação oficial por seção (o 2º turno por município aparece conforme a coleta)";
   const munRows = muns.map((m) => ({ key: m.key, name: m.name, validVotes: m.validVotes, countedPct: m.countedPct, parts: m.candidates.filter((c) => c.pct !== null).map((c) => ({ name: c.name, color: colorOf(c.number), pct: c.pct! })) }));
   const cmp = round === 2 ? compareRounds(ufFirst, terr, { key: "BR", territoryId: 0, name: "Brasil", uf: null, phase: br.snapshot?.phase ?? "", countedPct: null, validVotes: null, collectedAt: "", candidates: br.candidates.filter((c) => c.votes.status === "value").map((c) => ({ sq: String(c.sqCandidato), name: c.name, party: c.party, number: c.ballotNumber, votes: c.votes.value ?? 0, pct: c.pct.status === "value" ? c.pct.value : null })) }) : null;
   const finalists: CompareFinalist[] = cmp
@@ -163,6 +193,8 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
           {s ? <span>arquivo oficial gerado em {fmtDateTime(s.generatedAt)} · coletado em {fmtDateTime(s.collectedAt)}</span> : <span>nenhum arquivo coletado ainda</span>}
           {s?.sourceUrl && <a className="hover:text-fg" href={s.sourceUrl} target="_blank" rel="noreferrer">ver fonte →</a>}
         </p>
+        {s && <div className="mt-3"><CountPills countedPct={s.countedPct} sectionsCounted={s.sectionsCounted} sectionsTotal={s.sectionsTotal} turnout={s.turnout} abstention={s.abstention} electorate={s.electorate} /></div>}
+        {(() => { const w = cands.find((c) => c.elected); return w ? <WinnerBanner sq={w.sq} name={w.ballotName} party={w.party} pct={w.pct} color={w.color} round={round} /> : null; })()}
       </header>
 
       {demo && (
@@ -174,30 +206,22 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
       {/* PRESIDÊNCIA */}
       <section aria-labelledby="pres" className="grid grid-cols-1 gap-x-8 gap-y-8 lg:grid-cols-12">
         <h2 id="pres" className="sr-only">Presidente</h2>
-        <div className="order-1 lg:order-2 lg:col-span-4">
-          <div className="rounded-[var(--radius-lg)] border border-border bg-surface/60 p-5">
-            {headline === "nao_iniciada" || headline === "indisponivel" ? (
-              <p className="mb-4 font-[family-name:var(--font-display)] text-[15px] font-semibold text-fg" data-testid="not-started-note">
-                {br.state === "nao_iniciada" ? "Dados ainda não publicados pelo TSE." : br.state === "nao_coletada" ? "Apuração ainda não coletada neste ambiente." : "Arquivo oficial indisponível no momento."}
-                <span className="mt-1 block font-[family-name:var(--font-sans)] text-[12px] font-normal text-fg-3">Os zeros dos arquivos oficiais antes da totalização não são votos.</span>
-              </p>
-            ) : (
-              <p className="mb-4 flex items-baseline justify-between text-[12px] text-fg-3">
-                <span>{withData} de 27 UFs com dados · {closed} encerradas</span>
-              </p>
-            )}
-            {s ? <VoteRing countedPct={s.countedPct} turnout={s.turnout} valid={s.validVotes} blank={s.blankVotes} nul={s.nullVotes} sectionsCounted={s.sectionsCounted} sectionsTotal={s.sectionsTotal} /> : <p className="text-[12.5px] text-fg-3">Nenhum retrato coletado.</p>}
-          </div>
-        </div>
-        <div className="order-2 lg:order-1 lg:col-span-8">
+        {(headline === "nao_iniciada" || headline === "indisponivel") && (
+          <p className="lg:col-span-12 font-[family-name:var(--font-display)] text-[15px] font-semibold text-fg" data-testid="not-started-note">
+            {br.state === "nao_iniciada" ? "Dados ainda não publicados pelo TSE." : br.state === "nao_coletada" ? "Apuração ainda não coletada neste ambiente." : "Arquivo oficial indisponível no momento."}
+            <span className="mt-1 block font-[family-name:var(--font-sans)] text-[12px] font-normal text-fg-3">Os zeros dos arquivos oficiais antes da totalização não são votos.</span>
+          </p>
+        )}
+        <div className="lg:col-span-12">
+          <p className="mb-2 text-[12px] text-fg-3">{withData} de 27 UFs com dados · {closed} encerradas</p>
           <Apuracao3DPanel territories={territories} legend={entities.filter((e) => territories.some((t) => t.leader?.name === e.name)).map((e) => ({ name: e.name, color: e.color }))} fallback={<ApuracaoMap boundaries={boundaries} rows={mapRows} entities={entities} />} />
         </div>
-        <div className="order-3 lg:col-span-8">
+        <div className="lg:col-span-8">
           <h3 className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">PRESIDENTE · APURAÇÃO GERAL</h3>
           <p className="mb-2 text-[11.5px] text-fg-3">Ordem oficial por votos apurados (antes da totalização, pelo número de urna). Percentual sobre votos válidos.</p>
           <PresidentialBoard year={year} officeLabel="Presidente" candidates={cands} started={started} final={final} />
         </div>
-        <aside className="order-4 lg:col-span-4">
+        <aside className="lg:col-span-4">
           <FollowedPanel year={year} round={round} refreshKey={refreshKey} />
         </aside>
       </section>
@@ -211,19 +235,37 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
         </section>
       )}
 
-      {/* MUNICÍPIOS DA UF SELECIONADA */}
+      {/* UF ESCOLHIDA NO MAPA: votos do estado + mapa por município */}
       {uf && (
-        <section aria-labelledby="mun" className="mt-14">
-          <h2 id="mun" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">MUNICÍPIOS · {UF_NAME[uf].toUpperCase()} · PRESIDENTE</h2>
-          <p className="mb-4 text-[11.5px] text-fg-3">Divisão oficial dos votos válidos em cada município. Zonas e locais de votação: em breve (exigem a base por seção do TSE).</p>
-          <MunicipalityBars rows={munRows} />
+        <section aria-labelledby="mun" className="mt-10 scroll-mt-20" id="uf-escolhida">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <h2 id="mun" className="font-[family-name:var(--font-display)] text-[20px] font-bold text-fg">{UF_NAME[uf]}</h2>
+            <div className="flex gap-2">
+              <Link href={`/apuracao/explorar?uf=${uf}`} className="inline-flex h-9 items-center rounded-full bg-fg px-4 text-[13px] font-semibold text-bg hover:opacity-90">Zonas e escolas →</Link>
+              <Link href={`?${new URLSearchParams({ ...(year !== 2026 ? { ano: String(year) } : {}), ...(round === 2 ? { turno: "2" } : {}) })}`} scroll={false} className="inline-flex h-9 items-center rounded-full border border-border px-4 text-[13px] text-fg-2 hover:text-fg">Voltar ao Brasil</Link>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div className="lg:col-span-4"><RaceCard title="Presidente" subtitle={`Votação em ${UF_NAME[uf]}`} view={ufPres} year={year} limit={12} /></div>
+            <div className="lg:col-span-8"><StateMunicipalMap uf={uf} rows={munMap} roundLabel={munRoundLabel} exploreHref={(tse) => `/apuracao/explorar?uf=${uf}&mun=${tse}`} /></div>
+          </div>
+          {munRows.length > 0 && <div className="mt-6"><MunicipalityBars rows={munRows} /></div>}
         </section>
+      )}
+
+      {/* BRANCOS E NULOS — perto do Exterior quando a apuração termina */}
+      {final && (
+      <section aria-labelledby="bn" className="mt-14">
+        <h2 id="bn" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">BRANCOS E NULOS · REGIÕES E ESTADOS</h2>
+        <p className="mb-4 text-[11.5px] text-fg-3">Percentual sobre o comparecimento apurado em cada lugar. Brancos e nulos não entram nos votos válidos.</p>
+        <BlankNull ufs={blankNull.ufs} regions={blankNull.regions} ufName={(k) => (k === "ZZ" ? "Exterior" : (UF_NAME[k] ?? k))} />
+      </section>
       )}
 
       {/* EXTERIOR */}
       <section aria-labelledby="ext" className="mt-14">
         <h2 id="ext" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">VOTOS NO EXTERIOR · PRESIDENTE</h2>
-        <p className="mb-4 text-[11.5px] text-fg-3">Brasileiros que votaram fora do país (TSE “ZZ”). Arraste o globo para girar.</p>
+        <p className="mb-4 text-[11.5px] text-fg-3">Brasileiros que votaram fora do país (TSE “ZZ”). Cidades: {citiesLabel}. Arraste o globo para girar.</p>
         <ExteriorGlobe cities={cities} total={zz ? { validVotes: zz.validVotes, countedPct: zz.countedPct, leader: leaderOf(zz) } : null} />
       </section>
 
@@ -255,6 +297,14 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
           ))}
         </ul>
       </section>
+
+      {!final && (
+      <section aria-labelledby="bn" className="mt-14">
+        <h2 id="bn" className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">BRANCOS E NULOS · REGIÕES E ESTADOS</h2>
+        <p className="mb-4 text-[11.5px] text-fg-3">Percentual sobre o comparecimento apurado em cada lugar. Brancos e nulos não entram nos votos válidos.</p>
+        <BlankNull ufs={blankNull.ufs} regions={blankNull.regions} ufName={(k) => (k === "ZZ" ? "Exterior" : (UF_NAME[k] ?? k))} />
+      </section>
+      )}
 
       {/* UF SELECIONADA: Presidente na UF + Senado + Câmara */}
       <section id="estado" aria-labelledby="est" className="mt-12 scroll-mt-20">

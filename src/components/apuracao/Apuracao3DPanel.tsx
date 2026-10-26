@@ -83,7 +83,7 @@ export function Apuracao3DPanel({ territories, fallback, legend }: { territories
             </button>
           ))}
         </div>
-        <span className="text-[11px] text-fg-3">Arraste para girar · toque num estado para detalhar</span>
+        <span className="text-[11px] text-fg-3">Toque num estado: ele sobe em 3D e abre os municípios</span>
       </div>
 
       <div className="relative aspect-square max-h-[560px] w-full sm:aspect-auto sm:h-[min(68vh,560px)] sm:min-h-[380px] overflow-hidden rounded-[var(--radius-lg)] border border-border bg-[radial-gradient(80%_70%_at_50%_30%,rgba(57,135,229,0.10),transparent_70%),radial-gradient(60%_50%_at_80%_90%,rgba(25,158,112,0.08),transparent_70%)] motion-safe:animate-[map-in_900ms_cubic-bezier(.2,.7,.2,1)_both]">
@@ -126,14 +126,14 @@ export function Apuracao3DPanel({ territories, fallback, legend }: { territories
             <Swatch c="#4a8be6" l="Em apuração" />
             <Swatch c="#8dbaf2" l="100% das seções" />
             <Swatch c="#ddd8ce" l="Sem dado" />
-            <span className="text-fg-3">· altura = % de seções totalizadas</span>
+            <span className="text-fg-3">· estado escolhido sobe conforme o % de seções totalizadas</span>
           </>
         ) : (
           <>
             {legend.map((e) => (
               <Swatch key={e.name} c={e.color} l={e.name} round />
             ))}
-            <span className="text-fg-3">· {mode === "lider" ? "altura = % do líder nos votos válidos" : "altura = votos válidos apurados (raiz, para caber SP e o Exterior na mesma escala)"}</span>
+            <span className="text-fg-3">· {mode === "lider" ? "cor = partido de quem lidera · o estado escolhido sobe conforme o % do líder" : "cor = partido de quem lidera · o estado escolhido sobe conforme os votos válidos apurados"}</span>
           </>
         )}
       </figcaption>

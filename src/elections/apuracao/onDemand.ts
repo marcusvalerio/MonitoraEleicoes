@@ -37,3 +37,20 @@ export async function refreshCountIfStale(sql: Sql, year: number, round: 1 | 2, 
     return null;
   }
 }
+
+/**
+ * Municípios da UF aberta na tela (Presidente): uma passada por UF a cada 2 min no máximo — só para quem está olhando
+ * aquele estado (São Paulo ≈ 645 arquivos pequenos, concorrência 12).
+ */
+export async function refreshUfMunicipalitiesIfStale(sql: Sql, year: number, round: 1 | 2, uf: string, provider = new TseCountProvider()) {
+  try {
+    if (!(await takeLease(sql, year, round * 100 + ufIndex(uf), 120))) return null;
+    const r = await countTick(sql, provider, { year, round, offices: [1], ufs: [uf], municipalities: true, concurrency: 12 });
+    log("info", "apuracao.ondemand.uf", { year, round, uf, ...r });
+    return r;
+  } catch (e) {
+    log("warn", "apuracao.ondemand.uf.failed", { year, round, uf, error: e instanceof Error ? e.message : String(e) });
+    return null;
+  }
+}
+const ufIndex = (uf: string) => (uf.charCodeAt(0) - 64) * 32 + (uf.charCodeAt(1) - 64);

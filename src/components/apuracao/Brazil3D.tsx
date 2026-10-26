@@ -227,7 +227,8 @@ export default function Brazil3D({ columns, selected, reducedMotion, onHover, on
       const t = now - t0;
       let busy = false;
       for (const it of items.values()) {
-        const goal = (it.target + (hovered === it.key || selected_ === it.key ? 6 : 0)) || 0.001;
+        // Mapa PLANO: só o estado escolhido sobe em 3D (altura = métrica); passar o dedo/mouse dá um leve relevo.
+        const goal = selected_ === it.key ? Math.max(it.target, BASE + MAX * 0.5) + 8 : hovered === it.key ? BASE + 5 : BASE;
         if (t < it.delay) {
           busy = true;
           continue;

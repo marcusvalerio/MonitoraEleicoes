@@ -1,5 +1,5 @@
 import type { Sql } from "@/persistence/db";
-import { BR, EXTERIOR, UF_IBGE } from "@/elections/reference";
+import { BR, EXTERIOR, REGIONS, UF_IBGE } from "@/elections/reference";
 
 /**
  * Apuração por território para o mapa 3D e o comparativo 1º × 2º turno. Somente DADO OFICIAL (count_snapshot do
@@ -109,3 +109,28 @@ export function compareRounds(first: TerritoryResult[], second: TerritoryResult[
 }
 
 export const isExterior = (r: Pick<TerritoryResult, "territoryId">) => r.territoryId === EXTERIOR;
+
+export interface BlankNullRow {
+  key: string;
+  name: string;
+  turnout: number | null;
+  blank: number | null;
+  nul: number | null;
+  countedPct: number | null;
+}
+
+/** Comparecimento, brancos e nulos por UF/Exterior (último retrato oficial de cada um) + somas por região. */
+export async function blankNullByUf(sql: Sql, q: { year: number; round: number }): Promise<{ ufs: BlankNullRow[]; regions: BlankNullRow[] }> {
+  const rows = (await sql`select distinct on (s.territory_id) t.uf, t.name, s.turnout, s.turnout_status, s.blank_votes, s.blank_votes_status, s.null_votes, s.null_votes_status, s.counted_pct, s.counted_pct_status
+    from count_snapshot s join territory t on t.id = s.territory_id and t.level = 'uf'
+    where s.year = ${q.year} and s.round = ${q.round} and s.office_id = 1
+    order by s.territory_id, s.source_generated_at desc, s.id desc`) as Row[];
+  const ufs = rows.map((r) => ({ key: String(r.uf), name: String(r.name), turnout: num(r.turnout, r.turnout_status), blank: num(r.blank_votes, r.blank_votes_status), nul: num(r.null_votes, r.null_votes_status), countedPct: num(r.counted_pct, r.counted_pct_status) }));
+  const regions = REGIONS.map((g) => {
+    const m = ufs.filter((u) => (g.ufs as readonly string[]).includes(u.key));
+    // Soma só com dado de TODAS as UFs da região (ausência ≠ zero).
+    const sum = (k: "turnout" | "blank" | "nul") => (m.length === g.ufs.length && m.every((u) => u[k] !== null) ? m.reduce((a, u) => a + u[k]!, 0) : null);
+    return { key: g.slug, name: g.name, turnout: sum("turnout"), blank: sum("blank"), nul: sum("nul"), countedPct: null };
+  });
+  return { ufs, regions };
+}

@@ -104,6 +104,9 @@ export default async function Explorar({ searchParams }: { searchParams: Promise
               ))}
             </span>
           )}
+          {year === 2026 && !rounds.includes(2) && (
+            <span className="rounded-full border border-border bg-elevated px-2 py-0.5 text-fg-2">2º turno por escola: o TSE ainda não publicou a votação por seção — entra aqui assim que sair</span>
+          )}
         </p>
       </header>
 

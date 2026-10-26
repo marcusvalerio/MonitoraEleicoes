@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 import { CONTENT_TYPES, ELECTION_YEARS, PERIODS, PLATFORM_IDS, SENTIMENTS, UFS, toSearchParams, type FilterSpec } from "@/domain/filters";
 import { TOPIC_LABEL } from "@/domain/labels";
@@ -110,8 +110,22 @@ export function FilterBar({ filter, fields, municipalities }: { filter: FilterSp
 }
 
 function Multi({ label, values, options, onChange }: { label: string; values: string[]; options: { v: string; l: string }[]; onChange: (v: string[]) => void }): ReactNode {
+  const ref = useRef<HTMLDetailsElement>(null);
+  // Só um menu aberto por vez (name=…) e fecha ao clicar fora ou com Esc.
+  useEffect(() => {
+    const close = (e: Event) => {
+      const el = ref.current;
+      if (el?.open && (e.type === "keydown" ? (e as KeyboardEvent).key === "Escape" : !el.contains(e.target as Node))) el.open = false;
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, []);
   return (
-    <details className="relative" data-testid={`filter-${label}`}>
+    <details ref={ref} name="filtro-multi" className="relative" data-testid={`filter-${label}`}>
       <summary className={`${control} inline-flex cursor-pointer list-none items-center gap-1`}>
         {label}
         {values.length > 0 && <span className="rounded bg-elevated px-1 text-[11px] tnum text-fg">{values.length}</span>}
