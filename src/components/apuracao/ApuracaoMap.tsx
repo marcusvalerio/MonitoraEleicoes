@@ -36,7 +36,7 @@ const LEGEND = [
 export function ApuracaoMap({ boundaries, rows, entities }: { boundaries: GeoBoundarySet | null; rows: UfCount[]; entities: MapEntity[] }) {
   const router = useRouter();
   const params = useSearchParams();
-  const [layer, setLayer] = useState<"progresso" | "lider">("progresso");
+  const [layer, setLayer] = useState<"progresso" | "lider">("lider");
   const [hover, setHover] = useState<{ key: string; x: number; y: number } | null>(null);
   const byKey = new Map(rows.map((r) => [`UF:${r.uf}`, r]));
   const selected = params.get("uf") ? `UF:${params.get("uf")}` : null;

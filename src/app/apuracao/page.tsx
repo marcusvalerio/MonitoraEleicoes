@@ -148,6 +148,8 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
     : [];
   const roundHref = (r: number) => `?${new URLSearchParams({ ...(year !== 2026 ? { ano: String(year) } : {}), turno: String(r), ...(uf ? { uf } : {}) })}`;
   const cands = board(br, colorBySq);
+  // Estado escolhido no mapa: o placar principal passa a mostrar a votação oficial daquela UF.
+  const ufBoard = uf && ufPres?.candidates.length ? board(ufPres, colorBySq) : null;
   const entities = cands.map((c) => ({ id: c.sq, name: c.ballotName, color: c.color, partyAcronym: c.party ?? "" }));
   const sqByName = new Map(cands.map((c) => [c.ballotName, c.sq]));
   const mapRows: UfCount[] = ufs.map((u) => ({
@@ -217,9 +219,10 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
           <Apuracao3DPanel territories={territories} legend={entities.filter((e) => territories.some((t) => t.leader?.name === e.name)).map((e) => ({ name: e.name, color: e.color }))} fallback={<ApuracaoMap boundaries={boundaries} rows={mapRows} entities={entities} />} />
         </div>
         <div className="lg:col-span-8">
-          <h3 className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">PRESIDENTE · APURAÇÃO GERAL</h3>
+          <h3 className="mb-1 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] text-fg-2">PRESIDENTE · {ufBoard ? `VOTAÇÃO EM ${UF_NAME[uf!].toUpperCase()}` : "APURAÇÃO GERAL"}</h3>
+          {ufBoard && <Link href={roundHref(round).replace(/&?uf=[A-Z]{2}/, "")} scroll={false} className="mb-1 inline-block text-[11.5px] text-info hover:underline">← voltar para o Brasil</Link>}
           <p className="mb-2 text-[11.5px] text-fg-3">Ordem oficial por votos apurados (antes da totalização, pelo número de urna). Percentual sobre votos válidos.</p>
-          <PresidentialBoard year={year} officeLabel="Presidente" candidates={cands} started={started} final={final} />
+          <PresidentialBoard year={year} officeLabel="Presidente" candidates={ufBoard ?? cands} started={started} final={final} />
         </div>
         <aside className="lg:col-span-4">
           <FollowedPanel year={year} round={round} refreshKey={refreshKey} />
