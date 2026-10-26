@@ -19,6 +19,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ year: stri
   const r = await municipalLeaders(sql, { year, round });
   // Completa aos poucos a coleta oficial por município do turno (uma UF por visita, com concessão no banco).
   if (r.source === "apuracao" && r.missingUf) after(() => refreshUfMunicipalitiesIfStale(sql, year, round as 1 | 2, r.missingUf!));
-  const m = Object.fromEntries(r.rows.map((x) => [`${x.uf}|${normName(x.name)}`, [x.leader, x.leaderPct, x.second, x.secondPct, x.valid]]));
+  const m = Object.fromEntries(r.rows.map((x) => [`${x.uf}|${normName(x.name)}`, [x.leader, x.leaderPct, x.second, x.secondPct, x.valid, x.tse]]));
   return Response.json({ source: r.source, coverage: r.rows.length, m }, { headers: { "cache-control": r.source === "secao" ? "public, s-maxage=3600, stale-while-revalidate=86400" : "public, s-maxage=60, stale-while-revalidate=300" } });
 }

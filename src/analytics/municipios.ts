@@ -14,6 +14,7 @@ export interface MunLeader {
   second: number | null;
   secondPct: number | null;
   valid: number;
+  tse: number;
 }
 type Row = Record<string, unknown>;
 
@@ -29,7 +30,7 @@ export async function municipalLeaders(sql: Sql, q: { year: number; round: numbe
         from latest l join count_candidate cc on cc.snapshot_id = l.id
         where l.valid_votes_status = 'value' and cc.votes_status = 'value' and cc.ballot_number is not null
           and (cc.vote_destination is null or cc.vote_destination = 'Válido'))
-      select t.uf, t.name, r1.valid_votes as valid, r1.ballot_number as leader, r1.votes as lv, r2.ballot_number as second, r2.votes as sv
+      select t.uf, t.name, t.tse_code, r1.valid_votes as valid, r1.ballot_number as leader, r1.votes as lv, r2.ballot_number as second, r2.votes as sv
       from ranked r1 join territory t on t.id = r1.territory_id
       left join ranked r2 on r2.territory_id = r1.territory_id and r2.rk = 2
       where r1.rk = 1 and r1.votes > 0 and r1.valid_votes > 0`) as Row[];
@@ -48,7 +49,7 @@ export async function municipalLeaders(sql: Sql, q: { year: number; round: numbe
       where r.year = ${q.year} and r.round = ${q.round} and r.office_id = 1 and e.key in (select n from nums)
       group by 1, 2),
     ranked as (select m, n, v, sum(v) over (partition by m) as valid, row_number() over (partition by m order by v desc) as rk from tot)
-    select t.uf, t.name, r1.valid, r1.n as leader, r1.v as lv, r2.n as second, r2.v as sv
+    select t.uf, t.name, t.tse_code, r1.valid, r1.n as leader, r1.v as lv, r2.n as second, r2.v as sv
     from ranked r1 join territory t on t.level = 'municipio' and t.tse_code = r1.m
     left join ranked r2 on r2.m = r1.m and r2.rk = 2
     where r1.rk = 1 and r1.valid > 0`) as Row[];
@@ -57,5 +58,5 @@ export async function municipalLeaders(sql: Sql, q: { year: number; round: numbe
 
 function toLeader(r: Row, valid: number): MunLeader {
   const pct = (v: unknown) => Math.round((Number(v) / valid) * 10000) / 100;
-  return { uf: String(r.uf), name: String(r.name), leader: Number(r.leader), leaderPct: pct(r.lv), second: r.second === null ? null : Number(r.second), secondPct: r.sv === null ? null : pct(r.sv), valid };
+  return { uf: String(r.uf), name: String(r.name), leader: Number(r.leader), leaderPct: pct(r.lv), second: r.second === null ? null : Number(r.second), secondPct: r.sv === null ? null : pct(r.sv), valid, tse: Number(r.tse_code) };
 }

@@ -189,6 +189,28 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
           {s?.sourceUrl && <a className="hover:text-fg" href={s.sourceUrl} target="_blank" rel="noreferrer">fonte →</a>}
         </span>
       </div>
+      {(() => {
+        // Leitura rápida: só aritmética sobre números oficiais do arquivo nacional (sem inferência de causa).
+        const v = (m?: { value: number | null; status: string }) => (m?.status === "value" ? m.value : null);
+        const [a, b] = cands;
+        const el = v(s?.electorate), tu = v(s?.turnout), ab = v(s?.abstention), bl = v(s?.blankVotes), nu = v(s?.nullVotes);
+        const facts: [string, string][] = [];
+        if (a && b && a.votes !== null && b.votes !== null) facts.push([fmtInt(a.votes - b.votes), `votos de diferença entre ${a.ballotName} e ${b.ballotName}`]);
+        if (tu !== null && el) facts.push([`${((tu / el) * 100).toFixed(1).replace(".", ",")}%`, "do eleitorado compareceu"]);
+        if (ab !== null && el) facts.push([`${((ab / el) * 100).toFixed(1).replace(".", ",")}%`, "de abstenção"]);
+        if (bl !== null && nu !== null && tu) facts.push([`${(((bl + nu) / tu) * 100).toFixed(1).replace(".", ",")}%`, "votaram branco ou nulo"]);
+        if (!facts.length) return null;
+        return (
+          <section className="mb-16 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4" aria-label="Leitura rápida">
+            {facts.map(([n, l]) => (
+              <div key={l} className="border-l hairline pl-4">
+                <p className="font-[family-name:var(--font-num)] text-[30px] leading-none font-extrabold tracking-[-0.03em] text-fg tabular-nums md:text-[44px]">{n}</p>
+                <p className="mt-2 text-[12px] leading-snug text-fg-3">{l}</p>
+              </div>
+            ))}
+          </section>
+        );
+      })()}
       {s && <div className="mb-10"><CountPills countedPct={s.countedPct} sectionsCounted={s.sectionsCounted} sectionsTotal={s.sectionsTotal} turnout={s.turnout} abstention={s.abstention} electorate={s.electorate} /></div>}
       {cands.length >= 2 && timeline.length >= 2 && (
         <section className="mb-16 rounded-[20px] border hairline bg-surface/60 p-5 md:p-8" aria-labelledby="linha">
@@ -199,8 +221,8 @@ export default async function Apuracao({ searchParams }: { searchParams: Promise
       )}
       {cands.length > 0 && (
         <section className="mb-16" aria-labelledby="brasil-mun">
-          <p className="mb-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em] text-fg-3 uppercase">O mapa · cada pedaço é uma cidade · toque para abrir o estado</p>
-          <h2 id="brasil-mun" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">O Brasil, município por município</h2>
+                    <h2 id="brasil-mun" className="mb-1 font-[family-name:var(--font-display)] text-[26px] leading-[1.05] font-bold tracking-[-0.02em] text-fg md:text-[40px]">Onde cada um venceu</h2>
+          <p className="mb-6 text-[13px] text-fg-3">Toque numa cidade.</p>
           <BrazilMunicipalMap year={year} round={round} focus={cands[0]?.number ?? null} cands={cands.filter((c) => c.number !== null).map((c) => ({ number: c.number!, name: c.ballotName, color: c.color }))} />
         </section>
       )}
