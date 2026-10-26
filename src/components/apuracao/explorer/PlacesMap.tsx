@@ -35,6 +35,21 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
       live = false;
     };
   }, [oKey]);
+  // Bairros oficiais (IBGE · Censo 2022): cor = quem venceu somando as escolas dentro de cada bairro.
+  const [bairros, setBairros] = useState<{ for: string; b: { cd: string; name: string; rings: number[][][] }[] } | null>(null);
+  useEffect(() => {
+    if (!oKey) return;
+    let live = true;
+    fetch(`/api/bairros/${oKey.split("/").map(encodeURIComponent).join("/")}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => live && j?.bairros && setBairros({ for: oKey, b: j.bairros }))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [oKey]);
+  const hood = bairros && bairros.for === oKey && bairros.b.length ? bairros.b : null;
+  const [hoodHover, setHoodHover] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const numbers = useMemo(() => new Set(cands.map((c) => c.number)), [cands]);
   const W = 1000;
@@ -45,6 +60,16 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
     // recorte robusto (1%–99%): uma coordenada fora do lugar não achata o mapa
     const q = (a: number[], f: number) => a[Math.min(a.length - 1, Math.max(0, Math.round(f * (a.length - 1))))];
     let [la0, la1, lo0, lo1] = [q(lats, 0.01), q(lats, 0.99), q(lons, 0.01), q(lons, 0.99)];
+    // Com bairros: enquadra os bairros que têm escola (a área urbana), não o município rural inteiro.
+    for (const b of hood ?? []) {
+      if (!places.some((p) => inside(p.lon, p.lat, b.rings))) continue;
+      for (const [lon, lat] of b.rings.flat()) {
+        if (lat < la0) la0 = lat;
+        if (lat > la1) la1 = lat;
+        if (lon < lo0) lo0 = lon;
+        if (lon > lo1) lo1 = lon;
+      }
+    }
     // Enquadra as escolas com folga de 20% (o contorno do município aparece em volta) e janela mínima de ~3 km.
     const padLa = Math.max(0.015, (la1 - la0) * 0.2), padLo = Math.max(0.015, (lo1 - lo0) * 0.2);
     [la0, la1, lo0, lo1] = [la0 - padLa, la1 + padLa, lo0 - padLo, lo1 + padLo];
@@ -57,16 +82,32 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
     const ox = (W - spanX * s) / 2;
     const oy = (H - spanY * s) / 2;
     return { H, x: (lon: number) => ox + (lon - lo0) * k * s, y: (lat: number) => H - (oy + (lat - la0) * s) };
-  }, [places]);
+  }, [places, hood]);
   const pts = useMemo(() => {
     if (!view) return [];
     const max = Math.max(1, ...places.map((p) => Object.entries(p.votes).reduce((a, [k, v]) => (numbers.has(k) ? a + v : a), 0)));
     return places.map((p) => {
       const valid = Object.entries(p.votes).reduce((a, [k, v]) => (numbers.has(k) ? a + v : a), 0);
       const lead = cands.map((c) => ({ c, v: p.votes[c.number] ?? 0 })).sort((a, b) => b.v - a.v)[0];
-      return { ...p, x: view.x(p.lon), y: view.y(p.lat), r: 3 + Math.sqrt(valid / max) * 14, valid, lead: lead && lead.v > 0 ? lead : null };
+      return { ...p, x: view.x(p.lon), y: view.y(p.lat), r: (hood ? 2.5 : 3) + Math.sqrt(valid / max) * (hood ? 7 : 14), valid, lead: lead && lead.v > 0 ? lead : null };
     });
-  }, [places, view, cands, numbers]);
+  }, [places, view, cands, numbers, hood]);
+  const hoodRes = useMemo(() => {
+    if (!hood || !view) return [];
+    return hood.map((b) => {
+      const tot: Record<string, number> = {};
+      let schools = 0;
+      for (const p of places) {
+        if (!inside(p.lon, p.lat, b.rings)) continue;
+        schools++;
+        for (const c of cands) tot[c.number] = (tot[c.number] ?? 0) + (p.votes[c.number] ?? 0);
+      }
+      const ranked = cands.map((c) => ({ c, v: tot[c.number] ?? 0 })).sort((a, b2) => b2.v - a.v);
+      const valid = ranked.reduce((a, r) => a + r.v, 0);
+      const d = b.rings.map((r) => `M${r.map(([lon, lat]) => `${view.x(lon).toFixed(1)},${view.y(lat).toFixed(1)}`).join("L")}Z`).join("");
+      return { ...b, d, schools, valid, top: valid ? ranked.slice(0, 2) : [] };
+    });
+  }, [hood, view, places, cands]);
   // Câmera do mapa (viewBox animado): zoom in na escola escolhida, zoom out ao voltar; botões, roda, pinça e arraste.
   const full = useMemo(() => ({ x: 0, y: 0, w: W, h: view?.H ?? W }), [view]);
   const sel = pts.find((p) => p.key === selected);
@@ -153,6 +194,23 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
             style={{ filter: "drop-shadow(0 8px 18px rgba(60,50,30,.22))" }}
           />
         )}
+        {hoodRes.map((b) => {
+          const lead = b.top[0];
+          const margin = lead && b.valid ? (lead.v - (b.top[1]?.v ?? 0)) / b.valid : 0;
+          return (
+            <path
+              key={b.cd}
+              d={b.d}
+              fill={lead ? lead.c.color : "#1a2030"}
+              fillOpacity={lead ? 0.35 + Math.min(1, margin * 2.5) * 0.55 : 1}
+              stroke={hoodHover === b.cd ? "#f3f4f6" : "#07080b"}
+              strokeWidth={((hoodHover === b.cd ? 2 : 0.8) * vb.w) / full.w}
+              onPointerEnter={() => setHoodHover(b.cd)}
+              onClick={() => setHoodHover(b.cd)}
+              style={{ transition: "fill-opacity 400ms" }}
+            />
+          );
+        })}
         {pts
           .sort((a, b) => b.r - a.r)
           .map((p, i) => (
@@ -174,6 +232,27 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
             />
           ))}
       </motion.svg>
+      {hoodHover && (() => {
+        const b = hoodRes.find((x) => x.cd === hoodHover);
+        if (!b) return null;
+        return (
+          <div className="glass pointer-events-none absolute top-3 left-3 z-10 w-60 rounded-[14px] border hairline p-3 text-[12px]" data-testid="bairro-card">
+            <p className="font-[family-name:var(--font-display)] text-[15px] font-bold text-fg">{b.name}</p>
+            {b.top.length ? (
+              b.top.map((t) => (
+                <p key={t.c.number} className="mt-1 flex items-center gap-1.5">
+                  <span className="size-2 rounded-full" style={{ background: t.c.color }} />
+                  <span className="truncate text-fg-2">{t.c.name}</span>
+                  <b className="ml-auto tabular-nums text-fg">{((t.v / b.valid) * 100).toFixed(1).replace(".", ",")}%</b>
+                </p>
+              ))
+            ) : (
+              <p className="mt-1 text-fg-3">Sem escola com votação neste bairro.</p>
+            )}
+            {b.schools > 0 && <p className="mt-1 text-[10.5px] text-fg-3">{b.schools} {b.schools === 1 ? "escola" : "escolas"} · {fmtInt(b.valid)} válidos</p>}
+          </div>
+        );
+      })()}
       <div className="absolute top-3 right-3 flex flex-col overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface/95 shadow-lg backdrop-blur">
         <button type="button" aria-label="Aproximar" onClick={() => zoom(0.6)} className="size-9 text-[18px] text-fg hover:bg-elevated">+</button>
         <button type="button" aria-label="Afastar" onClick={() => zoom(1.6)} className="size-9 border-t border-border text-[18px] text-fg hover:bg-elevated">−</button>
@@ -202,4 +281,15 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
       </figcaption>
     </figure>
   );
+}
+
+/** Ponto dentro de polígono (regra par-ímpar sobre todos os anéis: buracos ficam de fora). */
+function inside(x: number, y: number, rings: number[][][]) {
+  let c = false;
+  for (const r of rings)
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, yi] = r[i], [xj, yj] = r[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+    }
+  return c;
 }

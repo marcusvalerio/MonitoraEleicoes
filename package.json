@@ -43,6 +43,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",
+    "shapefile": "^0.6.6",
     "three": "^0.186.1",
     "ws": "^8.22.0"
   },
@@ -52,6 +53,7 @@
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/shapefile": "^0.6.4",
     "@types/three": "^0.186.0",
     "@types/ws": "^8.18.2",
     "eslint": "^9.39.5",
