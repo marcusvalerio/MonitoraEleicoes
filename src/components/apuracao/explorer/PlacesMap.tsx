@@ -45,17 +45,9 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
     // recorte robusto (1%–99%): uma coordenada fora do lugar não achata o mapa
     const q = (a: number[], f: number) => a[Math.min(a.length - 1, Math.max(0, Math.round(f * (a.length - 1))))];
     let [la0, la1, lo0, lo1] = [q(lats, 0.01), q(lats, 0.99), q(lons, 0.01), q(lons, 0.99)];
-    // Com o contorno oficial do município, o enquadramento é o município inteiro (uma escola só não vira "zoom infinito").
-    const ring = rings && rings.for === oKey ? rings.r.flat() : [];
-    for (const [lon, lat] of ring) {
-      if (lat < la0) la0 = lat;
-      if (lat > la1) la1 = lat;
-      if (lon < lo0) lo0 = lon;
-      if (lon > lo1) lo1 = lon;
-    }
-    // Sem contorno, garante uma janela mínima (~1 km) em volta dos pontos.
-    if (la1 - la0 < 0.01) [la0, la1] = [la0 - 0.005, la1 + 0.005];
-    if (lo1 - lo0 < 0.01) [lo0, lo1] = [lo0 - 0.005, lo1 + 0.005];
+    // Enquadra as escolas com folga de 20% (o contorno do município aparece em volta) e janela mínima de ~3 km.
+    const padLa = Math.max(0.015, (la1 - la0) * 0.2), padLo = Math.max(0.015, (lo1 - lo0) * 0.2);
+    [la0, la1, lo0, lo1] = [la0 - padLa, la1 + padLa, lo0 - padLo, lo1 + padLo];
     const k = Math.cos((((la0 + la1) / 2) * Math.PI) / 180);
     const spanX = Math.max(1e-4, (lo1 - lo0) * k);
     const spanY = Math.max(1e-4, la1 - la0);
@@ -65,7 +57,7 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
     const ox = (W - spanX * s) / 2;
     const oy = (H - spanY * s) / 2;
     return { H, x: (lon: number) => ox + (lon - lo0) * k * s, y: (lat: number) => H - (oy + (lat - la0) * s) };
-  }, [places, rings, oKey]);
+  }, [places]);
   const pts = useMemo(() => {
     if (!view) return [];
     const max = Math.max(1, ...places.map((p) => Object.entries(p.votes).reduce((a, [k, v]) => (numbers.has(k) ? a + v : a), 0)));
@@ -80,7 +72,7 @@ export function PlacesMap({ places, cands, selected, outline }: { places: MapPla
   const sel = pts.find((p) => p.key === selected);
   type VB = typeof full;
   // Enquadramento automático (escola escolhida ⇒ zoom in; nenhuma ⇒ tudo); ajustes manuais valem até a seleção mudar.
-  const auto: VB = sel ? { x: sel.x - W / 12, y: sel.y - (W / 12) * (full.h / W), w: W / 6, h: (W / 6) * (full.h / W) } : full;
+  const auto: VB = sel ? { x: sel.x - W / 5, y: sel.y - (W / 5) * (full.h / W), w: (W * 2) / 5, h: ((W * 2) / 5) * (full.h / W) } : full;
   const [manual, setManual] = useState<{ for: string; vb: VB } | null>(null);
   const vb = manual && manual.for === (sel?.key ?? "") ? manual.vb : auto;
   const setVb = (f: VB | ((v: VB) => VB)) => setManual({ for: sel?.key ?? "", vb: typeof f === "function" ? f(vb) : f });
